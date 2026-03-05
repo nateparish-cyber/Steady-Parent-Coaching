@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Steady Parent Coach</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <style>*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}textarea::placeholder,input::placeholder{color:#c4a090}@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const NATE_PASSWORD = "nate2025";
+const NATE_USERNAME = "nate";
+
+const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching assistant built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
+
+You are not a therapist. You do not create treatment plans, provide crisis support, or speak as Nate. If questions about long-term strategy, pacing, or treatment decisions come up, warmly redirect the parent to bring those to their next session — while still helping with what's right in front of them.
+
+You speak only to parents or caregivers. If a child or teen ever addresses you directly, respond: "This tool is designed for parents. Please have your caregiver use it."
+
+---
+
+CLINICAL STANCE
+
+Avoidance feeds anxiety. When we accommodate — removing the discomfort, answering the same question again, staying until they fall asleep — we're actually denying our kids the opportunity to develop the internal skills and strength that help them not just tolerate discomfort, but truly learn from it and grow through it. Warmth is always present. But warmth is not accommodation. Parent steadiness is the foundation. Exposure builds real courage.
+
+---
+
+TONE
+
+You sound like a warm, curious clinician who genuinely gets how hard this is. You're not a textbook. You're not a checklist. You sit with parents before you move them. You validate before you redirect. You're direct when it matters, but you never lecture — you think out loud alongside them.
+
+Write in flowing, connected prose. Not clipped bullet points. Not staccato sentences. Let thoughts breathe and connect naturally, the way a good conversation does. Contractions are fine. Plain language always. No jargon unless the parent uses it first.
+
+Do not open with generic reassurance. Start by meeting them where they are — name what's happening, reflect it back with warmth, and let them feel genuinely understood before moving toward what to do about it.
+
+Avoid overusing the word "anxiety." If the parent doesn't use it, vary your language naturally — worry, fear, overwhelm, distress, nervous system activation, big feelings, stress, panic. Match their words when you can.
+
+---
+
+RESPONSE STRUCTURE
+
+Every response moves through these layers, written as connected prose — not a numbered list, not separate sections:
+
+1. VALIDATION — Reflect back what they're carrying with genuine warmth. Name the difficulty specifically. Something like: "Of course this is really tough — school avoidance is one of the most challenging things parents face, and seeing your kid in that much distress goes against every natural instinct you have as a parent."
+
+2. REFRAME — Help them understand what's underneath the behavior and why accommodation, while completely understandable, is working against what they actually want for their child. Use Nate's framing: we're not withholding comfort to be tough — we're creating the space for real growth. "When we keep stepping in, we're actually taking away the chance for them to find those internal resources — the ones that help them not just get through hard moments, but actually learn from them."
+
+3. DIRECTION — Clear, grounded guidance on what to hold or let go of. One or two sentences. Firm but not cold.
+
+4. SCRIPT — Always present this as a clearly labeled section with the header **Script** bolded and on its own line. Offer one or two short scripts the parent can actually say. These should sound like something a warm, regulated adult would genuinely say — not a rehearsed line. Lead with presence over words. For example: "You look really overwhelmed right now, and that makes complete sense. I'm right here with you, and I'm not going anywhere until we get through this together." Scripts should be specific, human, exposure-oriented, and non-negotiating. They may name the child's emotional experience and affirm the parent's steadiness. Two sentences max per script.
+
+5. NORMALIZE — One sentence acknowledging that escalation, pushback, or distress getting worse before it gets better is completely expected and is not a sign they're doing it wrong.
+
+6. CLOSING — End with either:
+   - A single warm, curious question that opens the next part of the conversation, OR
+   - When the parent seems to have a handle on the immediate challenge, offer a genuine fork: "Are you finding yourself wanting to understand more about what's driving this for your child, or would it feel more useful to keep working on the practical steps?"
+
+---
+
+SPECIAL CASES
+
+If parental guilt or regret is present, lead with one consolidated validating sentence that holds their intention, their stumble, and their growth together — before moving into the pattern and direction. Keep it to one sentence. Don't stack validations.
+
+When a parent vents, spirals, or uses harsh language about their child or themselves, calmly name the escalation without shaming, model regulated language, and move toward steadiness. Don't mirror the heat. Don't scold. Treat it as part of the pattern and coach through it.
+
+If suicidal ideation, self-harm, child abuse, sexual abuse, physical abuse, neglect, domestic violence, credible threats of harm, or any mandated reporting situation arises, stop immediately and respond only with:
+
+"This involves safety and mandatory reporting concerns. I can't continue this conversation here. Please contact emergency services or the appropriate crisis resource in your area right now. Please bring this directly to your next session with Nate."
+
+No scripts. No follow-up question. Nothing else.
+
+Do not diagnose, recommend medication, offer legal advice, suggest custody strategies, process trauma, or create individualized treatment plans.
+
+Every response — in tone, structure, and direction — moves toward less accommodation, more parental steadiness, more exposure, clearer limits, and greater consistency.`;
+
+const SCENARIOS = [
+  { label: "🌙 Bedtime battles", prompt: "My child is refusing to go to bed and keeps coming out of their room. What should I do?" },
+  { label: "🏫 School avoidance", prompt: "My child says they're sick every morning before school and doesn't want to go. What do I do?" },
+  { label: "😤 Meltdown happening", prompt: "My child is melting down right now and screaming. How do I handle this?" },
+  { label: "🔁 Constant reassurance", prompt: "My child keeps asking 'what if something bad happens?' over and over. I don't know what to say anymore." },
+  { label: "😔 I gave in again", prompt: "I feel so guilty — I gave in again last night and let them sleep in our bed. I know I shouldn't have." },
+  { label: "🌅 Morning chaos", prompt: "Every morning is a war. My child refuses to get ready and we're always late. I'm exhausted." },
+];
+
+function hashPassword(pw) {
+  let hash = 0;
+  for (let i = 0; i < pw.length; i++) { hash = ((hash << 5) - hash) + pw.charCodeAt(i); hash |= 0; }
+  return "h" + Math.abs(hash).toString(36);
+}
+
+function formatMessage(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} style={{ color: "#7c4a3a", display: "block", marginTop: "12px", marginBottom: "4px", fontSize: "15px" }}>{part.slice(2, -2)}</strong>;
+    }
+    return part.split("\n").map((line, j) => (
+      <span key={`${i}-${j}`}>{line}{j < part.split("\n").length - 1 && <br />}</span>
+    ));
+  });
+}
+
+function Btn({ onClick, children, style = {}, disabled = false }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      padding: "10px 18px", borderRadius: "12px", border: "none", cursor: disabled ? "default" : "pointer",
+      fontFamily: "inherit", fontSize: "14px", fontWeight: "600", transition: "all 0.2s", ...style
+    }}>{children}</button>
+  );
+}
+
+function Input({ type = "text", placeholder, value, onChange, onKeyDown, autoFocus, style = {} }) {
+  return (
+    <input type={type} placeholder={placeholder} value={value} onChange={onChange} onKeyDown={onKeyDown} autoFocus={autoFocus}
+      style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", outline: "none", boxSizing: "border-box", background: "#fff", marginBottom: "12px", ...style }} />
+  );
+}
+
+// ── EmailJS ────────────────────────────────────────────────────────────────────
+const EMAILJS_SERVICE  = "service_kl851h9";
+const EMAILJS_TEMPLATE = "template_lvl0kok";
+const EMAILJS_KEY      = "_RTlHjO9FDJ54DQWb";
+const NATE_EMAIL       = "nate.parish@gmail.com";
+
+async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
+  try {
+    await emailjs.send(
+      EMAILJS_SERVICE,
+      EMAILJS_TEMPLATE,
+      {
+        to_email:    toEmail || NATE_EMAIL,
+        subject,
+        client_name: clientName,
+        message:     bodyText,
+      },
+      EMAILJS_KEY
+    );
+  } catch (e) {
+    console.error("📧 EmailJS exception:", e);
+  }
+}
+
+async function getUsers() { try { const v = localStorage.getItem("spc-users"); return v ? JSON.parse(v) : {}; } catch { return {}; } }
+async function saveUsers(u) { localStorage.setItem("spc-users", JSON.stringify(u)); }
+async function getMessages(uid) { try { const v = localStorage.getItem(`spc-chat-${uid}`); return v ? JSON.parse(v) : []; } catch { return []; } }
+async function saveMessages(uid, msgs) { localStorage.setItem(`spc-chat-${uid}`, JSON.stringify(msgs)); }
+async function getKB() { try { return localStorage.getItem("spc-kb") || ""; } catch { return ""; } }
+async function saveKB(kb) { localStorage.setItem("spc-kb", kb); }
+async function getProfile(uid) { try { const v = localStorage.getItem(`spc-profile-${uid}`); return v ? JSON.parse(v) : {}; } catch { return {}; } }
+async function saveProfile(uid, p) { localStorage.setItem(`spc-profile-${uid}`, JSON.stringify(p)); }
+
+// ── Consent Screen ─────────────────────────────────────────────────────────────
+const CONSENT_SECTIONS = [
+  { title: "1. What This Tool Is", body: "Steady Parent Coach is an AI-powered between-session coaching tool offered by Nate Parish as a supplemental resource for parents and caregivers currently enrolled in his practice. It is designed to help you apply parenting strategies you are already learning in session — particularly around anxiety accommodation reduction, parental steadiness, and exposure-based approaches.\n\nThis tool is a coaching resource. It is not therapy, counseling, or clinical treatment." },
+  { title: "2. What This Tool Is Not", body: "By using Steady Parent Coach, you acknowledge and agree that this tool:\n\n• Is not a substitute for therapy, clinical treatment, or professional mental health care\n• Does not create or constitute a therapeutic relationship between you and Nate Parish\n• Does not provide crisis support, emergency services, or safety assessment\n• Does not generate individualized treatment plans\n• Will not diagnose any condition or recommend medication\n• Is not HIPAA-compliant — see Section 5 for full details\n\nIf you are experiencing a mental health emergency, please call 988 (Suicide & Crisis Lifeline) or 911, or go to your nearest emergency room immediately." },
+  { title: "3. Who May Use This Tool", body: "Steady Parent Coach is intended exclusively for parents and caregivers who are currently active clients of Nate Parish's practice. Use of this tool by individuals who are not current clients is not authorized.\n\nThis tool is designed for adults (18 and older). It is not intended for use by minors." },
+  { title: "4. You Are Talking to an AI", body: "Steady Parent Coach is powered by an artificial intelligence language model. You are not communicating with Nate Parish or any human when you use this tool. The AI does not have access to your therapy records, your treatment plan, or any clinical information about you unless you share it directly in the conversation.\n\nThe AI is designed to reflect Nate's coaching model and clinical approach, but its responses are generated automatically and have not been reviewed by Nate in real time. Use your own judgment, and bring any concerns to your next session." },
+  { title: "5. Privacy & Data", body: "Steady Parent Coach stores your conversations and profile information privately, associated with your account. Nate Parish does not have access to your conversations or profile — he can only see your account name, username, and consent status for administrative purposes.\n\nYou may choose to share a transcript of your conversations with Nate at any time using the 'Send to Nate' button in the app. This is entirely optional and client-initiated. If you share a transcript, Nate will be able to read its contents.\n\nThis tool is not HIPAA-compliant. Your data is stored in a cloud database and is not encrypted at the level required by HIPAA. We encourage you to treat this as a coaching space and reserve sensitive clinical disclosures for your direct therapy sessions with Nate." },
+  { title: "6. Data Retention", body: "Your conversation history and profile will be retained for as long as you are an active client of Nate Parish's practice. When your clinical relationship with Nate ends, your account and all associated data will be deleted. You may also request deletion of your data at any time by contacting Nate directly." },
+  { title: "7. Therapist Access", body: "Nate Parish does not monitor or have access to your conversations or personal profile through this tool. His administrative access is limited to account management — creating, resetting, and deleting accounts.\n\nIf you choose to send Nate a conversation transcript using the 'Send to Nate' feature, he will receive and may read that transcript. Outside of what you deliberately share, your conversations remain private to you." },
+  { title: "8. Mandatory Reporting", body: "Nate Parish is a licensed mental health professional and a mandatory reporter. Although he does not monitor your conversations through this tool, if you choose to share a transcript with him and that transcript contains information indicating imminent risk of harm to a child or vulnerable adult, he is legally required to report that information to the appropriate authorities.\n\nIf you are experiencing a situation involving safety concerns, please bring those directly to your therapy session with Nate rather than through this coaching tool." },
+  { title: "9. Limitations & No Warranty", body: "Steady Parent Coach is provided as-is, as a supplemental resource only. Nate Parish and his practice make no warranties regarding the accuracy, completeness, or suitability of the AI's responses for any particular situation. You agree that neither Nate Parish nor his practice will be liable for any outcomes or actions taken based on this tool's responses." },
+  { title: "10. Changes to These Terms", body: "These terms may be updated periodically. Continued use of the tool following any updates constitutes your acceptance of the revised terms." },
+];
+
+function ConsentScreen({ user, onConsented }) {
+  const [scrolledToBottom, setScrolledToBottom] = useState(false);
+  const [typedName, setTypedName] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [emailStatus, setEmailStatus] = useState(""); // "sending" | "sent" | "failed"
+  const scrollRef = useRef(null);
+  const signedAt = new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" });
+
+  function handleScroll(e) {
+    const el = e.target;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) setScrolledToBottom(true);
+  }
+
+  function buildConsentText() {
+    const sections = CONSENT_SECTIONS.map(s => `${s.title}\n\n${s.body}`).join("\n\n---\n\n");
+    return `STEADY PARENT COACH — SIGNED CONSENT\n\nClient Name: ${user.name}\nUsername: ${user.username}\nSigned: ${signedAt}\nTyped Signature: ${typedName}\n\n${"=".repeat(60)}\n\nINFORMED CONSENT, DISCLAIMER & TERMS OF USE\nNate Parish, Licensed Therapist\n\n${sections}\n\n${"=".repeat(60)}\n\nACKNOWLEDGMENT\n\nThe client confirmed they read and understood this document and agreed to all terms — including that this tool is not therapy, is not HIPAA-compliant, and that Nate does not monitor their conversations unless they choose to share them.\n\nSigned by: ${typedName}\nDate/Time: ${signedAt}\nAccount: ${user.username}`;
+  }
+
+  async function handleSubmit() {
+    setError("");
+    if (!typedName.trim()) { setError("Please type your full name to sign."); return; }
+    if (typedName.trim().toLowerCase() !== user.name.toLowerCase()) {
+      setError(`Please type your full name exactly as registered: "${user.name}"`); return;
+    }
+    if (!agreed) { setError("Please check the acknowledgment box."); return; }
+    setSubmitting(true);
+
+    // Save consent record
+    try {
+      const users = await getUsers();
+      if (users[user.username]) {
+        users[user.username].consentSigned = true;
+        users[user.username].consentSignedAt = new Date().toISOString();
+        users[user.username].consentTypedName = typedName.trim();
+        await saveUsers(users);
+      }
+    } catch {}
+
+    // Auto-send signed consent to Nate via EmailJS
+    setEmailStatus("sending");
+    try {
+      await sendEmail(
+        `Signed Consent Form — ${user.name}`,
+        buildConsentText(),
+        user.name
+      );
+      setEmailStatus("sent");
+    } catch {
+      setEmailStatus("failed");
+    }
+
+    setTimeout(() => onConsented(), 1200);
+  }
+
+  const nameMatches = typedName.trim().toLowerCase() === user.name.toLowerCase();
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "Georgia,serif", padding: "24px 16px" }}>
+      <div style={{ maxWidth: 680, width: "100%", display: "flex", flexDirection: "column", gap: "16px" }}>
+
+        {/* Header */}
+        <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", margin: "0 auto 12px" }}>🌿</div>
+          <h1 style={{ color: "#4a2820", fontSize: "20px", margin: "0 0 6px", fontWeight: "700" }}>Before You Get Started</h1>
+          <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.6 }}>
+            Hi {user.name.split(" ")[0]} — please read and sign this consent form before accessing the coaching tool.
+          </p>
+        </div>
+
+        {/* Scrollable document */}
+        <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: "20px", border: "1.5px solid rgba(200,120,90,0.18)", boxShadow: "0 4px 24px rgba(150,80,60,0.1)", overflow: "hidden" }}>
+          <div style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", padding: "14px 22px" }}>
+            <div style={{ color: "#fff", fontSize: "15px", fontWeight: "700" }}>Informed Consent, Disclaimer & Terms of Use</div>
+            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px", marginTop: "2px" }}>Nate Parish, Licensed Therapist · Steady Parent Coach</div>
+          </div>
+
+          {!scrolledToBottom && (
+            <div style={{ background: "rgba(232,147,122,0.1)", borderBottom: "1px solid rgba(200,120,90,0.15)", padding: "9px 22px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "14px" }}>👇</span>
+              <span style={{ fontSize: "12px", color: "#9a7060" }}>Please scroll to the bottom and read the full document before signing.</span>
+            </div>
+          )}
+          {scrolledToBottom && (
+            <div style={{ background: "rgba(100,180,120,0.1)", borderBottom: "1px solid rgba(80,160,100,0.2)", padding: "9px 22px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "14px" }}>✅</span>
+              <span style={{ fontSize: "12px", color: "#3a7a50" }}>You've read the full document. Please sign below.</span>
+            </div>
+          )}
+
+          <div ref={scrollRef} onScroll={handleScroll} style={{ maxHeight: "340px", overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "18px" }}>
+            {CONSENT_SECTIONS.map((s, i) => (
+              <div key={i}>
+                <div style={{ fontSize: "14px", fontWeight: "700", color: "#4a2820", marginBottom: "6px", paddingBottom: "4px", borderBottom: "1px solid rgba(200,120,90,0.15)" }}>{s.title}</div>
+                {s.body.split("\n").map((line, j) => (
+                  <p key={j} style={{ fontSize: "13px", color: line.startsWith("•") ? "#5a3020" : "#555", margin: "4px 0", lineHeight: 1.65, paddingLeft: line.startsWith("•") ? "8px" : "0" }}>{line}</p>
+                ))}
+              </div>
+            ))}
+            {/* Sentinel to ensure scrolled to bottom */}
+            <div style={{ height: "1px" }} onMouseEnter={() => setScrolledToBottom(true)} />
+          </div>
+        </div>
+
+        {/* Signature block */}
+        <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: "20px", border: "1.5px solid rgba(200,120,90,0.18)", padding: "24px", boxShadow: "0 4px 24px rgba(150,80,60,0.08)" }}>
+          <div style={{ fontSize: "15px", fontWeight: "700", color: "#4a2820", marginBottom: "14px" }}>✍️ Sign to Acknowledge</div>
+
+          <p style={{ fontSize: "13px", color: "#6a5040", margin: "0 0 16px", lineHeight: 1.65 }}>
+            By typing your full name below, you confirm that you have read and understood this document and agree to all terms — including that this tool is not therapy, is not HIPAA-compliant, and that your conversations are visible to Nate Parish.
+          </p>
+
+          <label style={{ fontSize: "13px", color: "#7c4a3a", fontWeight: "600", display: "block", marginBottom: "6px" }}>
+            Type your full name to sign <span style={{ color: "#c9697a" }}>*</span>
+          </label>
+          <input
+            value={typedName}
+            onChange={e => setTypedName(e.target.value)}
+            placeholder={user.name}
+            style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: `1.5px solid ${nameMatches && typedName ? "rgba(80,160,100,0.5)" : "rgba(200,120,90,0.25)"}`, fontSize: "16px", fontFamily: "Georgia, serif", fontStyle: "italic", color: "#4a2820", outline: "none", boxSizing: "border-box", background: "#fdfaf8", marginBottom: "6px", transition: "border-color 0.2s" }}
+          />
+          {typedName && !nameMatches && (
+            <p style={{ fontSize: "12px", color: "#c9697a", margin: "0 0 12px" }}>Please type your name exactly: "{user.name}"</p>
+          )}
+          {typedName && nameMatches && (
+            <p style={{ fontSize: "12px", color: "#3a9a60", margin: "0 0 12px" }}>✓ Signature accepted</p>
+          )}
+
+          <div style={{ fontSize: "12px", color: "#9a8070", marginBottom: "16px", padding: "8px 12px", background: "rgba(200,150,120,0.07)", borderRadius: "8px" }}>
+            Date &amp; Time: {signedAt}
+          </div>
+
+          {/* Checkbox */}
+          <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer", marginBottom: "16px" }}>
+            <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: "2px", width: "16px", height: "16px", accentColor: "#c9697a", flexShrink: 0 }} />
+            <span style={{ fontSize: "13px", color: "#5a4030", lineHeight: 1.6 }}>
+              I confirm I am an adult (18+), a current client of Nate Parish's practice, and I have read and agree to all terms above — including that this tool is not therapy, is not HIPAA-compliant, and that Nate does not monitor my conversations unless I choose to share them with him.
+            </span>
+          </label>
+
+          {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "14px" }}>{error}</div>}
+
+          {emailStatus === "sending" && <div style={{ background: "rgba(100,160,220,0.1)", border: "1px solid rgba(80,140,200,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#3060a0", fontSize: "13px", marginBottom: "14px" }}>📤 Sending signed copy to Nate…</div>}
+          {emailStatus === "sent" && <div style={{ background: "rgba(80,180,100,0.1)", border: "1px solid rgba(60,160,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#2a7a40", fontSize: "13px", marginBottom: "14px" }}>✅ Signed copy sent to Nate automatically.</div>}
+          {emailStatus === "failed" && <div style={{ background: "rgba(220,150,80,0.1)", border: "1px solid rgba(200,130,60,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#805020", fontSize: "13px", marginBottom: "14px" }}>⚠️ Couldn't send automatically — please forward your copy to Nate at your next session.</div>}
+
+          <Btn
+            onClick={handleSubmit}
+            disabled={submitting || !scrolledToBottom || !nameMatches || !agreed || !typedName}
+            style={{
+              width: "100%", padding: "14px",
+              background: (scrolledToBottom && nameMatches && agreed && typedName && !submitting)
+                ? "linear-gradient(135deg,#e8937a,#c9697a)"
+                : "rgba(200,120,90,0.2)",
+              color: (scrolledToBottom && nameMatches && agreed && typedName && !submitting) ? "#fff" : "#9a7060",
+              fontSize: "15px", fontWeight: "700",
+              boxShadow: (scrolledToBottom && nameMatches && agreed && typedName) ? "0 4px 16px rgba(200,100,100,0.3)" : "none",
+              borderRadius: "14px",
+            }}
+          >
+            {submitting ? "Signing & sending to Nate…" : "Sign & Continue"}
+          </Btn>
+
+          {(!scrolledToBottom || !nameMatches || !agreed) && (
+            <p style={{ fontSize: "11px", color: "#b89080", textAlign: "center", marginTop: "10px" }}>
+              {!scrolledToBottom ? "Scroll through the full document first" : !typedName || !nameMatches ? "Type your full name to enable signing" : "Check the acknowledgment box to continue"}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Auth Screen ────────────────────────────────────────────────────────────────
+function AuthScreen({ onLogin, onNeedsConsent }) {
+  const [mode, setMode] = useState("login"); // "login" | "register" | "recover"
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [recoverSent, setRecoverSent] = useState(false);
+
+  function resetFields() { setName(""); setEmail(""); setUsername(""); setPassword(""); setConfirmPw(""); setError(""); setRecoverSent(false); }
+
+  async function submit() {
+    setError(""); setBusy(true);
+
+    if (mode === "recover") {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail) { setError("Please enter your email address."); setBusy(false); return; }
+      const users = await getUsers();
+      const match = Object.values(users).find(u => u.email?.toLowerCase() === normalizedEmail);
+      if (!match) { setError("No account found with that email address."); setBusy(false); return; }
+      // Generate a temp password
+      const tempPw = "temp-" + Math.random().toString(36).slice(2, 8);
+      const updated = { ...users };
+      updated[match.username].passwordHash = hashPassword(tempPw);
+      await saveUsers(updated);
+      await sendEmail(
+        "Steady Parent Coach — Account Recovery",
+        `Hi ${match.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${match.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and consider using a memorable password going forward.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
+        match.name,
+        normalizedEmail
+      );
+      setRecoverSent(true);
+      setBusy(false);
+      return;
+    }
+
+    if (mode === "login") {
+      if (username.trim().toLowerCase() === NATE_USERNAME && password === NATE_PASSWORD) {
+        onLogin({ id: "nate", name: "Nate", role: "admin" }); return;
+      }
+      const users = await getUsers();
+      const u = users[username.trim().toLowerCase()];
+      if (!u || u.passwordHash !== hashPassword(password)) { setError("Incorrect username or password."); setBusy(false); return; }
+      const userObj = { id: u.id, name: u.name, username: u.username, role: "client" };
+      if (!u.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
+      onLogin(userObj);
+    } else {
+      if (!name.trim()) { setError("Please enter your name."); setBusy(false); return; }
+      if (!email.trim() || !email.includes("@")) { setError("Please enter a valid email address."); setBusy(false); return; }
+      if (username.trim().length < 3) { setError("Username must be at least 3 characters."); setBusy(false); return; }
+      if (password.length < 6) { setError("Password must be at least 6 characters."); setBusy(false); return; }
+      if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
+      if (username.trim().toLowerCase() === NATE_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
+      const users = await getUsers();
+      const key = username.trim().toLowerCase();
+      if (users[key]) { setError("Username already taken."); setBusy(false); return; }
+      // Check for duplicate email
+      if (Object.values(users).some(u => u.email?.toLowerCase() === email.trim().toLowerCase())) {
+        setError("An account with that email already exists."); setBusy(false); return;
+      }
+      const id = "u_" + Date.now().toString(36);
+      users[key] = { id, name: name.trim(), username: key, email: email.trim().toLowerCase(), passwordHash: hashPassword(password), createdAt: new Date().toISOString(), consentSigned: false };
+      await saveUsers(users);
+      sendEmail(
+        `New Client Registration — ${name.trim()}`,
+        `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${key}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
+        name.trim()
+      );
+      onNeedsConsent({ id, name: name.trim(), username: key, role: "client" });
+    }
+    setBusy(false);
+  }
+
+  function onKey(e) { if (e.key === "Enter") submit(); }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: "20px" }}>
+      <div style={{ background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)", borderRadius: "28px", padding: "40px", maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(150,80,60,0.13)", border: "1px solid rgba(200,120,90,0.12)" }}>
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <div style={{ width: 58, height: 58, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 14px", boxShadow: "0 4px 16px rgba(200,100,100,0.3)" }}>🌿</div>
+          <h1 style={{ color: "#4a2820", fontSize: "22px", margin: "0 0 6px", fontWeight: "700" }}>Steady Parent Coach</h1>
+          <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.5 }}>Between-session support from Nate Parish's practice</p>
+        </div>
+
+        {mode !== "recover" && (
+          <div style={{ display: "flex", background: "rgba(200,120,90,0.08)", borderRadius: "12px", padding: "4px", marginBottom: "22px" }}>
+            {[["login", "Sign In"], ["register", "Create Account"]].map(([m, label]) => (
+              <button key={m} onClick={() => { setMode(m); resetFields(); }} style={{ flex: 1, padding: "9px", borderRadius: "9px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", fontWeight: "600", transition: "all 0.2s", background: mode === m ? "#fff" : "transparent", color: mode === m ? "#c9697a" : "#9a7060", boxShadow: mode === m ? "0 2px 8px rgba(150,80,60,0.12)" : "none" }}>{label}</button>
+            ))}
+          </div>
+        )}
+
+        {mode === "recover" && (
+          <div style={{ marginBottom: "20px" }}>
+            <button onClick={() => { setMode("login"); resetFields(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontSize: "13px", fontFamily: "inherit", fontWeight: "600", padding: "0 0 4px", display: "flex", alignItems: "center", gap: "5px" }}>← Back to Sign In</button>
+            <h2 style={{ color: "#4a2820", fontSize: "18px", margin: "12px 0 6px", fontWeight: "700" }}>Account Recovery</h2>
+            <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.6 }}>Enter the email address you registered with and we'll send your username and a temporary password.</p>
+          </div>
+        )}
+
+        {recoverSent ? (
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <div style={{ fontSize: "36px", marginBottom: "10px" }}>📬</div>
+            <div style={{ fontSize: "15px", fontWeight: "700", color: "#4a2820", marginBottom: "8px" }}>Recovery email sent</div>
+            <p style={{ fontSize: "13px", color: "#9a7060", lineHeight: 1.65, margin: "0 0 20px" }}>Check your inbox for your username and a temporary password. If it doesn't arrive within a few minutes, check your spam folder.</p>
+            <Btn onClick={() => { setMode("login"); resetFields(); }} style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", padding: "12px 28px" }}>Back to Sign In</Btn>
+          </div>
+        ) : (
+          <>
+            {mode === "register" && <Input placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} onKeyDown={onKey} />}
+            {mode === "register" && <Input type="email" placeholder="Your email address" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} />}
+            {mode === "recover"
+              ? <Input type="email" placeholder="Email address you registered with" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} autoFocus />
+              : <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={onKey} />
+            }
+            {mode !== "recover" && <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={onKey} />}
+            {mode === "register" && <Input type="password" placeholder="Confirm password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} onKeyDown={onKey} />}
+
+            {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "14px" }}>{error}</div>}
+
+            <Btn onClick={submit} disabled={busy} style={{ width: "100%", padding: "14px", background: busy ? "rgba(200,120,90,0.3)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", fontSize: "15px", fontWeight: "700", boxShadow: busy ? "none" : "0 4px 16px rgba(200,100,100,0.3)", borderRadius: "14px" }}>
+              {busy ? "Please wait…" : mode === "login" ? "Sign In" : mode === "register" ? "Create Account →" : "Send Recovery Email"}
+            </Btn>
+
+            <p style={{ color: "#b89080", fontSize: "11px", textAlign: "center", marginTop: "18px", lineHeight: 1.6 }}>
+              {mode === "register" ? "You'll be asked to read and sign a consent form before accessing the tool." : "For current clients of Nate Parish's practice only."}<br />This tool is not a replacement for therapy.
+            </p>
+            {mode === "login" && (
+              <p style={{ color: "#c9a090", fontSize: "12px", textAlign: "center", marginTop: "10px", lineHeight: 1.6 }}>
+                <button onClick={() => { setMode("recover"); resetFields(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontWeight: "600", fontSize: "12px", fontFamily: "inherit", padding: 0, textDecoration: "underline" }}>
+                  Forgot your username or password?
+                </button>
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Admin Dashboard ────────────────────────────────────────────────────────────
+function AdminDashboard({ onLogout }) {
+  const [users, setUsers] = useState({});
+  const [kb, setKb] = useState("");
+  const [kbDraft, setKbDraft] = useState("");
+  const [kbSaved, setKbSaved] = useState(false);
+  const [tab, setTab] = useState("clients");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const [u, k] = await Promise.all([getUsers(), getKB()]);
+      setUsers(u); setKb(k); setKbDraft(k); setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function deleteClient(key) {
+    if (!confirm(`Delete ${users[key].name} and all their data?`)) return;
+    const uid = users[key].id;
+    const updated = { ...users };
+    delete updated[key];
+    await saveUsers(updated);
+    try {
+      localStorage.removeItem(`spc-chat-${uid}`);
+      localStorage.removeItem(`spc-profile-${uid}`);
+    } catch {}
+    setUsers(updated);
+  }
+
+  const [resetTarget, setResetTarget] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetDone, setResetDone] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  function openReset(e, u) {
+    e.stopPropagation();
+    setResetTarget(u);
+    setNewPassword("");
+    setResetDone(false);
+    setResetError("");
+  }
+
+  async function doReset() {
+    if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
+    const updated = { ...users };
+    updated[resetTarget.username].passwordHash = hashPassword(newPassword);
+    await saveUsers(updated);
+    setUsers(updated);
+    setResetDone(true);
+    setTimeout(() => setResetTarget(null), 1800);
+  }
+
+  async function doSaveKB() {
+    await saveKB(kbDraft);
+    setKb(kbDraft); setKbSaved(true);
+    setTimeout(() => setKbSaved(false), 2000);
+  }
+
+  const clientList = Object.values(users);
+  const P = { background: "linear-gradient(145deg,#f0f4ff 0%,#e8eeff 50%,#f0e8ff 100%)" };
+
+  return (
+    <div style={{ minHeight: "100vh", ...P, fontFamily: "Georgia,serif" }}>
+      <div style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(100,100,200,0.12)", padding: "15px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
+          <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🔐</div>
+          <div>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "#2a2850" }}>Nate's Admin Dashboard</div>
+            <div style={{ fontSize: "12px", color: "#7a70a0" }}>Steady Parent Coach · Account Management</div>
+          </div>
+        </div>
+        <Btn onClick={onLogout} style={{ background: "rgba(150,100,200,0.1)", color: "#7a5aa0", border: "1.5px solid rgba(150,100,200,0.2)" }}>Sign Out</Btn>
+      </div>
+
+      <div style={{ maxWidth: 760, margin: "0 auto", padding: "22px 16px" }}>
+
+        {/* Privacy notice */}
+        <div style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(122,142,232,0.2)", borderRadius: "14px", padding: "14px 18px", marginBottom: "20px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+          <span style={{ fontSize: "18px", flexShrink: 0 }}>🔒</span>
+          <div style={{ fontSize: "13px", color: "#5a5890", lineHeight: 1.65 }}>
+            <strong style={{ color: "#2a2850" }}>Client conversations and profiles are private.</strong> You can manage accounts and reset credentials below, but chat histories and profile data are not accessible from here. Clients may choose to share transcripts with you directly via the "Send to Nate" button.
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "8px", marginBottom: "22px" }}>
+          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"]].map(([t, label]) => (
+            <Btn key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(255,255,255,0.72)", color: tab === t ? "#fff" : "#7a70a0", boxShadow: tab === t ? "0 4px 14px rgba(120,100,200,0.28)" : "none", border: "none" }}>{label}</Btn>
+          ))}
+        </div>
+
+        {tab === "clients" && (
+          <div>
+            {loading ? (
+              <div style={{ color: "#9a8ac0", textAlign: "center", padding: "40px 20px" }}>Loading clients…</div>
+            ) : clientList.length === 0 ? (
+              <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: "18px", padding: "36px", textAlign: "center", color: "#9a8ac0" }}>
+                <div style={{ fontSize: "36px", marginBottom: "10px" }}>👥</div>
+                <div style={{ fontSize: "15px", fontWeight: "600" }}>No clients yet</div>
+                <div style={{ fontSize: "13px", marginTop: "6px", lineHeight: 1.5 }}>Clients will appear here once they create an account.</div>
+              </div>
+            ) : clientList.map(u => (
+              <div key={u.id} style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(150,120,200,0.12)", borderRadius: "14px", padding: "15px 17px", marginBottom: "9px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#b8c8f0,#d0a8e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "700", color: "#4a4880", flexShrink: 0 }}>{u.name[0].toUpperCase()}</div>
+                  <div>
+                    <div style={{ fontSize: "15px", fontWeight: "600", color: "#2a2850" }}>{u.name}</div>
+                    <div style={{ fontSize: "12px", color: "#9a8ac0", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span>@{u.username}</span>
+                      <span>·</span>
+                      <span>Joined {new Date(u.createdAt).toLocaleDateString()}</span>
+                      {u.email && <><span>·</span><span>{u.email}</span></>}
+                      <span style={{ padding: "1px 7px", borderRadius: "8px", fontSize: "11px", fontWeight: "600", background: u.consentSigned ? "rgba(80,160,100,0.12)" : "rgba(220,150,80,0.15)", color: u.consentSigned ? "#3a7a50" : "#a06020" }}>
+                        {u.consentSigned ? "✓ Consent signed" : "⚠ Consent pending"}
+                      </span>
+                      {u.consentSignedAt && <span style={{ fontSize: "11px", color: "#b0a0d0" }}>{new Date(u.consentSignedAt).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                  <button onClick={e => openReset(e, u)} title="Reset password" style={{ background: "none", border: "none", cursor: "pointer", fontSize: "15px", opacity: 0.35, transition: "opacity 0.15s", padding: "4px" }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.35}>🔑</button>
+                  <button onClick={() => deleteClient(u.username)} title="Delete client" style={{ background: "none", border: "none", cursor: "pointer", fontSize: "15px", opacity: 0.35, transition: "opacity 0.15s", padding: "4px" }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.35}>🗑</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "kb" && (
+          <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "20px", padding: "28px", border: "1px solid rgba(150,120,200,0.12)" }}>
+            <h3 style={{ color: "#2a2850", margin: "0 0 8px", fontSize: "17px" }}>Clinical Knowledge Base</h3>
+            <p style={{ color: "#7a70a0", fontSize: "13px", margin: "0 0 18px", lineHeight: 1.65 }}>
+              Anything pasted here is silently included in every client's AI context. Use it for general frameworks, preferred language, or practice-wide protocols. This does not give you access to individual client conversations.
+            </p>
+            {kb && <div style={{ background: "rgba(100,180,120,0.1)", border: "1px solid rgba(80,160,100,0.25)", borderRadius: "10px", padding: "9px 13px", marginBottom: "14px", fontSize: "12px", color: "#3a7a50" }}>✓ Active · {kb.split(" ").filter(Boolean).length} words loaded</div>}
+            <textarea value={kbDraft} onChange={e => setKbDraft(e.target.value)} rows={12}
+              placeholder={"Paste clinical notes, frameworks, or protocols here.\n\nExamples:\n• Preferred accommodation reduction language\n• SPACE protocol steps you use\n• Practice-specific scripts or frameworks\n• Any context you want the AI to reference"}
+              style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1.5px solid rgba(150,120,200,0.22)", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65, background: "#fdfcff" }} />
+            <div style={{ display: "flex", gap: "10px", marginTop: "13px" }}>
+              {kbDraft && <Btn onClick={() => setKbDraft("")} style={{ background: "rgba(220,80,80,0.07)", color: "#c05060", border: "1.5px solid rgba(220,80,80,0.15)" }}>🗑 Clear</Btn>}
+              <Btn onClick={doSaveKB} style={{ background: kbSaved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", boxShadow: "0 4px 14px rgba(120,100,200,0.22)", border: "none", padding: "11px 24px", transition: "background 0.3s" }}>
+                {kbSaved ? "✓ Saved!" : "Save & Apply"}
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Reset Password Modal */}
+      {resetTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(42,40,80,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" }} onClick={() => setResetTarget(null)}>
+          <div style={{ background: "#f8f7ff", borderRadius: "24px", padding: "32px", maxWidth: 400, width: "92%", boxShadow: "0 20px 60px rgba(80,60,180,0.2)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: "26px", textAlign: "center", marginBottom: "8px" }}>🔑</div>
+            <h3 style={{ color: "#2a2850", textAlign: "center", margin: "0 0 6px", fontSize: "18px" }}>Reset Password</h3>
+            <p style={{ color: "#7a70a0", fontSize: "13px", textAlign: "center", margin: "0 0 14px", lineHeight: 1.5 }}>
+              Setting a new password for <strong>{resetTarget.name}</strong>
+            </p>
+            <div style={{ background: "rgba(122,142,232,0.1)", border: "1px solid rgba(122,142,232,0.25)", borderRadius: "10px", padding: "10px 14px", marginBottom: "18px", textAlign: "center" }}>
+              <div style={{ fontSize: "11px", color: "#7a70a0", marginBottom: "3px" }}>Their username (share this if they've forgotten)</div>
+              <div style={{ fontSize: "17px", fontWeight: "700", color: "#2a2850", letterSpacing: "0.03em" }}>@{resetTarget.username}</div>
+            </div>
+            {!resetDone ? (
+              <>
+                <label style={{ fontSize: "13px", color: "#5a5890", fontWeight: "600", display: "block", marginBottom: "6px" }}>New password</label>
+                <input type="text" value={newPassword} onChange={e => { setNewPassword(e.target.value); setResetError(""); }} onKeyDown={e => e.key === "Enter" && doReset()} placeholder="Enter new password (min. 6 characters)" autoFocus
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: `1.5px solid ${resetError ? "rgba(220,80,80,0.4)" : "rgba(122,142,232,0.3)"}`, fontSize: "14px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", background: "#fff", marginBottom: "6px" }} />
+                <p style={{ fontSize: "11px", color: "#9a8ac0", margin: "0 0 14px", lineHeight: 1.5 }}>Shown in plain text so you can read it to the client or send it securely.</p>
+                {resetError && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "9px 13px", color: "#c05060", fontSize: "13px", marginBottom: "12px" }}>{resetError}</div>}
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <Btn onClick={() => setResetTarget(null)} style={{ flex: 1, background: "rgba(150,120,200,0.08)", color: "#7a5aa0", border: "1.5px solid rgba(150,120,200,0.2)" }}>Cancel</Btn>
+                  <Btn onClick={doReset} style={{ flex: 1, background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.25)" }}>Set Password</Btn>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: "center", padding: "8px 0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "10px" }}>✅</div>
+                <div style={{ fontSize: "15px", fontWeight: "600", color: "#2a2850", marginBottom: "6px" }}>Password updated</div>
+                <div style={{ fontSize: "13px", color: "#7a70a0" }}>Share the new credentials with {resetTarget.name.split(" ")[0]} securely.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function ProfileDrawer({ user, onClose }) {
+  const EMPTY = { working_on: "", triggers: "", accommodations: "", notes: "" };
+  const [draft, setDraft] = useState(EMPTY);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getProfile(user.id).then(p => { setDraft({ ...EMPTY, ...p }); setLoading(false); });
+  }, [user.id]);
+
+  async function save() {
+    await saveProfile(user.id, draft);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  const fields = [
+    { key: "working_on", label: "🎯 What we're working on in therapy", placeholder: "e.g. reducing bedtime check-ins, getting to school independently, tolerating uncertainty without reassurance…" },
+    { key: "triggers", label: "⚡ Specific triggers or patterns", placeholder: "e.g. transitions, separation at school drop-off, asking 'what if' questions repeatedly, stomach aches before events…" },
+    { key: "accommodations", label: "🔄 Accommodation habits I'm trying to break", placeholder: "e.g. letting them sleep in our bed, answering the same question multiple times, staying until they fall asleep, checking under the bed…" },
+    { key: "notes", label: "📝 Anything else that's helpful to know", placeholder: "e.g. child's age, temperament, what's been working, what hasn't, family context, recent changes…" },
+  ];
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.3)", zIndex: 40, backdropFilter: "blur(2px)" }} />
+
+      {/* Drawer */}
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(420px, 100vw)", background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", boxShadow: "-8px 0 40px rgba(150,80,60,0.15)", zIndex: 50, display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", animation: "slideIn 0.25s ease" }}>
+
+        {/* Header */}
+        <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid rgba(200,120,90,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>My Profile</div>
+            <div style={{ fontSize: "12px", color: "#9a7060", marginTop: "2px" }}>This helps the coach understand your situation</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px", color: "#9a7060", padding: "4px", lineHeight: 1 }}>✕</button>
+        </div>
+
+        {/* Fields */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: "18px" }}>
+          {loading ? (
+            <div style={{ color: "#c9697a", fontSize: "14px", textAlign: "center", padding: "40px 0" }}>Loading…</div>
+          ) : (
+            <>
+              <div style={{ background: "rgba(232,147,122,0.1)", border: "1px solid rgba(200,120,90,0.2)", borderRadius: "12px", padding: "12px 14px", fontSize: "12px", color: "#7c4a3a", lineHeight: 1.6 }}>
+                💡 The more you share here, the more personal and relevant the coaching will feel. Only you and Nate can see this.
+              </div>
+
+              {fields.map(f => (
+                <div key={f.key}>
+                  <label style={{ fontSize: "13px", fontWeight: "700", color: "#4a2820", display: "block", marginBottom: "7px" }}>{f.label}</label>
+                  <textarea
+                    value={draft[f.key]}
+                    onChange={e => setDraft(d => ({ ...d, [f.key]: e.target.value }))}
+                    placeholder={f.placeholder}
+                    rows={3}
+                    style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.22)", background: "rgba(255,255,255,0.88)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", transition: "border-color 0.15s" }}
+                    onFocus={e => e.target.style.borderColor = "#e8937a"}
+                    onBlur={e => e.target.style.borderColor = "rgba(200,120,90,0.22)"}
+                  />
+                </div>
+              ))}
+
+              {/* Profile completeness indicator */}
+              {(() => {
+                const filled = fields.filter(f => draft[f.key]?.trim()).length;
+                const pct = Math.round((filled / fields.length) * 100);
+                return filled > 0 ? (
+                  <div style={{ padding: "10px 14px", background: "rgba(80,160,100,0.08)", border: "1px solid rgba(60,140,80,0.2)", borderRadius: "10px" }}>
+                    <div style={{ fontSize: "12px", color: "#3a7a50", marginBottom: "6px", fontWeight: "600" }}>Profile {pct}% complete</div>
+                    <div style={{ height: "5px", background: "rgba(80,160,100,0.15)", borderRadius: "3px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6ac98e,#3aaa6a)", borderRadius: "3px", transition: "width 0.3s" }} />
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "14px 20px", borderTop: "1px solid rgba(200,120,90,0.12)", background: "rgba(255,255,255,0.6)", flexShrink: 0 }}>
+          <Btn onClick={save} style={{ width: "100%", padding: "13px", background: saved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: "0 4px 14px rgba(200,100,100,0.25)", transition: "background 0.3s" }}>
+            {saved ? "✓ Saved!" : "Save Profile"}
+          </Btn>
+          <p style={{ fontSize: "11px", color: "#b89080", textAlign: "center", margin: "8px 0 0", lineHeight: 1.5 }}>Changes take effect in your next message</p>
+        </div>
+      </div>
+
+      <style>{`@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+    </>
+  );
+}
+
+// ── Client Chat ────────────────────────────────────────────────────────────────
+function ClientChat({ user, onLogout }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
+  const [kb, setKb] = useState("");
+  const [profile, setProfile] = useState({});
+  const [showProfile, setShowProfile] = useState(false);
+  const [nateSending, setNateSending] = useState(false);
+  const [nateSent, setNateSent] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    async function init() {
+      const [msgs, k, p] = await Promise.all([getMessages(user.id), getKB(), getProfile(user.id)]);
+      setMessages(msgs); setKb(k); setProfile(p); setInitializing(false);
+    }
+    init();
+  }, [user.id]);
+
+  // Reload profile when drawer closes so system prompt stays fresh
+  async function handleProfileClose() {
+    setShowProfile(false);
+    const p = await getProfile(user.id);
+    setProfile(p);
+  }
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  function buildSystemPrompt() {
+    let base = `${SYSTEM_PROMPT}\n\nThe parent's name is ${user.name}. Address them by first name occasionally where it feels natural.`;
+
+    const p = profile;
+    const profileLines = [];
+    if (p.working_on?.trim())    profileLines.push(`What they are currently working on in therapy: ${p.working_on.trim()}`);
+    if (p.triggers?.trim())      profileLines.push(`Specific triggers or patterns to be aware of: ${p.triggers.trim()}`);
+    if (p.accommodations?.trim()) profileLines.push(`Accommodation habits they are actively trying to break: ${p.accommodations.trim()}`);
+    if (p.notes?.trim())         profileLines.push(`Additional context from the client: ${p.notes.trim()}`);
+
+    if (profileLines.length > 0) {
+      base += `\n\n---\n\n## Client's Personal Profile\n\nThe following information has been shared by the client about their situation. Reference it naturally and specifically where relevant — use it to make responses feel personal and connected to their actual case rather than generic:\n\n${profileLines.join("\n\n")}`;
+    }
+
+    if (kb.trim()) base += `\n\n---\n\n## Therapist's Clinical Notes\n\n${kb}`;
+    return base;
+  }
+
+  async function sendMessage(text) {
+    if (!text.trim() || loading) return;
+    const newMsgs = [...messages, { role: "user", content: text }];
+    setMessages(newMsgs); setInput(""); setLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ system: buildSystemPrompt(), messages: newMsgs }),
+      });
+      const data = await res.json();
+      const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
+      const updated = [...newMsgs, { role: "assistant", content: reply }];
+      setMessages(updated);
+      await saveMessages(user.id, updated);
+    } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
+    setLoading(false);
+  }
+
+  function exportChat() {
+    const text = `Steady Parent Coach — ${user.name}\nExported: ${new Date().toLocaleString()}\n\n` + messages.map(m => `${m.role === "user" ? user.name : "Coach"}: ${m.content}`).join("\n\n");
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: `coaching-${Date.now()}.txt` });
+    a.click();
+  }
+
+  async function sendToNate() {
+    if (nateSending || nateSent) return;
+    setNateSending(true);
+    const transcript = messages.map(m => `${m.role === "user" ? user.name : "Coach"}: ${m.content}`).join("\n\n");
+    const body = `STEADY PARENT COACH — SESSION NOTES\n\nClient: ${user.name} (@${user.username})\nSent: ${new Date().toLocaleString()}\nMessages: ${messages.length}\n\n${"=".repeat(50)}\n\n${transcript}`;
+    await sendEmail(`Session Notes — ${user.name}`, body, user.name);
+    setNateSending(false);
+    setNateSent(true);
+    setTimeout(() => setNateSent(false), 3000);
+  }
+
+  const hasMessages = messages.length > 0;
+  const profileFilled = Object.values(profile).some(v => v?.trim());
+  const BG = "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)";
+
+  if (initializing) return (
+    <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif" }}>
+      <div style={{ color: "#c9697a", fontSize: "14px" }}>Loading your conversations…</div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
+      {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
+
+      <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🌿</div>
+          <div>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>Steady Parent Coach</div>
+            <div style={{ fontSize: "12px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "7px", alignItems: "center" }}>
+          {/* Profile button with dot indicator if empty */}
+          <button onClick={() => setShowProfile(true)} style={{ position: "relative", background: profileFilled ? "rgba(232,147,122,0.12)" : "rgba(220,80,80,0.07)", border: `1.5px solid ${profileFilled ? "rgba(200,120,90,0.25)" : "rgba(220,80,80,0.2)"}`, borderRadius: "10px", padding: "7px 13px", fontSize: "13px", color: profileFilled ? "#7c4a3a" : "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", transition: "all 0.2s" }}>
+            {profileFilled ? "👤 My Profile" : "👤 Add Profile"}
+            {!profileFilled && <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: "50%", background: "#e8937a", border: "1.5px solid #fdf6f0" }} />}
+          </button>
+          {hasMessages && <>
+            <Btn onClick={exportChat} style={{ background: "#fff8f5", color: "#c9697a", border: "1.5px solid rgba(200,100,100,0.18)", padding: "7px 13px", fontSize: "13px" }}>💾 Export</Btn>
+            <Btn onClick={sendToNate} disabled={nateSending || nateSent} style={{ background: nateSent ? "rgba(80,180,100,0.15)" : "#fff8f5", color: nateSent ? "#2a7a40" : "#c9697a", border: `1.5px solid ${nateSent ? "rgba(60,160,80,0.3)" : "rgba(200,100,100,0.18)"}`, padding: "7px 13px", fontSize: "13px", transition: "all 0.3s" }}>
+              {nateSending ? "Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
+            </Btn>
+          </>}
+          <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
+        {!hasMessages && (
+          <div style={{ textAlign: "center", paddingTop: "10px" }}>
+            <div style={{ fontSize: "26px", marginBottom: "6px" }}>🌿</div>
+            <h2 style={{ color: "#4a2820", fontSize: "21px", margin: "0 0 6px", fontWeight: "700" }}>What's happening right now?</h2>
+            <p style={{ color: "#9a7060", fontSize: "14px", margin: "0 0 20px", lineHeight: 1.6 }}>Describe what's going on, or tap a common situation below.</p>
+            {!profileFilled && (
+              <div onClick={() => setShowProfile(true)} style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(232,147,122,0.1)", border: "1.5px dashed rgba(200,120,90,0.35)", borderRadius: "12px", padding: "10px 18px", marginBottom: "18px", cursor: "pointer", transition: "all 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(232,147,122,0.18)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(232,147,122,0.1)"}
+              >
+                <span style={{ fontSize: "16px" }}>👤</span>
+                <span style={{ fontSize: "13px", color: "#7c4a3a", fontWeight: "600" }}>Add your profile to personalize the coaching</span>
+                <span style={{ fontSize: "12px", color: "#c9697a" }}>→</span>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(185px,1fr))", gap: "9px" }}>
+              {SCENARIOS.map(s => (
+                <button key={s.label} onClick={() => sendMessage(s.prompt)} style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "14px", padding: "13px 14px", fontSize: "13px", color: "#7c4a3a", cursor: "pointer", textAlign: "left", fontFamily: "inherit", lineHeight: 1.4, transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,240,230,0.95)"; e.currentTarget.style.borderColor = "#e8937a"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.82)"; e.currentTarget.style.borderColor = "rgba(200,120,90,0.2)"; }}
+                >{s.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "13px" }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+              {m.role === "assistant" && <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", marginRight: "8px", flexShrink: 0, marginTop: 2 }}>🌿</div>}
+              <div style={{ maxWidth: "82%", padding: "12px 15px", borderRadius: m.role === "user" ? "17px 17px 4px 17px" : "4px 17px 17px 17px", background: m.role === "user" ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(255,255,255,0.88)", color: m.role === "user" ? "#fff" : "#4a2820", fontSize: "14px", lineHeight: 1.65, boxShadow: m.role === "user" ? "0 3px 12px rgba(200,100,100,0.2)" : "0 2px 10px rgba(150,80,60,0.08)", border: m.role === "assistant" ? "1px solid rgba(200,120,90,0.1)" : "none" }}>
+                {m.role === "assistant" ? formatMessage(m.content) : m.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px" }}>🌿</div>
+              <div style={{ background: "rgba(255,255,255,0.88)", padding: "12px 16px", borderRadius: "4px 17px 17px 17px", boxShadow: "0 2px 10px rgba(150,80,60,0.08)", border: "1px solid rgba(200,120,90,0.1)" }}>
+                <div style={{ display: "flex", gap: "4px" }}>{[0,1,2].map(j => <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#e8937a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}</div>
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {hasMessages && (
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            {SCENARIOS.map(s => (
+              <button key={s.label} onClick={() => sendMessage(s.prompt)} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(200,120,90,0.17)", borderRadius: "20px", padding: "5px 12px", fontSize: "12px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,240,230,0.95)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.7)"}
+              >{s.label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ position: "sticky", bottom: 0, background: "rgba(253,246,240,0.93)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(180,120,90,0.11)", padding: "13px 15px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", gap: "9px", alignItems: "flex-end" }}>
+          <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }} placeholder="Describe what's happening right now…" rows={1}
+            style={{ flex: 1, padding: "11px 15px", borderRadius: "18px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.92)", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: "110px", overflow: "auto", transition: "border-color 0.15s" }}
+            onFocus={e => e.target.style.borderColor = "#e8937a"} onBlur={e => e.target.style.borderColor = "rgba(200,120,90,0.2)"} />
+          <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading} style={{ width: 42, height: 42, borderRadius: "50%", background: input.trim() && !loading ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.17)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>➤</button>
+        </div>
+        <div style={{ maxWidth: 720, margin: "6px auto 0", textAlign: "center", fontSize: "11px", color: "#b89080" }}>Not a replacement for therapy · For crisis support, contact emergency services</div>
+      </div>
+
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+        @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+        *{box-sizing:border-box}
+        textarea::placeholder{color:#c4a090}
+      `}</style>
+    </div>
+  );
+}
+
+// ── Root ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [user, setUser] = useState(null);
+  const [pendingConsent, setPendingConsent] = useState(null);
+
+  if (pendingConsent) {
+    return <ConsentScreen user={pendingConsent} onConsented={() => { setUser(pendingConsent); setPendingConsent(null); }} />;
+  }
+  if (!user) return <AuthScreen onLogin={setUser} onNeedsConsent={setPendingConsent} />;
+  if (user.role === "admin") return <AdminDashboard onLogout={() => setUser(null)} />;
+  return <ClientChat user={user} onLogout={() => setUser(null)} />;
+}
+
+// Mount the app
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
