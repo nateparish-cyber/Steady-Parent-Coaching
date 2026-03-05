@@ -7,12 +7,68 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}textarea::placeholder,input::placeholder{color:#c4a090}@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}</style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
+/*
+SUPABASE SETUP — Run this SQL in your Supabase SQL Editor (https://supabase.com/dashboard → SQL Editor):
+
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  consent_signed BOOLEAN DEFAULT FALSE,
+  consent_signed_at TIMESTAMPTZ,
+  consent_typed_name TEXT
+);
+
+CREATE TABLE messages (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE profiles (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  working_on TEXT DEFAULT '',
+  triggers TEXT DEFAULT '',
+  accommodations TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE knowledge_base (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  content TEXT DEFAULT '',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO knowledge_base (id, content) VALUES (1, '') ON CONFLICT DO NOTHING;
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "allow_all" ON users FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON messages FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON profiles FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "allow_all" ON knowledge_base FOR ALL TO anon USING (true) WITH CHECK (true);
+
+VERCEL ENVIRONMENT VARIABLES (add in Vercel dashboard → Settings → Environment Variables):
+  SUPABASE_URL = https://hxljtpfdfdjocbcbuytq.supabase.co
+  SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  (The anon key is safe to expose in the browser — it is intentionally embedded in this file.)
+*/
 const { useState, useEffect, useRef, useCallback } = React;
 
 const NATE_PASSWORD = "nate2025";
@@ -147,14 +203,65 @@ async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
   }
 }
 
-async function getUsers() { try { const v = localStorage.getItem("spc-users"); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveUsers(u) { localStorage.setItem("spc-users", JSON.stringify(u)); }
-async function getMessages(uid) { try { const v = localStorage.getItem(`spc-chat-${uid}`); return v ? JSON.parse(v) : []; } catch { return []; } }
-async function saveMessages(uid, msgs) { localStorage.setItem(`spc-chat-${uid}`, JSON.stringify(msgs)); }
-async function getKB() { try { return localStorage.getItem("spc-kb") || ""; } catch { return ""; } }
-async function saveKB(kb) { localStorage.setItem("spc-kb", kb); }
-async function getProfile(uid) { try { const v = localStorage.getItem(`spc-profile-${uid}`); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveProfile(uid, p) { localStorage.setItem(`spc-profile-${uid}`, JSON.stringify(p)); }
+// ── Supabase ────────────────────────────────────────────────────────────────────
+// VERCEL ENV VARS: Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel dashboard → Settings → Environment Variables
+const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4bGp0cGZkZmRqb2NiY2J1eXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDczMzIsImV4cCI6MjA4ODMyMzMzMn0.JDK05pK6Rs_lRPi_1BnqezeensGdCqXu7ugXlaKJCIo";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function getUsers() {
+  try {
+    const { data, error } = await db.from('users').select('*');
+    if (error) throw error;
+    const map = {};
+    for (const u of (data || [])) {
+      map[u.username] = { id: u.id, name: u.name, username: u.username, email: u.email, passwordHash: u.password_hash, createdAt: u.created_at, consentSigned: u.consent_signed, consentSignedAt: u.consent_signed_at, consentTypedName: u.consent_typed_name };
+    }
+    return map;
+  } catch { return {}; }
+}
+async function saveUsers(usersMap) {
+  try {
+    const rows = Object.values(usersMap).map(u => ({ id: u.id, name: u.name, username: u.username, email: u.email, password_hash: u.passwordHash, created_at: u.createdAt, consent_signed: u.consentSigned || false, consent_signed_at: u.consentSignedAt || null, consent_typed_name: u.consentTypedName || null }));
+    if (rows.length > 0) { const { error } = await db.from('users').upsert(rows, { onConflict: 'id' }); if (error) throw error; }
+  } catch (e) { console.error('saveUsers error:', e); }
+}
+async function deleteUser(uid) {
+  try { await db.from('users').delete().eq('id', uid); } catch (e) { console.error('deleteUser error:', e); }
+}
+async function getMessages(uid) {
+  try {
+    const { data, error } = await db.from('messages').select('role,content').eq('user_id', uid).order('created_at', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(m => ({ role: m.role, content: m.content }));
+  } catch { return []; }
+}
+async function saveMessages(uid, msgs) {
+  try {
+    await db.from('messages').delete().eq('user_id', uid);
+    if (msgs.length > 0) { const { error } = await db.from('messages').insert(msgs.map(m => ({ user_id: uid, role: m.role, content: m.content }))); if (error) throw error; }
+  } catch (e) { console.error('saveMessages error:', e); }
+}
+async function getKB() {
+  try {
+    const { data, error } = await db.from('knowledge_base').select('content').eq('id', 1).single();
+    if (error) throw error;
+    return data?.content || '';
+  } catch { return ''; }
+}
+async function saveKB(kb) {
+  try { const { error } = await db.from('knowledge_base').upsert({ id: 1, content: kb, updated_at: new Date().toISOString() }); if (error) throw error; } catch (e) { console.error('saveKB error:', e); }
+}
+async function getProfile(uid) {
+  try {
+    const { data, error } = await db.from('profiles').select('*').eq('user_id', uid).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data ? { working_on: data.working_on || '', triggers: data.triggers || '', accommodations: data.accommodations || '', notes: data.notes || '' } : {};
+  } catch { return {}; }
+}
+async function saveProfile(uid, p) {
+  try { const { error } = await db.from('profiles').upsert({ user_id: uid, ...p, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }); if (error) throw error; } catch (e) { console.error('saveProfile error:', e); }
+}
 
 // ── Consent Screen ─────────────────────────────────────────────────────────────
 const CONSENT_SECTIONS = [
@@ -509,13 +616,9 @@ function AdminDashboard({ onLogout }) {
   async function deleteClient(key) {
     if (!confirm(`Delete ${users[key].name} and all their data?`)) return;
     const uid = users[key].id;
+    await deleteUser(uid);
     const updated = { ...users };
     delete updated[key];
-    await saveUsers(updated);
-    try {
-      localStorage.removeItem(`spc-chat-${uid}`);
-      localStorage.removeItem(`spc-profile-${uid}`);
-    } catch {}
     setUsers(updated);
   }
 
