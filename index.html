@@ -8,7 +8,6 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}textarea::placeholder,input::placeholder{color:#c4a090}@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}</style>
 </head>
 <body>
@@ -179,27 +178,18 @@ function Input({ type = "text", placeholder, value, onChange, onKeyDown, autoFoc
   );
 }
 
-// ── EmailJS ────────────────────────────────────────────────────────────────────
-const EMAILJS_SERVICE  = "service_kl851h9";
-const EMAILJS_TEMPLATE = "template_lvl0kok";
-const EMAILJS_KEY      = "_RTlHjO9FDJ54DQWb";
-const NATE_EMAIL       = "nate.parish@gmail.com";
+// ── Email ──────────────────────────────────────────────────────────────────────
+const NATE_EMAIL = "nate.parish@gmail.com";
 
 async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
   try {
-    await emailjs.send(
-      EMAILJS_SERVICE,
-      EMAILJS_TEMPLATE,
-      {
-        to_email:    toEmail || NATE_EMAIL,
-        subject,
-        client_name: clientName,
-        message:     bodyText,
-      },
-      EMAILJS_KEY
-    );
+    await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: toEmail || NATE_EMAIL, subject, text: bodyText }),
+    });
   } catch (e) {
-    console.error("📧 EmailJS exception:", e);
+    console.error("sendEmail error:", e);
   }
 }
 
