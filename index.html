@@ -877,6 +877,8 @@ function ClientChat({ user, onLogout }) {
   const [showProfile, setShowProfile] = useState(false);
   const [nateSending, setNateSending] = useState(false);
   const [nateSent, setNateSent] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -949,6 +951,12 @@ function ClientChat({ user, onLogout }) {
     setTimeout(() => setNateSent(false), 3000);
   }
 
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    await deleteUser(user.id);
+    onLogout();
+  }
+
   const hasMessages = messages.length > 0;
   const profileFilled = Object.values(profile).some(v => v?.trim());
   const BG = "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)";
@@ -962,6 +970,24 @@ function ClientChat({ user, onLogout }) {
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
+
+      {showDeleteConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" }} onClick={() => setShowDeleteConfirm(false)}>
+          <div style={{ background: "#fff8f5", borderRadius: "24px", padding: "32px", maxWidth: 380, width: "92%", boxShadow: "0 20px 60px rgba(150,80,60,0.2)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: "32px", marginBottom: "10px" }}>⚠️</div>
+            <h3 style={{ color: "#4a2820", margin: "0 0 10px", fontSize: "18px" }}>Delete Account?</h3>
+            <p style={{ color: "#7c4a3a", fontSize: "13px", lineHeight: 1.65, margin: "0 0 24px" }}>
+              This will permanently delete your account, all chat history, and your profile. This cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <Btn onClick={() => setShowDeleteConfirm(false)} style={{ flex: 1, background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.2)" }}>Cancel</Btn>
+              <Btn onClick={handleDeleteAccount} disabled={deleting} style={{ flex: 1, background: deleting ? "rgba(220,80,80,0.3)" : "linear-gradient(135deg,#e05060,#c03050)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(200,60,80,0.25)" }}>
+                {deleting ? "Deleting…" : "Yes, Delete"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -984,6 +1010,7 @@ function ClientChat({ user, onLogout }) {
             </Btn>
           </>}
           <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
+          <Btn onClick={() => setShowDeleteConfirm(true)} style={{ background: "rgba(220,80,80,0.06)", color: "#c05060", border: "1.5px solid rgba(220,80,80,0.18)", padding: "7px 13px", fontSize: "13px" }}>Delete Account</Btn>
         </div>
       </div>
 
