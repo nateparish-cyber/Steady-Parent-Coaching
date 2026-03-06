@@ -30,6 +30,6 @@ export default async function handler(req, res) {
 
   const user = data[0];
   return res.status(200).json({
-    user: { id: user.id, name: user.name, username: user.username, role: "client" },
+    user: { id: user.id, name: user.name, username: user.username, email: user.email, role: "client" },
   });
 }

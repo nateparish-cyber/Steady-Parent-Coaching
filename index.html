@@ -328,14 +328,19 @@ function ConsentScreen({ user, onConsented }) {
       }
     } catch {}
 
-    // Auto-send signed consent to Nate via EmailJS
+    // Send signed consent to Nate and welcome email to client
     setEmailStatus("sending");
     try {
-      await sendEmail(
-        `Signed Consent Form — ${user.name}`,
-        buildConsentText(),
-        user.name
-      );
+      const consentText = buildConsentText();
+      await Promise.all([
+        sendEmail(`Signed Consent Form — ${user.name}`, consentText, user.name),
+        user.email && sendEmail(
+          "Welcome to Steady Parent Coach — Your Signed Consent Form",
+          `Hi ${user.name.split(" ")[0]},\n\nWelcome to Steady Parent Coach! Your account is now active.\n\nBelow is a copy of the consent form you just signed for your records.\n\n— Steady Parent Coach\n\n${"=".repeat(60)}\n\n${consentText}`,
+          user.name,
+          user.email
+        ),
+      ]);
       setEmailStatus("sent");
     } catch {
       setEmailStatus("failed");
@@ -500,7 +505,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: username.trim().toLowerCase(), password }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Incorrect username or password."); setBusy(false); return; }
-      const userObj = { id: data.user.id, name: data.user.name, username: data.user.username, role: "client" };
+      const userObj = { id: data.user.id, name: data.user.name, username: data.user.username, email: data.user.email, role: "client" };
       if (!data.user.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
       onLogin(userObj);
     } else {
