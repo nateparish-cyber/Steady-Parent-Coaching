@@ -68,6 +68,22 @@ VERCEL ENVIRONMENT VARIABLES (add in Vercel dashboard → Settings → Environme
   SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   (The anon key is safe to expose in the browser — it is intentionally embedded in this file.)
 
+CONVERSATIONS TABLE — Run this SQL in Supabase SQL Editor:
+
+CREATE TABLE conversations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  preview TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_message_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE messages ADD COLUMN conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON conversations FOR ALL TO anon USING (true) WITH CHECK (true);
+
+---
+
 USAGE TABLE — Run this SQL in Supabase SQL Editor:
 
 CREATE TABLE usage (
@@ -232,17 +248,32 @@ async function saveUsers(usersMap) {
 async function deleteUser(uid) {
   try { await db.from('users').delete().eq('id', uid); } catch (e) { console.error('deleteUser error:', e); }
 }
-async function getMessages(uid) {
+async function getConversations(uid) {
   try {
-    const { data, error } = await db.from('messages').select('role,content').eq('user_id', uid).order('created_at', { ascending: true });
+    const { data, error } = await db.from('conversations').select('*').eq('user_id', uid).order('last_message_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch { return []; }
+}
+async function createConversation(uid) {
+  const id = 'conv_' + Date.now().toString(36);
+  try { await db.from('conversations').insert({ id, user_id: uid, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() }); } catch (e) { console.error('createConversation error:', e); }
+  return id;
+}
+async function updateConversation(convId, updates) {
+  try { await db.from('conversations').update(updates).eq('id', convId); } catch (e) { console.error('updateConversation error:', e); }
+}
+async function getMessages(uid, convId) {
+  try {
+    const { data, error } = await db.from('messages').select('role,content').eq('user_id', uid).eq('conversation_id', convId).order('created_at', { ascending: true });
     if (error) throw error;
     return (data || []).map(m => ({ role: m.role, content: m.content }));
   } catch { return []; }
 }
-async function saveMessages(uid, msgs) {
+async function saveMessages(uid, convId, msgs) {
   try {
-    await db.from('messages').delete().eq('user_id', uid);
-    if (msgs.length > 0) { const { error } = await db.from('messages').insert(msgs.map(m => ({ user_id: uid, role: m.role, content: m.content }))); if (error) throw error; }
+    await db.from('messages').delete().eq('user_id', uid).eq('conversation_id', convId);
+    if (msgs.length > 0) { const { error } = await db.from('messages').insert(msgs.map(m => ({ user_id: uid, conversation_id: convId, role: m.role, content: m.content }))); if (error) throw error; }
   } catch (e) { console.error('saveMessages error:', e); }
 }
 async function getKB() {
@@ -941,10 +972,13 @@ function ProfileDrawer({ user, onClose }) {
 
 // ── Client Chat ────────────────────────────────────────────────────────────────
 function ClientChat({ user, onLogout }) {
+  const [conversations, setConversations] = useState([]);
+  const [activeConvId, setActiveConvId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [kb, setKb] = useState("");
   const [profile, setProfile] = useState({});
   const [showProfile, setShowProfile] = useState(false);
@@ -986,13 +1020,28 @@ function ClientChat({ user, onLogout }) {
 
   useEffect(() => {
     async function init() {
-      const [msgs, k, p] = await Promise.all([getMessages(user.id), getKB(), getProfile(user.id)]);
-      setMessages(msgs); setKb(k); setProfile(p); setInitializing(false);
+      const [convs, k, p] = await Promise.all([getConversations(user.id), getKB(), getProfile(user.id)]);
+      setKb(k); setProfile(p);
+      if (convs.length === 0) {
+        const convId = await createConversation(user.id);
+        const newConv = { id: convId, user_id: user.id, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
+        setConversations([newConv]);
+        setActiveConvId(convId);
+      } else {
+        setConversations(convs);
+      }
+      setInitializing(false);
       const seen = localStorage.getItem(`spc-tutorial-${user.id}`);
       if (!seen) { setShowTutorial(true); localStorage.setItem(`spc-tutorial-${user.id}`, "1"); }
     }
     init();
   }, [user.id]);
+
+  useEffect(() => {
+    if (!activeConvId) return;
+    setLoadingMessages(true);
+    getMessages(user.id, activeConvId).then(msgs => { setMessages(msgs); setLoadingMessages(false); });
+  }, [activeConvId]);
 
   // Reload profile when drawer closes so system prompt stays fresh
   async function handleProfileClose() {
@@ -1021,6 +1070,14 @@ function ClientChat({ user, onLogout }) {
     return base;
   }
 
+  async function startNewConversation() {
+    const convId = await createConversation(user.id);
+    const newConv = { id: convId, user_id: user.id, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
+    setConversations(prev => [newConv, ...prev]);
+    setMessages([]);
+    setActiveConvId(convId);
+  }
+
   async function sendMessage(text) {
     if (!text.trim() || loading) return;
     const newMsgs = [...messages, { role: "user", content: text }];
@@ -1034,7 +1091,11 @@ function ClientChat({ user, onLogout }) {
       const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
       const updated = [...newMsgs, { role: "assistant", content: reply }];
       setMessages(updated);
-      await saveMessages(user.id, updated);
+      await saveMessages(user.id, activeConvId, updated);
+      const preview = newMsgs[0]?.content?.slice(0, 80) || '';
+      const lastMessageAt = new Date().toISOString();
+      updateConversation(activeConvId, { preview, last_message_at: lastMessageAt });
+      setConversations(prev => prev.map(c => c.id === activeConvId ? { ...c, preview, last_message_at: lastMessageAt } : c));
       logUsage(user.id, user.username, text, reply);
     } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
     setLoading(false);
@@ -1067,12 +1128,54 @@ function ClientChat({ user, onLogout }) {
   const profileFilled = Object.values(profile).some(v => v?.trim());
   const BG = "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)";
 
-  if (initializing) return (
+  if (initializing || loadingMessages) return (
     <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif" }}>
-      <div style={{ color: "#c9697a", fontSize: "14px" }}>Loading your conversations…</div>
+      <div style={{ color: "#c9697a", fontSize: "14px" }}>{loadingMessages ? "Loading conversation…" : "Loading…"}</div>
     </div>
   );
 
+  // ── Conversation List View ──────────────────────────────────────────────────
+  if (!activeConvId) return (
+    <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif" }}>
+      <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🌿</div>
+          <div>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>Steady Parent Coach</div>
+            <div style={{ fontSize: "12px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
+          </div>
+        </div>
+        <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
+      </div>
+
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 16px" }}>
+        <Btn onClick={startNewConversation} style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "15px", fontWeight: "700", boxShadow: "0 4px 16px rgba(200,100,100,0.25)", borderRadius: "14px", marginBottom: "24px" }}>
+          + Start New Conversation
+        </Btn>
+
+        {conversations.filter(c => c.preview).length > 0 && (
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "#9a7060", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Previous Conversations</div>
+            {conversations.filter(c => c.preview).map(conv => (
+              <div key={conv.id} style={{ background: "rgba(255,255,255,0.88)", border: "1.5px solid rgba(200,120,90,0.15)", borderRadius: "16px", padding: "16px 18px", marginBottom: "10px", boxShadow: "0 2px 10px rgba(150,80,60,0.06)" }}>
+                <div style={{ fontSize: "12px", color: "#b89080", marginBottom: "6px" }}>
+                  {new Date(conv.last_message_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                </div>
+                <div style={{ fontSize: "14px", color: "#4a2820", lineHeight: 1.5, marginBottom: "12px" }}>
+                  "{conv.preview.length >= 80 ? conv.preview + "…" : conv.preview}"
+                </div>
+                <Btn onClick={() => setActiveConvId(conv.id)} style={{ background: "rgba(232,147,122,0.12)", color: "#7c4a3a", border: "1.5px solid rgba(200,120,90,0.2)", padding: "7px 16px", fontSize: "13px", fontWeight: "600" }}>
+                  Continue →
+                </Btn>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Chat View ───────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
@@ -1129,6 +1232,7 @@ function ClientChat({ user, onLogout }) {
 
       <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <button onClick={() => { setActiveConvId(null); setMessages([]); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9a7060", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", padding: "4px 8px 4px 0", display: "flex", alignItems: "center", gap: "3px" }}>← All</button>
           <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🌿</div>
           <div>
             <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>Steady Parent Coach</div>
