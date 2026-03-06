@@ -879,12 +879,44 @@ function ClientChat({ user, onLogout }) {
   const [nateSent, setNateSent] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
   const bottomRef = useRef(null);
+
+  const TUTORIAL_STEPS = [
+    {
+      icon: "🌿",
+      title: "Welcome to Steady Parent Coach",
+      body: "This is your between-session coaching space. Before you dive in, here's a quick tour of the key features — it'll only take a minute.",
+    },
+    {
+      icon: "⚡",
+      title: "Quick Scenarios",
+      body: "See the buttons at the bottom of the screen? Tap any of them to instantly start a conversation about a common situation — bedtime battles, school avoidance, meltdowns, and more. No need to type anything.",
+    },
+    {
+      icon: "👤",
+      title: "Your Profile",
+      body: "Tap 'My Profile' in the top bar to tell the coach about your specific situation — what you're working on in therapy, your child's triggers, and habits you're trying to change. The more you share, the more personal the coaching feels.",
+    },
+    {
+      icon: "📨",
+      title: "Send to Nate",
+      body: "At any point you can send your conversation transcript directly to Nate using the 'Send to Nate' button in the top bar. This is completely optional and only happens when you choose to share.",
+    },
+    {
+      icon: "🗑",
+      title: "Deleting Your Account",
+      body: "If you ever want to remove your account and all your data, click 'Delete Account' in the top bar. You'll be asked to confirm before anything is deleted. This is permanent and cannot be undone.",
+    },
+  ];
 
   useEffect(() => {
     async function init() {
       const [msgs, k, p] = await Promise.all([getMessages(user.id), getKB(), getProfile(user.id)]);
       setMessages(msgs); setKb(k); setProfile(p); setInitializing(false);
+      const seen = localStorage.getItem(`spc-tutorial-${user.id}`);
+      if (!seen) { setShowTutorial(true); localStorage.setItem(`spc-tutorial-${user.id}`, "1"); }
     }
     init();
   }, [user.id]);
@@ -970,6 +1002,38 @@ function ClientChat({ user, onLogout }) {
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
+
+      {showTutorial && (() => {
+        const step = TUTORIAL_STEPS[tutorialStep];
+        const isLast = tutorialStep === TUTORIAL_STEPS.length - 1;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+            <div style={{ background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", borderRadius: "28px", padding: "36px 32px 28px", maxWidth: 420, width: "92%", boxShadow: "0 24px 60px rgba(150,80,60,0.22)", textAlign: "center" }}>
+              <div style={{ fontSize: "42px", marginBottom: "14px" }}>{step.icon}</div>
+              <h2 style={{ color: "#4a2820", fontSize: "19px", margin: "0 0 12px", fontWeight: "700" }}>{step.title}</h2>
+              <p style={{ color: "#7c4a3a", fontSize: "14px", lineHeight: 1.7, margin: "0 0 28px" }}>{step.body}</p>
+
+              {/* Step dots */}
+              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginBottom: "22px" }}>
+                {TUTORIAL_STEPS.map((_, i) => (
+                  <div key={i} style={{ width: i === tutorialStep ? 18 : 7, height: 7, borderRadius: "4px", background: i === tutorialStep ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.2)", transition: "all 0.25s" }} />
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                {tutorialStep > 0 && (
+                  <Btn onClick={() => setTutorialStep(s => s - 1)} style={{ flex: 1, background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.2)" }}>← Back</Btn>
+                )}
+                <Btn onClick={() => { if (isLast) { setShowTutorial(false); } else { setTutorialStep(s => s + 1); } }}
+                  style={{ flex: 1, background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(200,100,100,0.3)", fontWeight: "700" }}>
+                  {isLast ? "Got it, let's go →" : "Next →"}
+                </Btn>
+              </div>
+              <button onClick={() => setShowTutorial(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#b89080", fontSize: "12px", marginTop: "14px", fontFamily: "inherit" }}>Skip tutorial</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {showDeleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" }} onClick={() => setShowDeleteConfirm(false)}>
