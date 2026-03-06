@@ -68,6 +68,25 @@ VERCEL ENVIRONMENT VARIABLES (add in Vercel dashboard → Settings → Environme
   SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   (The anon key is safe to expose in the browser — it is intentionally embedded in this file.)
 
+KB FOLDERS TABLE — Run this SQL in Supabase SQL Editor:
+
+CREATE TABLE kb_folders (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  content TEXT DEFAULT '',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE kb_folders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON kb_folders FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Optional: migrate existing KB content into a default folder
+INSERT INTO kb_folders (id, name, content, updated_at)
+SELECT 'folder_general', 'General', content, updated_at
+FROM knowledge_base WHERE content != '' LIMIT 1;
+
+---
+
 CONVERSATIONS TABLE — Run this SQL in Supabase SQL Editor:
 
 CREATE TABLE conversations (
@@ -278,13 +297,27 @@ async function saveMessages(uid, convId, msgs) {
 }
 async function getKB() {
   try {
-    const { data, error } = await db.from('knowledge_base').select('content').eq('id', 1).single();
+    const { data, error } = await db.from('kb_folders').select('name,content').order('updated_at', { ascending: true });
     if (error) throw error;
-    return data?.content || '';
+    const parts = (data || []).filter(f => f.content?.trim()).map(f => `### ${f.name}\n\n${f.content.trim()}`);
+    return parts.join('\n\n---\n\n');
   } catch { return ''; }
 }
-async function saveKB(kb) {
-  try { const { error } = await db.from('knowledge_base').upsert({ id: 1, content: kb, updated_at: new Date().toISOString() }); if (error) throw error; } catch (e) { console.error('saveKB error:', e); }
+async function getKBFolders() {
+  try {
+    const { data, error } = await db.from('kb_folders').select('*').order('updated_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch { return []; }
+}
+async function saveKBFolder(folder) {
+  try {
+    const { error } = await db.from('kb_folders').upsert({ ...folder, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    if (error) throw error;
+  } catch (e) { console.error('saveKBFolder error:', e); }
+}
+async function deleteKBFolder(id) {
+  try { await db.from('kb_folders').delete().eq('id', id); } catch (e) { console.error('deleteKBFolder error:', e); }
 }
 async function getProfile(uid) {
   try {
@@ -632,17 +665,21 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
 // ── Admin Dashboard ────────────────────────────────────────────────────────────
 function AdminDashboard({ onLogout }) {
   const [users, setUsers] = useState({});
-  const [kb, setKb] = useState("");
-  const [kbDraft, setKbDraft] = useState("");
-  const [kbSaved, setKbSaved] = useState(false);
+  const [folders, setFolders] = useState([]);
+  const [folderDrafts, setFolderDrafts] = useState({});
+  const [folderSaved, setFolderSaved] = useState({});
   const [tab, setTab] = useState("clients");
   const [loading, setLoading] = useState(true);
   const [usageData, setUsageData] = useState([]);
 
   useEffect(() => {
     async function load() {
-      const [u, k, usage] = await Promise.all([getUsers(), getKB(), getUsageThisMonth()]);
-      setUsers(u); setKb(k); setKbDraft(k); setUsageData(usage); setLoading(false);
+      const [u, f, usage] = await Promise.all([getUsers(), getKBFolders(), getUsageThisMonth()]);
+      setUsers(u);
+      setFolders(f);
+      setFolderDrafts(Object.fromEntries(f.map(fl => [fl.id, { name: fl.name, content: fl.content }])));
+      setUsageData(usage);
+      setLoading(false);
     }
     load();
   }, []);
@@ -677,10 +714,28 @@ function AdminDashboard({ onLogout }) {
     setTimeout(() => setResetTarget(null), 1800);
   }
 
-  async function doSaveKB() {
-    await saveKB(kbDraft);
-    setKb(kbDraft); setKbSaved(true);
-    setTimeout(() => setKbSaved(false), 2000);
+  async function doSaveFolder(id) {
+    const draft = folderDrafts[id];
+    if (!draft) return;
+    await saveKBFolder({ id, name: draft.name, content: draft.content });
+    setFolders(prev => prev.map(f => f.id === id ? { ...f, ...draft } : f));
+    setFolderSaved(prev => ({ ...prev, [id]: true }));
+    setTimeout(() => setFolderSaved(prev => ({ ...prev, [id]: false })), 2000);
+  }
+
+  async function doCreateFolder() {
+    const id = 'folder_' + Date.now().toString(36);
+    const newFolder = { id, name: 'New Folder', content: '', updated_at: new Date().toISOString() };
+    await saveKBFolder(newFolder);
+    setFolders(prev => [...prev, newFolder]);
+    setFolderDrafts(prev => ({ ...prev, [id]: { name: 'New Folder', content: '' } }));
+  }
+
+  async function doDeleteFolder(id) {
+    if (!confirm('Delete this folder and all its content?')) return;
+    await deleteKBFolder(id);
+    setFolders(prev => prev.filter(f => f.id !== id));
+    setFolderDrafts(prev => { const d = { ...prev }; delete d[id]; return d; });
   }
 
   const clientList = Object.values(users);
@@ -755,21 +810,55 @@ function AdminDashboard({ onLogout }) {
         )}
 
         {tab === "kb" && (
-          <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "20px", padding: "28px", border: "1px solid rgba(150,120,200,0.12)" }}>
-            <h3 style={{ color: "#2a2850", margin: "0 0 8px", fontSize: "17px" }}>Clinical Knowledge Base</h3>
-            <p style={{ color: "#7a70a0", fontSize: "13px", margin: "0 0 18px", lineHeight: 1.65 }}>
-              Anything pasted here is silently included in every client's AI context. Use it for general frameworks, preferred language, or practice-wide protocols. This does not give you access to individual client conversations.
-            </p>
-            {kb && <div style={{ background: "rgba(100,180,120,0.1)", border: "1px solid rgba(80,160,100,0.25)", borderRadius: "10px", padding: "9px 13px", marginBottom: "14px", fontSize: "12px", color: "#3a7a50" }}>✓ Active · {kb.split(" ").filter(Boolean).length} words loaded</div>}
-            <textarea value={kbDraft} onChange={e => setKbDraft(e.target.value)} rows={12}
-              placeholder={"Paste clinical notes, frameworks, or protocols here.\n\nExamples:\n• Preferred accommodation reduction language\n• SPACE protocol steps you use\n• Practice-specific scripts or frameworks\n• Any context you want the AI to reference"}
-              style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1.5px solid rgba(150,120,200,0.22)", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65, background: "#fdfcff" }} />
-            <div style={{ display: "flex", gap: "10px", marginTop: "13px" }}>
-              {kbDraft && <Btn onClick={() => setKbDraft("")} style={{ background: "rgba(220,80,80,0.07)", color: "#c05060", border: "1.5px solid rgba(220,80,80,0.15)" }}>🗑 Clear</Btn>}
-              <Btn onClick={doSaveKB} style={{ background: kbSaved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", boxShadow: "0 4px 14px rgba(120,100,200,0.22)", border: "none", padding: "11px 24px", transition: "background 0.3s" }}>
-                {kbSaved ? "✓ Saved!" : "Save & Apply"}
-              </Btn>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: "17px", fontWeight: "700", color: "#2a2850" }}>Clinical Knowledge Base</div>
+                <div style={{ fontSize: "13px", color: "#7a70a0", marginTop: "3px" }}>Each folder's content is included in every client's AI context. Organize by topic.</div>
+              </div>
+              <Btn onClick={doCreateFolder} style={{ background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.22)" }}>+ New Folder</Btn>
             </div>
+
+            {folders.length === 0 && (
+              <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: "16px", padding: "32px", textAlign: "center", color: "#9a8ac0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "10px" }}>📁</div>
+                <div style={{ fontSize: "14px", fontWeight: "600" }}>No folders yet</div>
+                <div style={{ fontSize: "13px", marginTop: "6px" }}>Click "+ New Folder" to get started.</div>
+              </div>
+            )}
+
+            {folders.map(folder => {
+              const draft = folderDrafts[folder.id] || { name: folder.name, content: folder.content };
+              const saved = folderSaved[folder.id];
+              const wordCount = draft.content.split(' ').filter(Boolean).length;
+              return (
+                <div key={folder.id} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(150,120,200,0.12)", borderRadius: "16px", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(150,120,200,0.1)", display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "16px" }}>📁</span>
+                    <input
+                      value={draft.name}
+                      onChange={e => setFolderDrafts(prev => ({ ...prev, [folder.id]: { ...draft, name: e.target.value } }))}
+                      style={{ flex: 1, border: "none", background: "transparent", fontSize: "15px", fontWeight: "700", color: "#2a2850", fontFamily: "inherit", outline: "none" }}
+                    />
+                    {draft.content && <span style={{ fontSize: "11px", color: "#9a8ac0" }}>{wordCount} words</span>}
+                    <button onClick={() => doDeleteFolder(folder.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "15px", opacity: 0.3, transition: "opacity 0.15s", padding: "2px" }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.3}>🗑</button>
+                  </div>
+                  <div style={{ padding: "14px 18px 16px" }}>
+                    <textarea
+                      value={draft.content}
+                      onChange={e => setFolderDrafts(prev => ({ ...prev, [folder.id]: { ...draft, content: e.target.value } }))}
+                      rows={6}
+                      placeholder="Paste clinical notes, frameworks, scripts, or protocols here…"
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "10px", border: "1.5px solid rgba(150,120,200,0.2)", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65, background: "#fdfcff" }}
+                    />
+                    <Btn onClick={() => doSaveFolder(folder.id)} style={{ marginTop: "10px", background: saved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.2)", transition: "background 0.3s" }}>
+                      {saved ? "✓ Saved!" : "Save & Apply"}
+                    </Btn>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
