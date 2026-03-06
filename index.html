@@ -156,11 +156,6 @@ const SCENARIOS = [
   { label: "🌅 Morning chaos", prompt: "Every morning is a war. My child refuses to get ready and we're always late. I'm exhausted." },
 ];
 
-function hashPassword(pw) {
-  let hash = 0;
-  for (let i = 0; i < pw.length; i++) { hash = ((hash << 5) - hash) + pw.charCodeAt(i); hash |= 0; }
-  return "h" + Math.abs(hash).toString(36);
-}
 
 function formatMessage(text) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -486,22 +481,10 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
     setError(""); setBusy(true);
 
     if (mode === "recover") {
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail) { setError("Please enter your email address."); setBusy(false); return; }
-      const users = await getUsers();
-      const match = Object.values(users).find(u => u.email?.toLowerCase() === normalizedEmail);
-      if (!match) { setError("No account found with that email address."); setBusy(false); return; }
-      // Generate a temp password
-      const tempPw = "temp-" + Math.random().toString(36).slice(2, 8);
-      const updated = { ...users };
-      updated[match.username].passwordHash = hashPassword(tempPw);
-      await saveUsers(updated);
-      await sendEmail(
-        "Steady Parent Coach — Account Recovery",
-        `Hi ${match.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${match.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and consider using a memorable password going forward.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
-        match.name,
-        normalizedEmail
-      );
+      if (!email.trim()) { setError("Please enter your email address."); setBusy(false); return; }
+      const res = await fetch("/api/recover-account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Something went wrong."); setBusy(false); return; }
       setRecoverSent(true);
       setBusy(false);
       return;
@@ -514,11 +497,11 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
         if (data.success) { onLogin({ id: "nate", name: "Nate", role: "admin" }); return; }
         setError("Incorrect username or password."); setBusy(false); return;
       }
-      const users = await getUsers();
-      const u = users[username.trim().toLowerCase()];
-      if (!u || u.passwordHash !== hashPassword(password)) { setError("Incorrect username or password."); setBusy(false); return; }
-      const userObj = { id: u.id, name: u.name, username: u.username, role: "client" };
-      if (!u.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
+      const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: username.trim().toLowerCase(), password }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Incorrect username or password."); setBusy(false); return; }
+      const userObj = { id: data.user.id, name: data.user.name, username: data.user.username, role: "client" };
+      if (!data.user.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
       onLogin(userObj);
     } else {
       if (!name.trim()) { setError("Please enter your name."); setBusy(false); return; }
@@ -527,22 +510,11 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       if (password.length < 6) { setError("Password must be at least 6 characters."); setBusy(false); return; }
       if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
       if (username.trim().toLowerCase() === ADMIN_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
-      const users = await getUsers();
-      const key = username.trim().toLowerCase();
-      if (users[key]) { setError("Username already taken."); setBusy(false); return; }
-      // Check for duplicate email
-      if (Object.values(users).some(u => u.email?.toLowerCase() === email.trim().toLowerCase())) {
-        setError("An account with that email already exists."); setBusy(false); return;
-      }
-      const id = "u_" + Date.now().toString(36);
-      users[key] = { id, name: name.trim(), username: key, email: email.trim().toLowerCase(), passwordHash: hashPassword(password), createdAt: new Date().toISOString(), consentSigned: false };
-      await saveUsers(users);
-      sendEmail(
-        `New Client Registration — ${name.trim()}`,
-        `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${key}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
-        name.trim()
-      );
-      onNeedsConsent({ id, name: name.trim(), username: key, role: "client" });
+      const res = await fetch("/api/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), email: email.trim(), username: username.trim().toLowerCase(), password }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Registration failed."); setBusy(false); return; }
+      sendEmail(`New Client Registration — ${name.trim()}`, `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${username.trim().toLowerCase()}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`, name.trim());
+      onNeedsConsent(data.user);
     }
     setBusy(false);
   }
@@ -657,10 +629,8 @@ function AdminDashboard({ onLogout }) {
 
   async function doReset() {
     if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
-    const updated = { ...users };
-    updated[resetTarget.username].passwordHash = hashPassword(newPassword);
-    await saveUsers(updated);
-    setUsers(updated);
+    const res = await fetch("/api/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: resetTarget.id, newPassword }) });
+    if (!res.ok) { setResetError("Failed to reset password. Please try again."); return; }
     setResetDone(true);
     setTimeout(() => setResetTarget(null), 1800);
   }
