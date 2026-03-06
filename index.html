@@ -1153,19 +1153,19 @@ function ClientChat({ user, onLogout }) {
           + Start New Conversation
         </Btn>
 
-        {conversations.filter(c => c.preview).length > 0 && (
+        {conversations.length > 0 && (
           <div>
             <div style={{ fontSize: "13px", fontWeight: "700", color: "#9a7060", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Previous Conversations</div>
-            {conversations.filter(c => c.preview).map(conv => (
+            {conversations.map(conv => (
               <div key={conv.id} style={{ background: "rgba(255,255,255,0.88)", border: "1.5px solid rgba(200,120,90,0.15)", borderRadius: "16px", padding: "16px 18px", marginBottom: "10px", boxShadow: "0 2px 10px rgba(150,80,60,0.06)" }}>
                 <div style={{ fontSize: "12px", color: "#b89080", marginBottom: "6px" }}>
                   {new Date(conv.last_message_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                 </div>
-                <div style={{ fontSize: "14px", color: "#4a2820", lineHeight: 1.5, marginBottom: "12px" }}>
-                  "{conv.preview.length >= 80 ? conv.preview + "…" : conv.preview}"
+                <div style={{ fontSize: "14px", color: conv.preview ? "#4a2820" : "#b89080", lineHeight: 1.5, marginBottom: "12px", fontStyle: conv.preview ? "normal" : "italic" }}>
+                  {conv.preview ? `"${conv.preview.length >= 80 ? conv.preview + "…" : conv.preview}"` : "No messages yet"}
                 </div>
                 <Btn onClick={() => setActiveConvId(conv.id)} style={{ background: "rgba(232,147,122,0.12)", color: "#7c4a3a", border: "1.5px solid rgba(200,120,90,0.2)", padding: "7px 16px", fontSize: "13px", fontWeight: "600" }}>
-                  Continue →
+                  {conv.preview ? "Continue →" : "Open →"}
                 </Btn>
               </div>
             ))}
