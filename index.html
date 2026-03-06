@@ -67,6 +67,19 @@ VERCEL ENVIRONMENT VARIABLES (add in Vercel dashboard → Settings → Environme
   SUPABASE_URL = https://hxljtpfdfdjocbcbuytq.supabase.co
   SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   (The anon key is safe to expose in the browser — it is intentionally embedded in this file.)
+
+USAGE TABLE — Run this SQL in Supabase SQL Editor:
+
+CREATE TABLE usage (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  tokens_estimated INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE usage ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON usage FOR ALL TO anon USING (true) WITH CHECK (true);
 */
 const { useState, useEffect, useRef, useCallback } = React;
 
@@ -251,6 +264,20 @@ async function getProfile(uid) {
 }
 async function saveProfile(uid, p) {
   try { const { error } = await db.from('profiles').upsert({ user_id: uid, ...p, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }); if (error) throw error; } catch (e) { console.error('saveProfile error:', e); }
+}
+async function logUsage(uid, username, userText, replyText) {
+  try {
+    const tokens = Math.round((userText.length + replyText.length) / 4);
+    await db.from('usage').insert({ user_id: uid, username, tokens_estimated: tokens });
+  } catch (e) { console.error('logUsage error:', e); }
+}
+async function getUsageThisMonth() {
+  try {
+    const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
+    const { data, error } = await db.from('usage').select('user_id,username,tokens_estimated,created_at').gte('created_at', start.toISOString());
+    if (error) throw error;
+    return data || [];
+  } catch { return []; }
 }
 
 // ── Consent Screen ─────────────────────────────────────────────────────────────
@@ -594,11 +621,12 @@ function AdminDashboard({ onLogout }) {
   const [kbSaved, setKbSaved] = useState(false);
   const [tab, setTab] = useState("clients");
   const [loading, setLoading] = useState(true);
+  const [usageData, setUsageData] = useState([]);
 
   useEffect(() => {
     async function load() {
-      const [u, k] = await Promise.all([getUsers(), getKB()]);
-      setUsers(u); setKb(k); setKbDraft(k); setLoading(false);
+      const [u, k, usage] = await Promise.all([getUsers(), getKB(), getUsageThisMonth()]);
+      setUsers(u); setKb(k); setKbDraft(k); setUsageData(usage); setLoading(false);
     }
     load();
   }, []);
@@ -668,7 +696,7 @@ function AdminDashboard({ onLogout }) {
         </div>
 
         <div style={{ display: "flex", gap: "8px", marginBottom: "22px" }}>
-          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"]].map(([t, label]) => (
+          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"], ["usage", "📊 Usage"]].map(([t, label]) => (
             <Btn key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(255,255,255,0.72)", color: tab === t ? "#fff" : "#7a70a0", boxShadow: tab === t ? "0 4px 14px rgba(120,100,200,0.28)" : "none", border: "none" }}>{label}</Btn>
           ))}
         </div>
@@ -730,6 +758,68 @@ function AdminDashboard({ onLogout }) {
             </div>
           </div>
         )}
+
+        {tab === "usage" && (() => {
+          const totalTokens = usageData.reduce((s, r) => s + r.tokens_estimated, 0);
+          const totalCost = (totalTokens * 0.000003).toFixed(4);
+          const now = new Date();
+          const monthName = now.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+          // Group by username
+          const byUser = {};
+          for (const r of usageData) {
+            if (!byUser[r.username]) byUser[r.username] = { username: r.username, count: 0, tokens: 0 };
+            byUser[r.username].count++;
+            byUser[r.username].tokens += r.tokens_estimated;
+          }
+          const userRows = Object.values(byUser).sort((a, b) => b.tokens - a.tokens);
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <h3 style={{ color: "#2a2850", margin: 0, fontSize: "17px" }}>Usage — {monthName}</h3>
+
+              {/* Summary cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", padding: "18px 20px", border: "1px solid rgba(150,120,200,0.12)" }}>
+                  <div style={{ fontSize: "12px", color: "#7a70a0", marginBottom: "6px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.04em" }}>Estimated Tokens</div>
+                  <div style={{ fontSize: "26px", fontWeight: "700", color: "#2a2850" }}>{totalTokens.toLocaleString()}</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", padding: "18px 20px", border: "1px solid rgba(150,120,200,0.12)" }}>
+                  <div style={{ fontSize: "12px", color: "#7a70a0", marginBottom: "6px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.04em" }}>Estimated Cost</div>
+                  <div style={{ fontSize: "26px", fontWeight: "700", color: "#2a2850" }}>${totalCost}</div>
+                </div>
+              </div>
+
+              {/* Per-client breakdown */}
+              <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", border: "1px solid rgba(150,120,200,0.12)", overflow: "hidden" }}>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(150,120,200,0.1)", display: "grid", gridTemplateColumns: "1fr auto auto", gap: "12px" }}>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7a70a0", textTransform: "uppercase", letterSpacing: "0.04em" }}>Client</div>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7a70a0", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right" }}>Messages</div>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7a70a0", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right", minWidth: 80 }}>Tokens</div>
+                </div>
+                {userRows.length === 0 ? (
+                  <div style={{ padding: "28px", textAlign: "center", color: "#9a8ac0", fontSize: "13px" }}>No usage recorded this month yet.</div>
+                ) : (
+                  <>
+                    {userRows.map(r => (
+                      <div key={r.username} style={{ padding: "12px 18px", borderBottom: "1px solid rgba(150,120,200,0.07)", display: "grid", gridTemplateColumns: "1fr auto auto", gap: "12px", alignItems: "center" }}>
+                        <div style={{ fontSize: "14px", color: "#2a2850", fontWeight: "500" }}>@{r.username}</div>
+                        <div style={{ fontSize: "14px", color: "#5a5890", textAlign: "right" }}>{r.count}</div>
+                        <div style={{ fontSize: "14px", color: "#5a5890", textAlign: "right", minWidth: 80 }}>{r.tokens.toLocaleString()}</div>
+                      </div>
+                    ))}
+                    <div style={{ padding: "12px 18px", background: "rgba(122,142,232,0.06)", display: "grid", gridTemplateColumns: "1fr auto auto", gap: "12px", alignItems: "center" }}>
+                      <div style={{ fontSize: "13px", color: "#2a2850", fontWeight: "700" }}>Total</div>
+                      <div style={{ fontSize: "13px", color: "#2a2850", fontWeight: "700", textAlign: "right" }}>{usageData.length}</div>
+                      <div style={{ fontSize: "13px", color: "#2a2850", fontWeight: "700", textAlign: "right", minWidth: 80 }}>{totalTokens.toLocaleString()}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div style={{ fontSize: "11px", color: "#9a8ac0", textAlign: "center" }}>Token estimates based on character count ÷ 4. Actual billed tokens may vary.</div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Reset Password Modal */}
@@ -962,6 +1052,7 @@ function ClientChat({ user, onLogout }) {
       const updated = [...newMsgs, { role: "assistant", content: reply }];
       setMessages(updated);
       await saveMessages(user.id, updated);
+      logUsage(user.id, user.username, text, reply);
     } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
     setLoading(false);
   }
