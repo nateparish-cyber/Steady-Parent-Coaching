@@ -83,8 +83,7 @@ CREATE POLICY "allow_all" ON usage FOR ALL TO anon USING (true) WITH CHECK (true
 */
 const { useState, useEffect, useRef, useCallback } = React;
 
-const NATE_PASSWORD = "nate2025";
-const NATE_USERNAME = "nate";
+const ADMIN_USERNAME = "nate"; // reserved username — password verified server-side
 
 const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching assistant built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
 
@@ -509,8 +508,11 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
     }
 
     if (mode === "login") {
-      if (username.trim().toLowerCase() === NATE_USERNAME && password === NATE_PASSWORD) {
-        onLogin({ id: "nate", name: "Nate", role: "admin" }); return;
+      if (username.trim().toLowerCase() === ADMIN_USERNAME) {
+        const res = await fetch("/api/admin-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: username.trim(), password }) });
+        const data = await res.json();
+        if (data.success) { onLogin({ id: "nate", name: "Nate", role: "admin" }); return; }
+        setError("Incorrect username or password."); setBusy(false); return;
       }
       const users = await getUsers();
       const u = users[username.trim().toLowerCase()];
@@ -524,7 +526,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       if (username.trim().length < 3) { setError("Username must be at least 3 characters."); setBusy(false); return; }
       if (password.length < 6) { setError("Password must be at least 6 characters."); setBusy(false); return; }
       if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
-      if (username.trim().toLowerCase() === NATE_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
+      if (username.trim().toLowerCase() === ADMIN_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
       const users = await getUsers();
       const key = username.trim().toLowerCase();
       if (users[key]) { setError("Username already taken."); setBusy(false); return; }
