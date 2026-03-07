@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}textarea::placeholder,input::placeholder{color:#c4a090}@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}</style>
 </head>
 <body>
@@ -134,6 +135,31 @@ ALTER TABLE usage ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_all" ON usage FOR ALL TO anon USING (true) WITH CHECK (true);
 */
 const { useState, useEffect, useRef, useCallback } = React;
+
+// ── PDF / text extraction ───────────────────────────────────────────────────
+if (window.pdfjsLib) {
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+async function extractTextFromFile(file) {
+  if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+    const buf = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map(item => item.str).join(" "));
+    }
+    return pages.join("\n\n");
+  }
+  // Plain text / markdown
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
 
 const ADMIN_USERNAME = "nate"; // reserved username — password verified server-side
 
@@ -707,6 +733,8 @@ function AdminDashboard({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [usageData, setUsageData] = useState([]);
   const [progressData, setProgressData] = useState([]);
+  const [folderUploading, setFolderUploading] = useState({});
+  const [folderUploadError, setFolderUploadError] = useState({});
 
   useEffect(() => {
     async function load() {
@@ -758,6 +786,26 @@ function AdminDashboard({ onLogout }) {
     setFolders(prev => prev.map(f => f.id === id ? { ...f, ...draft } : f));
     setFolderSaved(prev => ({ ...prev, [id]: true }));
     setTimeout(() => setFolderSaved(prev => ({ ...prev, [id]: false })), 2000);
+  }
+
+  async function doUploadFile(folderId, file, e) {
+    if (!file) return;
+    e.target.value = "";
+    setFolderUploading(prev => ({ ...prev, [folderId]: true }));
+    setFolderUploadError(prev => ({ ...prev, [folderId]: "" }));
+    try {
+      const text = await extractTextFromFile(file);
+      const cleaned = text.replace(/\s+/g, " ").trim();
+      if (!cleaned) throw new Error("No text could be extracted from this file.");
+      setFolderDrafts(prev => {
+        const existing = prev[folderId] || { name: "", content: "" };
+        const appended = existing.content ? existing.content + "\n\n---\n\n" + cleaned : cleaned;
+        return { ...prev, [folderId]: { ...existing, content: appended } };
+      });
+    } catch (err) {
+      setFolderUploadError(prev => ({ ...prev, [folderId]: err.message || "Failed to read file." }));
+    }
+    setFolderUploading(prev => ({ ...prev, [folderId]: false }));
   }
 
   async function doCreateFolder() {
@@ -883,6 +931,8 @@ function AdminDashboard({ onLogout }) {
               const draft = folderDrafts[folder.id] || { name: folder.name, content: folder.content };
               const saved = folderSaved[folder.id];
               const wordCount = draft.content.split(' ').filter(Boolean).length;
+              const uploading = folderUploading[folder.id];
+              const uploadError = folderUploadError[folder.id];
               return (
                 <div key={folder.id} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(150,120,200,0.12)", borderRadius: "16px", overflow: "hidden" }}>
                   <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(150,120,200,0.1)", display: "flex", alignItems: "center", gap: "10px" }}>
@@ -908,9 +958,19 @@ function AdminDashboard({ onLogout }) {
                       placeholder="Paste clinical notes, frameworks, scripts, or protocols here…"
                       style={{ width: "100%", padding: "12px 14px", borderRadius: "10px", border: "1.5px solid rgba(150,120,200,0.2)", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65, background: "#fdfcff" }}
                     />
-                    <Btn onClick={() => doSaveFolder(folder.id)} style={{ marginTop: "10px", background: saved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.2)", transition: "background 0.3s" }}>
-                      {saved ? "✓ Saved!" : "Save & Apply"}
-                    </Btn>
+                    <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: uploading ? "rgba(150,120,200,0.12)" : "rgba(122,142,232,0.1)", border: "1.5px solid rgba(122,142,232,0.25)", borderRadius: "10px", padding: "8px 14px", fontSize: "13px", color: "#5a5890", fontWeight: "600", cursor: uploading ? "default" : "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                        onMouseEnter={e => { if (!uploading) e.currentTarget.style.background = "rgba(122,142,232,0.18)"; }}
+                        onMouseLeave={e => { if (!uploading) e.currentTarget.style.background = "rgba(122,142,232,0.1)"; }}>
+                        {uploading ? "⏳ Reading…" : "📄 Upload file"}
+                        <input type="file" accept=".pdf,.txt,.md" style={{ display: "none" }} disabled={uploading}
+                          onChange={e => doUploadFile(folder.id, e.target.files[0], e)} />
+                      </label>
+                      <Btn onClick={() => doSaveFolder(folder.id)} style={{ background: saved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.2)", transition: "background 0.3s" }}>
+                        {saved ? "✓ Saved!" : "Save & Apply"}
+                      </Btn>
+                    </div>
+                    {uploadError && <div style={{ marginTop: "8px", fontSize: "12px", color: "#c05060", background: "rgba(220,80,80,0.07)", border: "1px solid rgba(220,80,80,0.18)", borderRadius: "8px", padding: "7px 11px" }}>{uploadError}</div>}
                   </div>
                 </div>
               );
