@@ -68,6 +68,23 @@ VERCEL ENVIRONMENT VARIABLES (add in Vercel dashboard → Settings → Environme
   SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   (The anon key is safe to expose in the browser — it is intentionally embedded in this file.)
 
+PROGRESS LOGS TABLE — Run this SQL in Supabase SQL Editor:
+
+CREATE TABLE progress_logs (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  username TEXT NOT NULL,
+  chat_summary TEXT DEFAULT '',
+  moment_type TEXT NOT NULL,
+  note TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE progress_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all" ON progress_logs FOR ALL TO anon USING (true) WITH CHECK (true);
+
+---
+
 KB FOLDERS TABLE — Run this SQL in Supabase SQL Editor:
 
 CREATE TABLE kb_folders (
@@ -339,6 +356,25 @@ async function getUsageThisMonth() {
   try {
     const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
     const { data, error } = await db.from('usage').select('user_id,username,tokens_estimated,created_at').gte('created_at', start.toISOString());
+    if (error) throw error;
+    return data || [];
+  } catch { return []; }
+}
+async function logProgress(uid, username, chatSummary, momentType, note) {
+  try {
+    await db.from('progress_logs').insert({ user_id: uid, username, chat_summary: chatSummary, moment_type: momentType, note: note || '' });
+  } catch (e) { console.error('logProgress error:', e); }
+}
+async function getProgress(uid) {
+  try {
+    const { data, error } = await db.from('progress_logs').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch { return []; }
+}
+async function getProgressSummary() {
+  try {
+    const { data, error } = await db.from('progress_logs').select('user_id,username,moment_type,created_at');
     if (error) throw error;
     return data || [];
   } catch { return []; }
@@ -671,14 +707,16 @@ function AdminDashboard({ onLogout }) {
   const [tab, setTab] = useState("clients");
   const [loading, setLoading] = useState(true);
   const [usageData, setUsageData] = useState([]);
+  const [progressData, setProgressData] = useState([]);
 
   useEffect(() => {
     async function load() {
-      const [u, f, usage] = await Promise.all([getUsers(), getKBFolders(), getUsageThisMonth()]);
+      const [u, f, usage, progress] = await Promise.all([getUsers(), getKBFolders(), getUsageThisMonth(), getProgressSummary()]);
       setUsers(u);
       setFolders(f);
       setFolderDrafts(Object.fromEntries(f.map(fl => [fl.id, { name: fl.name, content: fl.content }])));
       setUsageData(usage);
+      setProgressData(progress);
       setLoading(false);
     }
     load();
@@ -780,7 +818,14 @@ function AdminDashboard({ onLogout }) {
                 <div style={{ fontSize: "15px", fontWeight: "600" }}>No clients yet</div>
                 <div style={{ fontSize: "13px", marginTop: "6px", lineHeight: 1.5 }}>Clients will appear here once they create an account.</div>
               </div>
-            ) : clientList.map(u => (
+            ) : clientList.map(u => {
+              const uLogs = progressData.filter(p => p.user_id === u.id);
+              const uLogCount = uLogs.length;
+              const uLastLogged = uLogs.length > 0 ? new Date(uLogs.sort((a,b) => new Date(b.created_at)-new Date(a.created_at))[0].created_at) : null;
+              const uTypeCounts = {}; for (const l of uLogs) uTypeCounts[l.moment_type] = (uTypeCounts[l.moment_type]||0)+1;
+              const uTopType = Object.entries(uTypeCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+              const PICONS = { held_firm:"💪", gave_in_caught_myself:"😅", kid_win:"🌟", free_write:"✍️" };
+              return (
               <div key={u.id} style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(150,120,200,0.12)", borderRadius: "14px", padding: "15px 17px", marginBottom: "9px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#b8c8f0,#d0a8e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "700", color: "#4a4880", flexShrink: 0 }}>{u.name[0].toUpperCase()}</div>
@@ -796,6 +841,13 @@ function AdminDashboard({ onLogout }) {
                       </span>
                       {u.consentSignedAt && <span style={{ fontSize: "11px", color: "#b0a0d0" }}>{new Date(u.consentSignedAt).toLocaleDateString()}</span>}
                     </div>
+                    {uLogCount > 0 && (
+                      <div style={{ fontSize: "11px", color: "#7a70a0", marginTop: "4px", display: "flex", gap: "8px", alignItems: "center" }}>
+                        <span>📈 {uLogCount} moment{uLogCount !== 1 ? "s" : ""} logged</span>
+                        {uLastLogged && <><span>·</span><span>Last: {uLastLogged.toLocaleDateString()}</span></>}
+                        {uTopType && <><span>·</span><span>Top: {PICONS[uTopType]} {uTopType.replace(/_/g,' ')}</span></>}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -805,7 +857,8 @@ function AdminDashboard({ onLogout }) {
                     onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.35}>🗑</button>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
 
@@ -1081,6 +1134,16 @@ function ClientChat({ user, onLogout }) {
   const [deleting, setDeleting] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+  const [showLogPrompt, setShowLogPrompt] = useState(false);
+  const [showLogCard, setShowLogCard] = useState(false);
+  const [logPromptDismissed, setLogPromptDismissed] = useState(false);
+  const [exchangeCount, setExchangeCount] = useState(0);
+  const [progressLogs, setProgressLogs] = useState([]);
+  const [chatView, setChatView] = useState("chat");
+  const [selectedMoment, setSelectedMoment] = useState(null);
+  const [freeWriteNote, setFreeWriteNote] = useState("");
+  const [logSaving, setLogSaving] = useState(false);
+  const [logSaved, setLogSaved] = useState(false);
   const bottomRef = useRef(null);
 
   const TUTORIAL_STEPS = [
@@ -1113,8 +1176,8 @@ function ClientChat({ user, onLogout }) {
 
   useEffect(() => {
     async function init() {
-      const [convs, k, p] = await Promise.all([getConversations(user.id), getKB(), getProfile(user.id)]);
-      setKb(k); setProfile(p);
+      const [convs, k, p, logs] = await Promise.all([getConversations(user.id), getKB(), getProfile(user.id), getProgress(user.id)]);
+      setKb(k); setProfile(p); setProgressLogs(logs);
       if (convs.length === 0) {
         const convId = await createConversation(user.id);
         const newConv = { id: convId, user_id: user.id, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
@@ -1133,6 +1196,12 @@ function ClientChat({ user, onLogout }) {
   useEffect(() => {
     if (!activeConvId) return;
     setLoadingMessages(true);
+    setExchangeCount(0);
+    setShowLogPrompt(false);
+    setLogPromptDismissed(false);
+    setShowLogCard(false);
+    setSelectedMoment(null);
+    setFreeWriteNote("");
     getMessages(user.id, activeConvId).then(msgs => { setMessages(msgs); setLoadingMessages(false); });
   }, [activeConvId]);
 
@@ -1171,6 +1240,24 @@ function ClientChat({ user, onLogout }) {
     setActiveConvId(convId);
   }
 
+  async function saveProgressLog() {
+    if (!selectedMoment) return;
+    setLogSaving(true);
+    const chatSummary = messages.find(m => m.role === 'user')?.content?.slice(0, 120) || '';
+    const note = selectedMoment === 'free_write' ? freeWriteNote : '';
+    await logProgress(user.id, user.username, chatSummary, selectedMoment, note);
+    const logs = await getProgress(user.id);
+    setProgressLogs(logs);
+    setLogSaving(false);
+    setLogSaved(true);
+    setShowLogCard(false);
+    setShowLogPrompt(false);
+    setLogPromptDismissed(true);
+    setSelectedMoment(null);
+    setFreeWriteNote('');
+    setTimeout(() => setLogSaved(false), 3000);
+  }
+
   async function sendMessage(text) {
     if (!text.trim() || loading) return;
     const newMsgs = [...messages, { role: "user", content: text }];
@@ -1190,6 +1277,11 @@ function ClientChat({ user, onLogout }) {
       updateConversation(activeConvId, { preview, last_message_at: lastMessageAt });
       setConversations(prev => prev.map(c => c.id === activeConvId ? { ...c, preview, last_message_at: lastMessageAt } : c));
       logUsage(user.id, user.username, text, reply);
+      setExchangeCount(prev => {
+        const next = prev + 1;
+        if (next === 3 && !logPromptDismissed) setShowLogPrompt(true);
+        return next;
+      });
     } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
     setLoading(false);
   }
@@ -1305,6 +1397,48 @@ function ClientChat({ user, onLogout }) {
         );
       })()}
 
+      {showLogCard && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", borderRadius: "28px", padding: "28px 24px 24px", maxWidth: 420, width: "92%", boxShadow: "0 24px 60px rgba(150,80,60,0.22)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div>
+                <div style={{ fontSize: "18px", fontWeight: "700", color: "#4a2820" }}>Log this moment</div>
+                {messages.find(m => m.role === 'user') && (
+                  <div style={{ fontSize: "12px", color: "#9a7060", marginTop: "5px", fontStyle: "italic", lineHeight: 1.5 }}>
+                    "{messages.find(m => m.role === 'user').content.slice(0, 80)}{messages.find(m => m.role === 'user').content.length > 80 ? '…' : ''}"
+                  </div>
+                )}
+              </div>
+              <button onClick={() => { setShowLogCard(false); setLogPromptDismissed(true); setSelectedMoment(null); setFreeWriteNote(''); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#b89080", padding: "2px 2px 2px 10px", flexShrink: 0 }}>✕</button>
+            </div>
+            <div style={{ fontSize: "13px", color: "#7c4a3a", marginBottom: "12px", fontWeight: "600" }}>How did it go?</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "9px", marginBottom: "14px" }}>
+              {[
+                { type: "held_firm", icon: "💪", label: "I held firm" },
+                { type: "gave_in_caught_myself", icon: "😅", label: "Gave in, caught myself" },
+                { type: "kid_win", icon: "🌟", label: "Kid had a win" },
+                { type: "free_write", icon: "✍️", label: "Free write" },
+              ].map(opt => (
+                <button key={opt.type} onClick={() => setSelectedMoment(selectedMoment === opt.type ? null : opt.type)}
+                  style={{ background: selectedMoment === opt.type ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(255,255,255,0.88)", color: selectedMoment === opt.type ? "#fff" : "#7c4a3a", border: `1.5px solid ${selectedMoment === opt.type ? "transparent" : "rgba(200,120,90,0.2)"}`, borderRadius: "14px", padding: "14px 10px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "22px" }}>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            {selectedMoment === 'free_write' && (
+              <textarea value={freeWriteNote} onChange={e => setFreeWriteNote(e.target.value)}
+                placeholder="Write a sentence or two about what happened…" rows={3}
+                style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "12px" }} />
+            )}
+            <Btn onClick={saveProgressLog} disabled={!selectedMoment || logSaving}
+              style={{ width: "100%", padding: "13px", background: selectedMoment && !logSaving ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.2)", color: selectedMoment && !logSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: selectedMoment ? "0 4px 14px rgba(200,100,100,0.25)" : "none", transition: "all 0.2s" }}>
+              {logSaving ? "Saving…" : "Save"}
+            </Btn>
+          </div>
+        </div>
+      )}
+
       {showDeleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" }} onClick={() => setShowDeleteConfirm(false)}>
           <div style={{ background: "#fff8f5", borderRadius: "24px", padding: "32px", maxWidth: 380, width: "92%", boxShadow: "0 20px 60px rgba(150,80,60,0.2)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
@@ -1338,7 +1472,11 @@ function ClientChat({ user, onLogout }) {
             {profileFilled ? "👤 My Profile" : "👤 Add Profile"}
             {!profileFilled && <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: "50%", background: "#e8937a", border: "1.5px solid #fdf6f0" }} />}
           </button>
-          {hasMessages && <>
+          <Btn onClick={() => setChatView(v => v === "progress" ? "chat" : "progress")} style={{ background: chatView === "progress" ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.08)", color: chatView === "progress" ? "#fff" : "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px", position: "relative" }}>
+            📈 Progress
+            {logSaved && <span style={{ position: "absolute", top: -4, right: -4, width: 9, height: 9, borderRadius: "50%", background: "#3aaa6a", border: "1.5px solid #fdf6f0" }} />}
+          </Btn>
+          {hasMessages && chatView === "chat" && <>
             <Btn onClick={exportChat} style={{ background: "#fff8f5", color: "#c9697a", border: "1.5px solid rgba(200,100,100,0.18)", padding: "7px 13px", fontSize: "13px" }}>💾 Export</Btn>
             <Btn onClick={sendToNate} disabled={nateSending || nateSent} style={{ background: nateSent ? "rgba(80,180,100,0.15)" : "#fff8f5", color: nateSent ? "#2a7a40" : "#c9697a", border: `1.5px solid ${nateSent ? "rgba(60,160,80,0.3)" : "rgba(200,100,100,0.18)"}`, padding: "7px 13px", fontSize: "13px", transition: "all 0.3s" }}>
               {nateSending ? "Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
@@ -1349,7 +1487,82 @@ function ClientChat({ user, onLogout }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
+      {chatView === "progress" && (() => {
+        const MOMENT_LABELS = {
+          held_firm: { label: "Held firm", icon: "💪", color: "#3a7a50", bg: "rgba(80,160,100,0.15)" },
+          gave_in_caught_myself: { label: "Gave in — caught myself", icon: "😅", color: "#8a6020", bg: "rgba(220,180,60,0.15)" },
+          kid_win: { label: "Kid had a win", icon: "🌟", color: "#7a4a8a", bg: "rgba(180,100,220,0.12)" },
+          free_write: { label: "Free write", icon: "✍️", color: "#4a6080", bg: "rgba(100,140,200,0.12)" },
+        };
+        const thisWeek = progressLogs.filter(l => Date.now() - new Date(l.created_at) < 7*24*60*60*1000).length;
+        const typeCounts = {}; for (const l of progressLogs) typeCounts[l.moment_type] = (typeCounts[l.moment_type]||0)+1;
+        const topType = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
+        // Group by week
+        const weekMap = {};
+        for (const log of progressLogs) {
+          const d = new Date(log.created_at);
+          const ws = new Date(d); ws.setDate(d.getDate()-d.getDay()); ws.setHours(0,0,0,0);
+          const key = ws.toISOString();
+          if (!weekMap[key]) weekMap[key] = { start: ws, logs: [] };
+          weekMap[key].logs.push(log);
+        }
+        const weeks = Object.values(weekMap).sort((a,b) => b.start - a.start);
+        const now = new Date();
+        const thisWS = new Date(now); thisWS.setDate(now.getDate()-now.getDay()); thisWS.setHours(0,0,0,0);
+        const lastWS = new Date(thisWS); lastWS.setDate(thisWS.getDate()-7);
+        return (
+          <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
+            <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "18px", padding: "20px 24px", border: "1.5px solid rgba(200,120,90,0.15)", display: "flex", gap: "0", alignItems: "stretch" }}>
+              {[
+                { value: progressLogs.length, label: "moments logged" },
+                { value: thisWeek, label: "this week" },
+                { value: topType ? (MOMENT_LABELS[topType]?.icon || "📝") : "—", label: "top moment", raw: true },
+              ].map((s, i) => (
+                <div key={i} style={{ flex: 1, textAlign: "center", padding: "0 8px", borderLeft: i > 0 ? "1px solid rgba(200,120,90,0.15)" : "none" }}>
+                  <div style={{ fontSize: s.raw ? "26px" : "28px", fontWeight: s.raw ? "400" : "700", color: "#4a2820", lineHeight: 1.1 }}>{s.value}</div>
+                  <div style={{ fontSize: "11px", color: "#9a7060", marginTop: "5px" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            {progressLogs.length === 0 ? (
+              <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "18px", padding: "40px 24px", textAlign: "center", border: "1.5px solid rgba(200,120,90,0.15)" }}>
+                <div style={{ fontSize: "34px", marginBottom: "12px" }}>🌱</div>
+                <div style={{ fontSize: "15px", fontWeight: "600", color: "#4a2820", marginBottom: "8px" }}>No moments logged yet</div>
+                <div style={{ fontSize: "13px", color: "#9a7060", lineHeight: 1.65 }}>After 3 back-and-forths with the coach, you'll see a prompt to log how the moment went.</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+                {weeks.map(week => {
+                  const wLabel = week.start >= thisWS ? "This week" : week.start >= lastWS ? "Last week" : week.start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                  return (
+                    <div key={week.start.toISOString()}>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#9a7060", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>{wLabel}</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {week.logs.map(log => {
+                          const m = MOMENT_LABELS[log.moment_type] || { label: log.moment_type, icon: "📝", color: "#6a5040", bg: "rgba(200,150,100,0.1)" };
+                          return (
+                            <div key={log.id} style={{ background: "rgba(255,255,255,0.88)", border: `1.5px solid ${m.bg}`, borderRadius: "14px", padding: "13px 16px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                              <div style={{ fontSize: "22px", flexShrink: 0, marginTop: "1px" }}>{m.icon}</div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "14px", fontWeight: "600", color: m.color, marginBottom: "3px" }}>{m.label}</div>
+                                {log.chat_summary && <div style={{ fontSize: "12px", color: "#9a7060", lineHeight: 1.5, marginBottom: log.note ? "5px" : 0, fontStyle: "italic" }}>"{log.chat_summary.length > 80 ? log.chat_summary.slice(0,80)+"…" : log.chat_summary}"</div>}
+                                {log.note && <div style={{ fontSize: "13px", color: "#4a2820", lineHeight: 1.55 }}>{log.note}</div>}
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#b89080", flexShrink: 0 }}>{new Date(log.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {chatView === "chat" && <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
         {!hasMessages && (
           <div style={{ textAlign: "center", paddingTop: "10px" }}>
             <div style={{ fontSize: "26px", marginBottom: "6px" }}>🌿</div>
@@ -1396,6 +1609,22 @@ function ClientChat({ user, onLogout }) {
           <div ref={bottomRef} />
         </div>
 
+        {showLogPrompt && !showLogCard && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.88)", border: "1.5px solid rgba(200,120,90,0.22)", borderRadius: "14px", padding: "11px 15px", marginTop: "-6px" }}>
+            <span style={{ fontSize: "18px" }}>📝</span>
+            <div style={{ flex: 1, fontSize: "13px", color: "#7c4a3a", fontWeight: "500" }}>Want to log how this moment went?</div>
+            <button onClick={() => { setShowLogCard(true); setShowLogPrompt(false); }} style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", borderRadius: "10px", padding: "7px 14px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>Log it →</button>
+            <button onClick={() => { setShowLogPrompt(false); setLogPromptDismissed(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b89080", fontSize: "16px", padding: "2px" }}>✕</button>
+          </div>
+        )}
+
+        {logSaved && (
+          <div style={{ display: "flex", alignItems: "center", gap: "9px", background: "rgba(80,160,100,0.12)", border: "1.5px solid rgba(60,140,80,0.25)", borderRadius: "14px", padding: "11px 15px" }}>
+            <span style={{ fontSize: "16px" }}>✅</span>
+            <div style={{ fontSize: "13px", color: "#3a7a50", fontWeight: "500" }}>Moment logged! View it in the Progress tab.</div>
+          </div>
+        )}
+
         {hasMessages && (
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             {SCENARIOS.map(s => (
@@ -1406,9 +1635,9 @@ function ClientChat({ user, onLogout }) {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
-      <div style={{ position: "sticky", bottom: 0, background: "rgba(253,246,240,0.93)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(180,120,90,0.11)", padding: "13px 15px" }}>
+      {chatView === "chat" && <div style={{ position: "sticky", bottom: 0, background: "rgba(253,246,240,0.93)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(180,120,90,0.11)", padding: "13px 15px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", gap: "9px", alignItems: "flex-end" }}>
           <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }} placeholder="Describe what's happening right now…" rows={1}
             style={{ flex: 1, padding: "11px 15px", borderRadius: "18px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.92)", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: "110px", overflow: "auto", transition: "border-color 0.15s" }}
@@ -1416,7 +1645,7 @@ function ClientChat({ user, onLogout }) {
           <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading} style={{ width: 42, height: 42, borderRadius: "50%", background: input.trim() && !loading ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.17)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>➤</button>
         </div>
         <div style={{ maxWidth: 720, margin: "6px auto 0", textAlign: "center", fontSize: "11px", color: "#b89080" }}>Not a replacement for therapy · For crisis support, contact emergency services</div>
-      </div>
+      </div>}
 
       <style>{`
         @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
