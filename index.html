@@ -1521,6 +1521,9 @@ function ClientChat({ user, onLogout }) {
         const lastWS = new Date(thisWS); lastWS.setDate(thisWS.getDate()-7);
         return (
           <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
+            <Btn onClick={() => { setShowLogCard(true); }} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: "0 4px 16px rgba(200,100,100,0.25)", borderRadius: "14px" }}>
+              + Log a Moment
+            </Btn>
             <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "18px", padding: "20px 24px", border: "1.5px solid rgba(200,120,90,0.15)", display: "flex", gap: "0", alignItems: "stretch" }}>
               {[
                 { value: progressLogs.length, label: "moments logged" },
