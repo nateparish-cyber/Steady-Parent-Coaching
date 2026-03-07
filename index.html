@@ -361,9 +361,8 @@ async function getUsageThisMonth() {
   } catch { return []; }
 }
 async function logProgress(uid, username, chatSummary, momentType, note) {
-  try {
-    await db.from('progress_logs').insert({ user_id: uid, username, chat_summary: chatSummary, moment_type: momentType, note: note || '' });
-  } catch (e) { console.error('logProgress error:', e); }
+  const { error } = await db.from('progress_logs').insert({ user_id: uid, username, chat_summary: chatSummary, moment_type: momentType, note: note || '' });
+  if (error) throw error;
 }
 async function getProgress(uid) {
   try {
@@ -1240,22 +1239,31 @@ function ClientChat({ user, onLogout }) {
     setActiveConvId(convId);
   }
 
+  const [logSaveError, setLogSaveError] = useState("");
+
   async function saveProgressLog() {
     if (!selectedMoment) return;
     setLogSaving(true);
-    const chatSummary = messages.find(m => m.role === 'user')?.content?.slice(0, 120) || '';
-    const note = selectedMoment === 'free_write' ? freeWriteNote : '';
-    await logProgress(user.id, user.username, chatSummary, selectedMoment, note);
-    const logs = await getProgress(user.id);
-    setProgressLogs(logs);
-    setLogSaving(false);
-    setLogSaved(true);
-    setShowLogCard(false);
-    setShowLogPrompt(false);
-    setLogPromptDismissed(true);
-    setSelectedMoment(null);
-    setFreeWriteNote('');
-    setTimeout(() => setLogSaved(false), 3000);
+    setLogSaveError("");
+    try {
+      const chatSummary = messages.find(m => m.role === 'user')?.content?.slice(0, 120) || '';
+      const note = selectedMoment === 'free_write' ? freeWriteNote : '';
+      await logProgress(user.id, user.username, chatSummary, selectedMoment, note);
+      const logs = await getProgress(user.id);
+      setProgressLogs(logs);
+      setLogSaving(false);
+      setLogSaved(true);
+      setShowLogCard(false);
+      setShowLogPrompt(false);
+      setLogPromptDismissed(true);
+      setSelectedMoment(null);
+      setFreeWriteNote('');
+      setTimeout(() => setLogSaved(false), 3000);
+    } catch (e) {
+      console.error('saveProgressLog error:', e);
+      setLogSaveError("Couldn't save — make sure the progress_logs table exists in Supabase.");
+      setLogSaving(false);
+    }
   }
 
   async function sendMessage(text) {
@@ -1431,6 +1439,7 @@ function ClientChat({ user, onLogout }) {
                 placeholder="Write a sentence or two about what happened…" rows={3}
                 style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "12px" }} />
             )}
+            {logSaveError && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "9px 13px", color: "#c05060", fontSize: "12px", marginBottom: "10px", lineHeight: 1.5 }}>{logSaveError}</div>}
             <Btn onClick={saveProgressLog} disabled={!selectedMoment || logSaving}
               style={{ width: "100%", padding: "13px", background: selectedMoment && !logSaving ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.2)", color: selectedMoment && !logSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: selectedMoment ? "0 4px 14px rgba(200,100,100,0.25)" : "none", transition: "all 0.2s" }}>
               {logSaving ? "Saving…" : "Save"}
