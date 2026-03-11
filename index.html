@@ -7,6 +7,7 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}textarea::placeholder,input::placeholder{color:#c4a090}@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}</style>
 </head>
@@ -15,8 +16,9 @@
 <script type="text/babel">
 const { useState, useRef, useEffect } = React;
 
-const NATE_PASSWORD = "nate2025";
-const NATE_USERNAME = "nate";
+const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4bGp0cGZkZmRqb2NiY2J1eXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDczMzIsImV4cCI6MjA4ODMyMzMzMn0.JDK05pK6Rs_lRPi_1BnqezeensGdCqXu7ugXlaKJCIo";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching companion built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
 
@@ -124,11 +126,6 @@ const SCENARIOS = [
   { label: "🌅 Morning chaos", prompt: "Every morning is a war. My child refuses to get ready and we're always late. I'm exhausted." },
 ];
 
-function hashPassword(pw) {
-  let hash = 0;
-  for (let i = 0; i < pw.length; i++) { hash = ((hash << 5) - hash) + pw.charCodeAt(i); hash |= 0; }
-  return "h" + Math.abs(hash).toString(36);
-}
 
 function formatMessage(text) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -182,14 +179,38 @@ async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
   }
 }
 
-async function getUsers() { try { const v = localStorage.getItem("spc-users"); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveUsers(u) { localStorage.setItem("spc-users", JSON.stringify(u)); }
-async function getMessages(uid) { try { const v = localStorage.getItem(`spc-chat-${uid}`); return v ? JSON.parse(v) : []; } catch { return []; } }
-async function saveMessages(uid, msgs) { localStorage.setItem(`spc-chat-${uid}`, JSON.stringify(msgs)); }
-async function getKB() { try { return localStorage.getItem("spc-kb") || ""; } catch { return ""; } }
-async function saveKB(kb) { localStorage.setItem("spc-kb", kb); }
-async function getProfile(uid) { try { const v = localStorage.getItem(`spc-profile-${uid}`); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveProfile(uid, p) { localStorage.setItem(`spc-profile-${uid}`, JSON.stringify(p)); }
+async function getUsers() {
+  const { data } = await db.from('users').select('*');
+  const result = {};
+  for (const u of data || []) {
+    result[u.username] = { id: u.id, name: u.name, username: u.username, email: u.email, passwordHash: u.password_hash, createdAt: u.created_at, consentSigned: u.consent_signed, consentSignedAt: u.consent_signed_at, consentTypedName: u.consent_typed_name };
+  }
+  return result;
+}
+async function getMessages(uid) {
+  const { data } = await db.from('messages').select('role,content').eq('user_id', uid).order('created_at');
+  return data || [];
+}
+async function saveMessages(uid, msgs) {
+  const { count } = await db.from('messages').select('*', { count: 'exact', head: true }).eq('user_id', uid);
+  const newMsgs = msgs.slice(count || 0);
+  if (newMsgs.length > 0) await db.from('messages').insert(newMsgs.map(m => ({ user_id: uid, role: m.role, content: m.content })));
+}
+async function getKB() {
+  const { data } = await db.from('knowledge_base').select('content').eq('id', 'global').maybeSingle();
+  return data?.content || '';
+}
+async function saveKB(kb) {
+  await db.from('knowledge_base').upsert({ id: 'global', content: kb });
+}
+async function getProfile(uid) {
+  const { data } = await db.from('profiles').select('*').eq('user_id', uid).maybeSingle();
+  if (!data) return {};
+  return { working_on: data.working_on || '', triggers: data.triggers || '', accommodations: data.accommodations || '', notes: data.notes || '' };
+}
+async function saveProfile(uid, p) {
+  await db.from('profiles').upsert({ user_id: uid, ...p, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+}
 
 // ── Consent Screen ─────────────────────────────────────────────────────────────
 const CONSENT_SECTIONS = [
@@ -236,13 +257,7 @@ function ConsentScreen({ user, onConsented }) {
 
     // Save consent record
     try {
-      const users = await getUsers();
-      if (users[user.username]) {
-        users[user.username].consentSigned = true;
-        users[user.username].consentSignedAt = new Date().toISOString();
-        users[user.username].consentTypedName = typedName.trim();
-        await saveUsers(users);
-      }
+      await db.from('users').update({ consent_signed: true, consent_signed_at: new Date().toISOString(), consent_typed_name: typedName.trim() }).eq('id', user.id);
     } catch {}
 
     // Auto-send signed consent to Nate via EmailJS
@@ -398,36 +413,26 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
     setError(""); setBusy(true);
 
     if (mode === "recover") {
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail) { setError("Please enter your email address."); setBusy(false); return; }
-      const users = await getUsers();
-      const match = Object.values(users).find(u => u.email?.toLowerCase() === normalizedEmail);
-      if (!match) { setError("No account found with that email address."); setBusy(false); return; }
-      // Generate a temp password
-      const tempPw = "temp-" + Math.random().toString(36).slice(2, 8);
-      const updated = { ...users };
-      updated[match.username].passwordHash = hashPassword(tempPw);
-      await saveUsers(updated);
-      await sendEmail(
-        "Steady Parent Coach — Account Recovery",
-        `Hi ${match.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${match.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and consider using a memorable password going forward.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
-        match.name,
-        normalizedEmail
-      );
+      if (!email.trim()) { setError("Please enter your email address."); setBusy(false); return; }
+      const res = await fetch("/api/recover-account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "No account found with that email address."); setBusy(false); return; }
       setRecoverSent(true);
       setBusy(false);
       return;
     }
 
     if (mode === "login") {
-      if (username.trim().toLowerCase() === NATE_USERNAME && password === NATE_PASSWORD) {
-        onLogin({ id: "nate", name: "Nate", role: "admin" }); return;
-      }
-      const users = await getUsers();
-      const u = users[username.trim().toLowerCase()];
-      if (!u || u.passwordHash !== hashPassword(password)) { setError("Incorrect username or password."); setBusy(false); return; }
-      const userObj = { id: u.id, name: u.name, username: u.username, role: "client" };
-      if (!u.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
+      // Admin login
+      const adminRes = await fetch("/api/admin-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: username.trim(), password }) });
+      if (adminRes.ok) { onLogin({ id: "nate", name: "Nate", role: "admin" }); return; }
+
+      // Client login
+      const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: username.trim().toLowerCase(), password }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Incorrect username or password."); setBusy(false); return; }
+      const userObj = { ...data.user, role: "client" };
+      if (!data.user.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
       onLogin(userObj);
     } else {
       if (!name.trim()) { setError("Please enter your name."); setBusy(false); return; }
@@ -435,23 +440,15 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       if (username.trim().length < 3) { setError("Username must be at least 3 characters."); setBusy(false); return; }
       if (password.length < 6) { setError("Password must be at least 6 characters."); setBusy(false); return; }
       if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
-      if (username.trim().toLowerCase() === NATE_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
-      const users = await getUsers();
-      const key = username.trim().toLowerCase();
-      if (users[key]) { setError("Username already taken."); setBusy(false); return; }
-      // Check for duplicate email
-      if (Object.values(users).some(u => u.email?.toLowerCase() === email.trim().toLowerCase())) {
-        setError("An account with that email already exists."); setBusy(false); return;
-      }
-      const id = "u_" + Date.now().toString(36);
-      users[key] = { id, name: name.trim(), username: key, email: email.trim().toLowerCase(), passwordHash: hashPassword(password), createdAt: new Date().toISOString(), consentSigned: false };
-      await saveUsers(users);
+      const res = await fetch("/api/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), email: email.trim(), username: username.trim().toLowerCase(), password }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Registration failed."); setBusy(false); return; }
       sendEmail(
         `New Client Registration — ${name.trim()}`,
-        `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${key}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
+        `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${username.trim().toLowerCase()}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
         name.trim()
       );
-      onNeedsConsent({ id, name: name.trim(), username: key, role: "client" });
+      onNeedsConsent({ ...data.user, role: "client" });
     }
     setBusy(false);
   }
@@ -544,13 +541,9 @@ function AdminDashboard({ onLogout }) {
   async function deleteClient(key) {
     if (!confirm(`Delete ${users[key].name} and all their data?`)) return;
     const uid = users[key].id;
+    await db.from('users').delete().eq('id', uid);
     const updated = { ...users };
     delete updated[key];
-    await saveUsers(updated);
-    try {
-      localStorage.removeItem(`spc-chat-${uid}`);
-      localStorage.removeItem(`spc-profile-${uid}`);
-    } catch {}
     setUsers(updated);
   }
 
@@ -569,10 +562,8 @@ function AdminDashboard({ onLogout }) {
 
   async function doReset() {
     if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
-    const updated = { ...users };
-    updated[resetTarget.username].passwordHash = hashPassword(newPassword);
-    await saveUsers(updated);
-    setUsers(updated);
+    const res = await fetch("/api/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: resetTarget.id, newPassword }) });
+    if (!res.ok) { setResetError("Failed to reset password."); return; }
     setResetDone(true);
     setTimeout(() => setResetTarget(null), 1800);
   }
