@@ -1203,7 +1203,18 @@ function ClientChat({ user, onLogout }) {
   const [freeWriteNote, setFreeWriteNote] = useState("");
   const [logSaving, setLogSaving] = useState(false);
   const [logSaved, setLogSaved] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
   const bottomRef = useRef(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
 
   const TUTORIAL_STEPS = [
     {
@@ -1535,24 +1546,37 @@ function ClientChat({ user, onLogout }) {
             <div style={{ fontSize: "12px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "7px", alignItems: "center" }}>
-          {/* Profile button with dot indicator if empty */}
-          <button onClick={() => setShowProfile(true)} style={{ position: "relative", background: profileFilled ? "rgba(232,147,122,0.12)" : "rgba(220,80,80,0.07)", border: `1.5px solid ${profileFilled ? "rgba(200,120,90,0.25)" : "rgba(220,80,80,0.2)"}`, borderRadius: "10px", padding: "7px 13px", fontSize: "13px", color: profileFilled ? "#7c4a3a" : "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", transition: "all 0.2s" }}>
-            {profileFilled ? "👤 My Profile" : "👤 Add Profile"}
-            {!profileFilled && <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: "50%", background: "#e8937a", border: "1.5px solid #fdf6f0" }} />}
+        <div ref={menuRef} style={{ position: "relative" }}>
+          <button onClick={() => setShowMenu(v => !v)} style={{ background: "rgba(200,120,90,0.08)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "10px", padding: "7px 13px", fontSize: "20px", cursor: "pointer", color: "#7c4a3a", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, position: "relative" }}>
+            ☰
+            {(!profileFilled || logSaved) && <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: "50%", background: logSaved ? "#3aaa6a" : "#e8937a", border: "1.5px solid #fdf6f0" }} />}
           </button>
-          <Btn onClick={() => setChatView(v => v === "progress" ? "chat" : "progress")} style={{ background: chatView === "progress" ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.08)", color: chatView === "progress" ? "#fff" : "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px", position: "relative" }}>
-            📈 Progress
-            {logSaved && <span style={{ position: "absolute", top: -4, right: -4, width: 9, height: 9, borderRadius: "50%", background: "#3aaa6a", border: "1.5px solid #fdf6f0" }} />}
-          </Btn>
-          {hasMessages && chatView === "chat" && <>
-            <Btn onClick={exportChat} style={{ background: "#fff8f5", color: "#c9697a", border: "1.5px solid rgba(200,100,100,0.18)", padding: "7px 13px", fontSize: "13px" }}>💾 Export</Btn>
-            <Btn onClick={sendToNate} disabled={nateSending || nateSent} style={{ background: nateSent ? "rgba(80,180,100,0.15)" : "#fff8f5", color: nateSent ? "#2a7a40" : "#c9697a", border: `1.5px solid ${nateSent ? "rgba(60,160,80,0.3)" : "rgba(200,100,100,0.18)"}`, padding: "7px 13px", fontSize: "13px", transition: "all 0.3s" }}>
-              {nateSending ? "Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
-            </Btn>
-          </>}
-          <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
-          <Btn onClick={() => setShowDeleteConfirm(true)} style={{ background: "rgba(220,80,80,0.06)", color: "#c05060", border: "1.5px solid rgba(220,80,80,0.18)", padding: "7px 13px", fontSize: "13px" }}>Delete Account</Btn>
+          {showMenu && (
+            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "14px", boxShadow: "0 8px 28px rgba(150,80,60,0.15)", minWidth: 190, zIndex: 50, overflow: "hidden" }}>
+              <button onClick={() => { setShowProfile(true); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: profileFilled ? "#7c4a3a" : "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", position: "relative" }}>
+                👤 {profileFilled ? "My Profile" : "Add Profile"}
+                {!profileFilled && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#e8937a", flexShrink: 0 }} />}
+              </button>
+              <button onClick={() => { setChatView(v => v === "progress" ? "chat" : "progress"); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: chatView === "progress" ? "rgba(232,147,122,0.12)" : "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+                📈 Progress
+                {logSaved && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3aaa6a", flexShrink: 0 }} />}
+              </button>
+              {hasMessages && chatView === "chat" && <>
+                <button onClick={() => { exportChat(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+                  💾 Export
+                </button>
+                <button onClick={() => { sendToNate(); setShowMenu(false); }} disabled={nateSending || nateSent} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: nateSent ? "rgba(80,180,100,0.1)" : "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: nateSent ? "#2a7a40" : "#7c4a3a", cursor: nateSending || nateSent ? "default" : "pointer", fontFamily: "inherit", fontWeight: "600", transition: "all 0.3s" }}>
+                  {nateSending ? "⏳ Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
+                </button>
+              </>}
+              <button onClick={() => { onLogout(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#9a7060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+                Sign Out
+              </button>
+              <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", padding: "12px 16px", fontSize: "14px", color: "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+                🗑 Delete Account
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
