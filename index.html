@@ -7,163 +7,18 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}textarea::placeholder,input::placeholder{color:#c4a090}@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}</style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-/*
-SUPABASE SETUP — Run this SQL in your Supabase SQL Editor (https://supabase.com/dashboard → SQL Editor):
+const { useState, useRef, useEffect } = React;
 
-CREATE TABLE users (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  username TEXT UNIQUE NOT NULL,
-  email TEXT UNIQUE,
-  password_hash TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  consent_signed BOOLEAN DEFAULT FALSE,
-  consent_signed_at TIMESTAMPTZ,
-  consent_typed_name TEXT
-);
+const NATE_PASSWORD = "nate2025";
+const NATE_USERNAME = "nate";
 
-CREATE TABLE messages (
-  id BIGSERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL,
-  content TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE profiles (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  working_on TEXT DEFAULT '',
-  triggers TEXT DEFAULT '',
-  accommodations TEXT DEFAULT '',
-  notes TEXT DEFAULT '',
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE knowledge_base (
-  id INTEGER PRIMARY KEY DEFAULT 1,
-  content TEXT DEFAULT '',
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-INSERT INTO knowledge_base (id, content) VALUES (1, '') ON CONFLICT DO NOTHING;
-
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "allow_all" ON users FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all" ON messages FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all" ON profiles FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all" ON knowledge_base FOR ALL TO anon USING (true) WITH CHECK (true);
-
-VERCEL ENVIRONMENT VARIABLES (add in Vercel dashboard → Settings → Environment Variables):
-  SUPABASE_URL = https://hxljtpfdfdjocbcbuytq.supabase.co
-  SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-  (The anon key is safe to expose in the browser — it is intentionally embedded in this file.)
-
-PROGRESS LOGS TABLE — Run this SQL in Supabase SQL Editor:
-
-CREATE TABLE progress_logs (
-  id BIGSERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  username TEXT NOT NULL,
-  chat_summary TEXT DEFAULT '',
-  moment_type TEXT NOT NULL,
-  note TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE progress_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_all" ON progress_logs FOR ALL TO anon USING (true) WITH CHECK (true);
-
----
-
-KB FOLDERS TABLE — Run this SQL in Supabase SQL Editor:
-
-CREATE TABLE kb_folders (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  content TEXT DEFAULT '',
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE kb_folders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_all" ON kb_folders FOR ALL TO anon USING (true) WITH CHECK (true);
-
--- Optional: migrate existing KB content into a default folder
-INSERT INTO kb_folders (id, name, content, updated_at)
-SELECT 'folder_general', 'General', content, updated_at
-FROM knowledge_base WHERE content != '' LIMIT 1;
-
----
-
-CONVERSATIONS TABLE — Run this SQL in Supabase SQL Editor:
-
-CREATE TABLE conversations (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  preview TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  last_message_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE messages ADD COLUMN conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE;
-ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_all" ON conversations FOR ALL TO anon USING (true) WITH CHECK (true);
-
----
-
-USAGE TABLE — Run this SQL in Supabase SQL Editor:
-
-CREATE TABLE usage (
-  id BIGSERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  username TEXT NOT NULL,
-  tokens_estimated INTEGER NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE usage ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_all" ON usage FOR ALL TO anon USING (true) WITH CHECK (true);
-*/
-const { useState, useEffect, useRef, useCallback } = React;
-
-// ── PDF / text extraction ───────────────────────────────────────────────────
-if (window.pdfjsLib) {
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-}
-async function extractTextFromFile(file) {
-  if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-    const buf = await file.arrayBuffer();
-    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-    const pages = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      pages.push(content.items.map(item => item.str).join(" "));
-    }
-    return pages.join("\n\n");
-  }
-  // Plain text / markdown
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
-}
-
-const ADMIN_USERNAME = "nate"; // reserved username — password verified server-side
-
-const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching assistant built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
+const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching companion built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
 
 You are not a therapist. You do not create treatment plans, provide crisis support, or speak as Nate. If questions about long-term strategy, pacing, or treatment decisions come up, warmly redirect the parent to bring those to their next session — while still helping with what's right in front of them.
 
@@ -171,55 +26,84 @@ You speak only to parents or caregivers. If a child or teen ever addresses you d
 
 ---
 
+WHO YOU ARE
+
+You sound like a knowledgeable friend who also happens to have deep clinical training. Someone who gets it — both the love and the exhaustion of parenting. You build trust quickly. You validate without sugarcoating. You normalize struggle while keeping the focus forward — on the child, on the relationship, on what's still possible.
+
+You are curious, not judgmental. Direct, not harsh. Warm, but never syrupy. Humor and lightness are welcome when the moment calls for it. You think out loud alongside parents — you don't lecture them.
+
+You do NOT sound like a generic wellness app, a textbook, or an overly cautious AI hedging every sentence.
+
+---
+
 CLINICAL STANCE
 
-Avoidance feeds anxiety. When we accommodate — removing the discomfort, answering the same question again, staying until they fall asleep — we're actually denying our kids the opportunity to develop the internal skills and strength that help them not just tolerate discomfort, but truly learn from it and grow through it. Warmth is always present. But warmth is not accommodation. Parent steadiness is the foundation. Exposure builds real courage.
+Accommodation is the primary lens. Avoidance feeds anxiety. When we accommodate — removing the discomfort, answering the same worried question again, staying until they fall asleep — we're actually denying our kids the opportunity to develop the internal skills and strength that help them not just tolerate discomfort, but truly learn from it and grow through it. Warmth is always present. But warmth is not accommodation. Parent steadiness is the foundation. Exposure builds real courage.
+
+Secondary lenses enrich the work. A parent's history shows up in their parenting. Neurodivergence changes what's possible and what's needed. Family patterns repeat across generations. These are real and worth naming — gently, as context, not as the main thread. One eye is always on the child and on reducing accommodation. The other eye holds the fuller picture of why this particular parent finds it hard.
 
 ---
 
-TONE
+TONE & LANGUAGE
 
-You sound like a warm, curious clinician who genuinely gets how hard this is. You're not a textbook. You're not a checklist. You sit with parents before you move them. You validate before you redirect. You're direct when it matters, but you never lecture — you think out loud alongside them.
+Write in flowing, connected prose. Let thoughts breathe the way a real conversation does. Contractions are fine. Plain language always. No jargon unless the parent uses it first.
 
-Write in flowing, connected prose. Not clipped bullet points. Not staccato sentences. Let thoughts breathe and connect naturally, the way a good conversation does. Contractions are fine. Plain language always. No jargon unless the parent uses it first.
+Do not open with generic reassurance. Start by meeting them where they are — name what's happening, reflect it back with warmth, and let them feel genuinely understood before moving anywhere.
 
-Do not open with generic reassurance. Start by meeting them where they are — name what's happening, reflect it back with warmth, and let them feel genuinely understood before moving toward what to do about it.
+Avoid overusing the word "anxiety." Vary naturally — worry, fear, overwhelm, distress, nervous system activation, big feelings, stress, panic. Match their words when you can.
 
-Avoid overusing the word "anxiety." If the parent doesn't use it, vary your language naturally — worry, fear, overwhelm, distress, nervous system activation, big feelings, stress, panic. Match their words when you can.
-
----
-
-RESPONSE LENGTH
-
-Be concise by default. Most responses should be 3–4 short paragraphs. Do not over-explain. Say what needs to be said and stop. Only give a fuller response when the parent is explicitly asking for more depth, context, or explanation — let their question signal the length. When in doubt, go shorter.
+Use "we" and "our" when normalizing — parents are not alone in this. Short questions land hard — use them deliberately. "What comes up for you when they push back like that?" hits differently than a paragraph of explanation.
 
 ---
 
-RESPONSE STRUCTURE
+READING THE MOMENT — TWO MODES
 
-Every response moves through these layers, written as connected prose — not a numbered list, not separate sections:
+Before responding, read what the parent actually needs right now.
 
-1. VALIDATION — Reflect back what they're carrying with genuine warmth. Name the difficulty specifically. Something like: "Of course this is really tough — school avoidance is one of the most challenging things parents face, and seeing your kid in that much distress goes against every natural instinct you have as a parent."
+MODE 1 — PROCESSING MODE (parent is venting, overwhelmed, or exploring why)
+When a parent is in emotional processing mode — venting, confused, circling something painful — don't rush to action. Sit with them first. Validate. Get curious. Ask the question that connects the present moment to something deeper. Help them see the thread without making it heavy.
 
-2. REFRAME — Help them understand what's underneath the behavior and why accommodation, while completely understandable, is working against what they actually want for their child. Use Nate's framing: we're not withholding comfort to be tough — we're creating the space for real growth. "When we keep stepping in, we're actually taking away the chance for them to find those internal resources — the ones that help them not just get through hard moments, but actually learn from them."
+In this mode: favor flowing prose, curiosity, and one good question at the end. Hold the structure loosely. The conversation is the work.
+
+Example questions in this mode:
+"What comes up for you when your child melts down like that?"
+"Where did you learn to respond to big feelings that way?"
+"Sometimes our kids trigger something old in us — does any of that feel familiar?"
+
+MODE 2 — ACTION MODE (parent needs to know what to do, right now or soon)
+When a parent needs direction — they're in a hard moment, they've been stuck in a pattern, they're ready to try something — move through the full structure. Give them something concrete to hold.
+
+In this mode, responses move through these layers as connected prose:
+
+1. VALIDATION — Reflect back what they're carrying with genuine warmth. Name the difficulty specifically.
+
+2. REFRAME — Help them understand what's underneath the behavior and why accommodation, while understandable, is working against what they want for their child. Use Nate's framing: we're not withholding comfort to be tough — we're creating the space for real growth. "When we keep stepping in, we're actually taking away the chance for them to find those internal resources — the ones that help them not just get through hard moments, but actually learn from them."
 
 3. DIRECTION — Clear, grounded guidance on what to hold or let go of. One or two sentences. Firm but not cold.
 
-4. SCRIPT — Always present this as a clearly labeled section with the header **Script** bolded and on its own line. Offer one or two short scripts the parent can actually say. These should sound like something a warm, regulated adult would genuinely say — not a rehearsed line. Lead with presence over words. For example: "You look really overwhelmed right now, and that makes complete sense. I'm right here with you, and I'm not going anywhere until we get through this together." Scripts should be specific, human, exposure-oriented, and non-negotiating. They may name the child's emotional experience and affirm the parent's steadiness. Two sentences max per script.
+4. SCRIPT — Always present this with the header **Script** bolded and on its own line. One or two short scripts the parent can actually say. These should sound like something a warm, regulated adult would genuinely say — not a rehearsed line. Lead with presence over words. Scripts should be specific, human, exposure-oriented, and non-negotiating. They may name the child's emotional experience and affirm the parent's steadiness. Two sentences max per script.
 
-5. NORMALIZE — One sentence acknowledging that escalation, pushback, or distress getting worse before it gets better is completely expected and is not a sign they're doing it wrong.
+5. NORMALIZE — One sentence acknowledging that escalation or pushback is expected and is not a sign they're doing it wrong.
 
-6. CLOSING — End with either:
-   - A single warm, curious question that opens the next part of the conversation, OR
-   - When the parent seems to have a handle on the immediate challenge, offer a genuine fork: "Are you finding yourself wanting to understand more about what's driving this for your child, or would it feel more useful to keep working on the practical steps?"
+6. CLOSING — End with either a single warm curious question, OR — when the challenge feels managed — a genuine fork: "Are you finding yourself wanting to understand more about what's driving this, or would it feel more useful to keep working on the practical steps?"
+
+---
+
+SECONDARY LENSES (use when relevant, hold lightly)
+
+FAMILY OF ORIGIN — When a parent's reaction seems bigger than the moment warrants, name it gently. "Sometimes our kids trigger something old in us — that reaction might not just be about today." Then move forward. This is coaching, not therapy.
+
+NEURODIVERGENCE — Normalize that what parents know about their own brains often doesn't apply to their child's brain. Help them grieve the "expected" and get curious about who their child actually is. Frame the learning curve as meaningful, not as failure.
+
+PATTERNS — Name what you notice, warmly but directly. "It sounds like every time you try to hold that limit, something pulls you back. What do you think that's about?" Don't dance around what's visible.
 
 ---
 
 SPECIAL CASES
 
-If parental guilt or regret is present, lead with one consolidated validating sentence that holds their intention, their stumble, and their growth together — before moving into the pattern and direction. Keep it to one sentence. Don't stack validations.
+If parental guilt or regret is present, lead with one consolidated validating sentence that holds their intention, their stumble, and their growth together — before moving into the pattern. One sentence only. Don't stack validations.
 
-When a parent vents, spirals, or uses harsh language about their child or themselves, calmly name the escalation without shaming, model regulated language, and move toward steadiness. Don't mirror the heat. Don't scold. Treat it as part of the pattern and coach through it.
+When a parent vents, spirals, or uses harsh language about their child or themselves, calmly name the escalation without shaming, model regulated language, and move toward steadiness. Don't mirror the heat. Treat it as part of the pattern and coach through it.
 
 If suicidal ideation, self-harm, child abuse, sexual abuse, physical abuse, neglect, domestic violence, credible threats of harm, or any mandated reporting situation arises, stop immediately and respond only with:
 
@@ -229,7 +113,7 @@ No scripts. No follow-up question. Nothing else.
 
 Do not diagnose, recommend medication, offer legal advice, suggest custody strategies, process trauma, or create individualized treatment plans.
 
-Every response — in tone, structure, and direction — moves toward less accommodation, more parental steadiness, more exposure, clearer limits, and greater consistency.`;
+Every response — whatever mode it's in — moves toward less accommodation, more parental steadiness, more exposure, clearer limits, and greater consistency.`;
 
 const SCENARIOS = [
   { label: "🌙 Bedtime battles", prompt: "My child is refusing to go to bed and keeps coming out of their room. What should I do?" },
@@ -240,6 +124,11 @@ const SCENARIOS = [
   { label: "🌅 Morning chaos", prompt: "Every morning is a war. My child refuses to get ready and we're always late. I'm exhausted." },
 ];
 
+function hashPassword(pw) {
+  let hash = 0;
+  for (let i = 0; i < pw.length; i++) { hash = ((hash << 5) - hash) + pw.charCodeAt(i); hash |= 0; }
+  return "h" + Math.abs(hash).toString(36);
+}
 
 function formatMessage(text) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -269,154 +158,51 @@ function Input({ type = "text", placeholder, value, onChange, onKeyDown, autoFoc
   );
 }
 
-// ── Email ──────────────────────────────────────────────────────────────────────
-const NATE_EMAIL = "nate.parish@gmail.com";
+// ── EmailJS ────────────────────────────────────────────────────────────────────
+const EMAILJS_SERVICE  = "service_kl851h9";
+const EMAILJS_TEMPLATE = "template_lvl0kok";
+const EMAILJS_KEY      = "_RTlHjO9FDJ54DQWb";
+const NATE_EMAIL       = "nate.parish@gmail.com";
 
 async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
   try {
-    await fetch("/api/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to: toEmail || NATE_EMAIL, subject, text: bodyText }),
-    });
+    await emailjs.send(
+      EMAILJS_SERVICE,
+      EMAILJS_TEMPLATE,
+      {
+        to_email:    toEmail || NATE_EMAIL,
+        subject,
+        client_name: clientName,
+        message:     bodyText,
+      },
+      EMAILJS_KEY
+    );
   } catch (e) {
-    console.error("sendEmail error:", e);
+    console.error("📧 EmailJS exception:", e);
   }
 }
 
-// ── Supabase ────────────────────────────────────────────────────────────────────
-// VERCEL ENV VARS: Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel dashboard → Settings → Environment Variables
-const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4bGp0cGZkZmRqb2NiY2J1eXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDczMzIsImV4cCI6MjA4ODMyMzMzMn0.JDK05pK6Rs_lRPi_1BnqezeensGdCqXu7ugXlaKJCIo";
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-async function getUsers() {
-  try {
-    const { data, error } = await db.from('users').select('*');
-    if (error) throw error;
-    const map = {};
-    for (const u of (data || [])) {
-      map[u.username] = { id: u.id, name: u.name, username: u.username, email: u.email, passwordHash: u.password_hash, createdAt: u.created_at, consentSigned: u.consent_signed, consentSignedAt: u.consent_signed_at, consentTypedName: u.consent_typed_name };
-    }
-    return map;
-  } catch { return {}; }
-}
-async function saveUsers(usersMap) {
-  try {
-    const rows = Object.values(usersMap).map(u => ({ id: u.id, name: u.name, username: u.username, email: u.email, password_hash: u.passwordHash, created_at: u.createdAt, consent_signed: u.consentSigned || false, consent_signed_at: u.consentSignedAt || null, consent_typed_name: u.consentTypedName || null }));
-    if (rows.length > 0) { const { error } = await db.from('users').upsert(rows, { onConflict: 'id' }); if (error) throw error; }
-  } catch (e) { console.error('saveUsers error:', e); }
-}
-async function deleteUser(uid) {
-  try { await db.from('users').delete().eq('id', uid); } catch (e) { console.error('deleteUser error:', e); }
-}
-async function getConversations(uid) {
-  try {
-    const { data, error } = await db.from('conversations').select('*').eq('user_id', uid).order('last_message_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
-  } catch { return []; }
-}
-async function createConversation(uid) {
-  const id = 'conv_' + Date.now().toString(36);
-  try { await db.from('conversations').insert({ id, user_id: uid, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() }); } catch (e) { console.error('createConversation error:', e); }
-  return id;
-}
-async function updateConversation(convId, updates) {
-  try { await db.from('conversations').update(updates).eq('id', convId); } catch (e) { console.error('updateConversation error:', e); }
-}
-async function getMessages(uid, convId) {
-  try {
-    const { data, error } = await db.from('messages').select('role,content').eq('user_id', uid).eq('conversation_id', convId).order('created_at', { ascending: true });
-    if (error) throw error;
-    return (data || []).map(m => ({ role: m.role, content: m.content }));
-  } catch { return []; }
-}
-async function saveMessages(uid, convId, msgs) {
-  try {
-    await db.from('messages').delete().eq('user_id', uid).eq('conversation_id', convId);
-    if (msgs.length > 0) { const { error } = await db.from('messages').insert(msgs.map(m => ({ user_id: uid, conversation_id: convId, role: m.role, content: m.content }))); if (error) throw error; }
-  } catch (e) { console.error('saveMessages error:', e); }
-}
-async function getKB() {
-  try {
-    const { data, error } = await db.from('kb_folders').select('name,content').order('updated_at', { ascending: true });
-    if (error) throw error;
-    const parts = (data || []).filter(f => f.content?.trim()).map(f => `### ${f.name}\n\n${f.content.trim()}`);
-    return parts.join('\n\n---\n\n');
-  } catch { return ''; }
-}
-async function getKBFolders() {
-  try {
-    const { data, error } = await db.from('kb_folders').select('*').order('updated_at', { ascending: true });
-    if (error) throw error;
-    return data || [];
-  } catch { return []; }
-}
-async function saveKBFolder(folder) {
-  try {
-    const { error } = await db.from('kb_folders').upsert({ ...folder, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-    if (error) throw error;
-  } catch (e) { console.error('saveKBFolder error:', e); }
-}
-async function deleteKBFolder(id) {
-  try { await db.from('kb_folders').delete().eq('id', id); } catch (e) { console.error('deleteKBFolder error:', e); }
-}
-async function getProfile(uid) {
-  try {
-    const { data, error } = await db.from('profiles').select('*').eq('user_id', uid).single();
-    if (error && error.code !== 'PGRST116') throw error;
-    return data ? { working_on: data.working_on || '', triggers: data.triggers || '', accommodations: data.accommodations || '', notes: data.notes || '' } : {};
-  } catch { return {}; }
-}
-async function saveProfile(uid, p) {
-  try { const { error } = await db.from('profiles').upsert({ user_id: uid, ...p, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }); if (error) throw error; } catch (e) { console.error('saveProfile error:', e); }
-}
-async function logUsage(uid, username, userText, replyText) {
-  try {
-    const tokens = Math.round((userText.length + replyText.length) / 4);
-    await db.from('usage').insert({ user_id: uid, username, tokens_estimated: tokens });
-  } catch (e) { console.error('logUsage error:', e); }
-}
-async function getUsageThisMonth() {
-  try {
-    const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
-    const { data, error } = await db.from('usage').select('user_id,username,tokens_estimated,created_at').gte('created_at', start.toISOString());
-    if (error) throw error;
-    return data || [];
-  } catch { return []; }
-}
-async function logProgress(uid, username, chatSummary, momentType, note) {
-  const { error } = await db.from('progress_logs').insert({ user_id: uid, username, chat_summary: chatSummary, moment_type: momentType, note: note || '' });
-  if (error) throw error;
-}
-async function getProgress(uid) {
-  try {
-    const { data, error } = await db.from('progress_logs').select('*').eq('user_id', uid).order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
-  } catch { return []; }
-}
-async function getProgressSummary() {
-  try {
-    const { data, error } = await db.from('progress_logs').select('user_id,username,moment_type,created_at');
-    if (error) throw error;
-    return data || [];
-  } catch { return []; }
-}
+async function getUsers() { try { const v = localStorage.getItem("spc-users"); return v ? JSON.parse(v) : {}; } catch { return {}; } }
+async function saveUsers(u) { localStorage.setItem("spc-users", JSON.stringify(u)); }
+async function getMessages(uid) { try { const v = localStorage.getItem(`spc-chat-${uid}`); return v ? JSON.parse(v) : []; } catch { return []; } }
+async function saveMessages(uid, msgs) { localStorage.setItem(`spc-chat-${uid}`, JSON.stringify(msgs)); }
+async function getKB() { try { return localStorage.getItem("spc-kb") || ""; } catch { return ""; } }
+async function saveKB(kb) { localStorage.setItem("spc-kb", kb); }
+async function getProfile(uid) { try { const v = localStorage.getItem(`spc-profile-${uid}`); return v ? JSON.parse(v) : {}; } catch { return {}; } }
+async function saveProfile(uid, p) { localStorage.setItem(`spc-profile-${uid}`, JSON.stringify(p)); }
 
 // ── Consent Screen ─────────────────────────────────────────────────────────────
 const CONSENT_SECTIONS = [
-  { title: "1. What Steady Parent Coach Is", body: "Steady Parent Coach is an AI-powered coaching tool designed to support parents and caregivers in their personal growth, parenting confidence, and day-to-day challenges. It provides a space to reflect, explore strategies, and develop skills — at your own pace, on your own schedule.\n\nThis tool is intended as a supplement to your personal development, not a replacement for professional care." },
-  { title: "2. What Steady Parent Coach Is NOT", body: "This is the most important section of this document. By using Steady Parent Coach, you acknowledge that this tool is NOT:\n\n• A crisis intervention service or emergency resource\n• A suicide prevention or self-harm support tool\n• A resource for eating disorders or disordered eating\n• A substance abuse or addiction support service\n• Therapy, psychotherapy, or mental health treatment of any kind\n• A medical or psychiatric service\n• A substitute for professional psychological, psychiatric, or medical advice, diagnosis, or treatment\n\nIF YOU ARE IN CRISIS OR EXPERIENCING A MENTAL HEALTH EMERGENCY, PLEASE CONTACT:\n988 Suicide & Crisis Lifeline — call or text 988\nCrisis Text Line — text HOME to 741741\nEmergency Services — call 911" },
-  { title: "3. No Clinical or Therapeutic Relationship", body: "Use of Steady Parent Coach does not create a therapist-client, counselor-client, psychologist-client, or any other professional clinical relationship. No licensed mental health professional is monitoring your conversations in real time.\n\nThe coaching content provided by this tool is generated by artificial intelligence and is not personalized clinical advice. You should not rely on this tool as a source of mental health diagnosis or treatment." },
-  { title: "4. You Are Interacting with Artificial Intelligence", body: "Steady Parent Coach is powered by an AI language model. You are not communicating with a human coach, therapist, or counselor at any time during your session. AI responses are generated automatically and may occasionally be imprecise, incomplete, or not applicable to your specific situation.\n\nUse your own judgment when applying any suggestions from this tool to your life, and consult a qualified professional for guidance on serious personal, medical, or mental health matters." },
-  { title: "5. Privacy & Data — Important Limitations", body: "Your privacy matters to us. However, please be aware of the following:\n\nSteady Parent Coach is NOT a HIPAA-compliant platform. Information you share here is not protected under the Health Insurance Portability and Accountability Act (HIPAA).\n\nConversations are stored in a cloud database. While reasonable security measures have been implemented, no platform can guarantee complete data security.\n\nDo not share highly sensitive personal information such as social security numbers, financial details, or information you would only share in a confidential clinical setting.\n\nYour conversation data may be reviewed by platform administrators for quality assurance, safety monitoring, and service improvement purposes — only when you have shared or escalated it.\n\nData may be used in aggregated, anonymized form to improve the platform.\n\nFor full details on how your data is collected, stored, and used, please review our Privacy Policy at steadyparentcoach.com/privacy." },
-  { title: "6. Your Responsibility & Assumption of Risk", body: "By using Steady Parent Coach, you acknowledge and agree that:\n\n• You are using this tool voluntarily and at your own risk.\n• You are solely responsible for any decisions or actions you take based on content provided by this tool.\n• You are 18 years of age or older, or have obtained parental or guardian consent.\n• You will seek appropriate professional help if you are experiencing a mental health crisis, medical emergency, or any condition requiring clinical care.\n• You will not use this tool as a substitute for professional diagnosis, treatment, or advice." },
-  { title: "7. Limitations of AI Coaching", body: "AI-generated coaching has inherent limitations you should be aware of:\n\n• The AI may make errors or provide inaccurate information.\n• Responses are not tailored to your full personal history or clinical background.\n• The AI does not retain memory between separate sessions unless explicitly provided.\n• The AI cannot assess or respond to physical, emotional, or behavioral cues it cannot observe." },
-  { title: "8. Paid Subscription", body: "Access to Steady Parent Coach requires a paid subscription. Subscription terms, pricing, cancellation policies, and refund information are outlined at steadyparentcoach.com/pricing. By subscribing, you agree to those terms in addition to this consent document." },
-  { title: "9. Right to Terminate Access", body: "Steady Parent Coach reserves the right to suspend or terminate your access at any time, including for misuse of the platform, violation of these terms, or any behavior that puts you or others at risk. You may cancel your subscription and stop using the platform at any time." },
-  { title: "10. Changes to These Terms", body: "These terms may be updated periodically. Continued use of Steady Parent Coach following any updates constitutes your acceptance of the revised terms. Material changes will be communicated via email or in-app notification." },
+  { title: "1. What This Tool Is", body: "Steady Parent Coach is an AI-powered between-session coaching tool offered by Nate Parish as a supplemental resource for parents and caregivers currently enrolled in his practice. It is designed to help you apply parenting strategies you are already learning in session — particularly around anxiety accommodation reduction, parental steadiness, and exposure-based approaches.\n\nThis tool is a coaching resource. It is not therapy, counseling, or clinical treatment." },
+  { title: "2. What This Tool Is Not", body: "By using Steady Parent Coach, you acknowledge and agree that this tool:\n\n• Is not a substitute for therapy, clinical treatment, or professional mental health care\n• Does not create or constitute a therapeutic relationship between you and Nate Parish\n• Does not provide crisis support, emergency services, or safety assessment\n• Does not generate individualized treatment plans\n• Will not diagnose any condition or recommend medication\n• Is not HIPAA-compliant — see Section 5 for full details\n\nIf you are experiencing a mental health emergency, please call 988 (Suicide & Crisis Lifeline) or 911, or go to your nearest emergency room immediately." },
+  { title: "3. Who May Use This Tool", body: "Steady Parent Coach is intended exclusively for parents and caregivers who are currently active clients of Nate Parish's practice. Use of this tool by individuals who are not current clients is not authorized.\n\nThis tool is designed for adults (18 and older). It is not intended for use by minors." },
+  { title: "4. You Are Talking to an AI", body: "Steady Parent Coach is powered by an artificial intelligence language model. You are not communicating with Nate Parish or any human when you use this tool. The AI does not have access to your therapy records, your treatment plan, or any clinical information about you unless you share it directly in the conversation.\n\nThe AI is designed to reflect Nate's coaching model and clinical approach, but its responses are generated automatically and have not been reviewed by Nate in real time. Use your own judgment, and bring any concerns to your next session." },
+  { title: "5. Privacy & Data", body: "Steady Parent Coach stores your conversations and profile information privately, associated with your account. Nate Parish does not have access to your conversations or profile — he can only see your account name, username, and consent status for administrative purposes.\n\nYou may choose to share a transcript of your conversations with Nate at any time using the 'Send to Nate' button in the app. This is entirely optional and client-initiated. If you share a transcript, Nate will be able to read its contents.\n\nThis tool is not HIPAA-compliant. Your data is stored in a cloud database and is not encrypted at the level required by HIPAA. We encourage you to treat this as a coaching space and reserve sensitive clinical disclosures for your direct therapy sessions with Nate." },
+  { title: "6. Data Retention", body: "Your conversation history and profile will be retained for as long as you are an active client of Nate Parish's practice. When your clinical relationship with Nate ends, your account and all associated data will be deleted. You may also request deletion of your data at any time by contacting Nate directly." },
+  { title: "7. Therapist Access", body: "Nate Parish does not monitor or have access to your conversations or personal profile through this tool. His administrative access is limited to account management — creating, resetting, and deleting accounts.\n\nIf you choose to send Nate a conversation transcript using the 'Send to Nate' feature, he will receive and may read that transcript. Outside of what you deliberately share, your conversations remain private to you." },
+  { title: "8. Mandatory Reporting", body: "Nate Parish is a licensed mental health professional and a mandatory reporter. Although he does not monitor your conversations through this tool, if you choose to share a transcript with him and that transcript contains information indicating imminent risk of harm to a child or vulnerable adult, he is legally required to report that information to the appropriate authorities.\n\nIf you are experiencing a situation involving safety concerns, please bring those directly to your therapy session with Nate rather than through this coaching tool." },
+  { title: "9. Limitations & No Warranty", body: "Steady Parent Coach is provided as-is, as a supplemental resource only. Nate Parish and his practice make no warranties regarding the accuracy, completeness, or suitability of the AI's responses for any particular situation. You agree that neither Nate Parish nor his practice will be liable for any outcomes or actions taken based on this tool's responses." },
+  { title: "10. Changes to These Terms", body: "These terms may be updated periodically. Continued use of the tool following any updates constitutes your acceptance of the revised terms." },
 ];
 
 function ConsentScreen({ user, onConsented }) {
@@ -459,19 +245,14 @@ function ConsentScreen({ user, onConsented }) {
       }
     } catch {}
 
-    // Send signed consent to Nate and welcome email to client
+    // Auto-send signed consent to Nate via EmailJS
     setEmailStatus("sending");
     try {
-      const consentText = buildConsentText();
-      await Promise.all([
-        sendEmail(`Signed Consent Form — ${user.name}`, consentText, user.name),
-        user.email && sendEmail(
-          "Welcome to Steady Parent Coach — Your Signed Consent Form",
-          `Hi ${user.name.split(" ")[0]},\n\nWelcome to Steady Parent Coach! Your account is now active.\n\nBelow is a copy of the consent form you just signed for your records.\n\n— Steady Parent Coach\n\n${"=".repeat(60)}\n\n${consentText}`,
-          user.name,
-          user.email
-        ),
-      ]);
+      await sendEmail(
+        `Signed Consent Form — ${user.name}`,
+        buildConsentText(),
+        user.name
+      );
       setEmailStatus("sent");
     } catch {
       setEmailStatus("failed");
@@ -498,8 +279,8 @@ function ConsentScreen({ user, onConsented }) {
         {/* Scrollable document */}
         <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: "20px", border: "1.5px solid rgba(200,120,90,0.18)", boxShadow: "0 4px 24px rgba(150,80,60,0.1)", overflow: "hidden" }}>
           <div style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", padding: "14px 22px" }}>
-            <div style={{ color: "#fff", fontSize: "15px", fontWeight: "700" }}>Informed Consent & Terms of Use</div>
-            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px", marginTop: "2px" }}>Steady Parent Coach · Last Updated: March 2026</div>
+            <div style={{ color: "#fff", fontSize: "15px", fontWeight: "700" }}>Informed Consent, Disclaimer & Terms of Use</div>
+            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px", marginTop: "2px" }}>Nate Parish, Licensed Therapist · Steady Parent Coach</div>
           </div>
 
           {!scrolledToBottom && (
@@ -617,27 +398,36 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
     setError(""); setBusy(true);
 
     if (mode === "recover") {
-      if (!email.trim()) { setError("Please enter your email address."); setBusy(false); return; }
-      const res = await fetch("/api/recover-account", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Something went wrong."); setBusy(false); return; }
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail) { setError("Please enter your email address."); setBusy(false); return; }
+      const users = await getUsers();
+      const match = Object.values(users).find(u => u.email?.toLowerCase() === normalizedEmail);
+      if (!match) { setError("No account found with that email address."); setBusy(false); return; }
+      // Generate a temp password
+      const tempPw = "temp-" + Math.random().toString(36).slice(2, 8);
+      const updated = { ...users };
+      updated[match.username].passwordHash = hashPassword(tempPw);
+      await saveUsers(updated);
+      await sendEmail(
+        "Steady Parent Coach — Account Recovery",
+        `Hi ${match.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${match.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and consider using a memorable password going forward.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
+        match.name,
+        normalizedEmail
+      );
       setRecoverSent(true);
       setBusy(false);
       return;
     }
 
     if (mode === "login") {
-      if (username.trim().toLowerCase() === ADMIN_USERNAME) {
-        const res = await fetch("/api/admin-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: username.trim(), password }) });
-        const data = await res.json();
-        if (data.success) { onLogin({ id: "nate", name: "Nate", role: "admin" }); return; }
-        setError("Incorrect username or password."); setBusy(false); return;
+      if (username.trim().toLowerCase() === NATE_USERNAME && password === NATE_PASSWORD) {
+        onLogin({ id: "nate", name: "Nate", role: "admin" }); return;
       }
-      const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: username.trim().toLowerCase(), password }) });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Incorrect username or password."); setBusy(false); return; }
-      const userObj = { id: data.user.id, name: data.user.name, username: data.user.username, email: data.user.email, role: "client" };
-      if (!data.user.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
+      const users = await getUsers();
+      const u = users[username.trim().toLowerCase()];
+      if (!u || u.passwordHash !== hashPassword(password)) { setError("Incorrect username or password."); setBusy(false); return; }
+      const userObj = { id: u.id, name: u.name, username: u.username, role: "client" };
+      if (!u.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
       onLogin(userObj);
     } else {
       if (!name.trim()) { setError("Please enter your name."); setBusy(false); return; }
@@ -645,12 +435,23 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       if (username.trim().length < 3) { setError("Username must be at least 3 characters."); setBusy(false); return; }
       if (password.length < 6) { setError("Password must be at least 6 characters."); setBusy(false); return; }
       if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
-      if (username.trim().toLowerCase() === ADMIN_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
-      const res = await fetch("/api/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name.trim(), email: email.trim(), username: username.trim().toLowerCase(), password }) });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Registration failed."); setBusy(false); return; }
-      sendEmail(`New Client Registration — ${name.trim()}`, `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${username.trim().toLowerCase()}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`, name.trim());
-      onNeedsConsent(data.user);
+      if (username.trim().toLowerCase() === NATE_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
+      const users = await getUsers();
+      const key = username.trim().toLowerCase();
+      if (users[key]) { setError("Username already taken."); setBusy(false); return; }
+      // Check for duplicate email
+      if (Object.values(users).some(u => u.email?.toLowerCase() === email.trim().toLowerCase())) {
+        setError("An account with that email already exists."); setBusy(false); return;
+      }
+      const id = "u_" + Date.now().toString(36);
+      users[key] = { id, name: name.trim(), username: key, email: email.trim().toLowerCase(), passwordHash: hashPassword(password), createdAt: new Date().toISOString(), consentSigned: false };
+      await saveUsers(users);
+      sendEmail(
+        `New Client Registration — ${name.trim()}`,
+        `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${key}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
+        name.trim()
+      );
+      onNeedsConsent({ id, name: name.trim(), username: key, role: "client" });
     }
     setBusy(false);
   }
@@ -707,7 +508,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
             </Btn>
 
             <p style={{ color: "#b89080", fontSize: "11px", textAlign: "center", marginTop: "18px", lineHeight: 1.6 }}>
-              {mode === "register" ? "You'll be asked to read and sign a consent form before accessing the tool." : ""}<br />This tool is not a replacement for therapy.
+              {mode === "register" ? "You'll be asked to read and sign a consent form before accessing the tool." : "For current clients of Nate Parish's practice only."}<br />This tool is not a replacement for therapy.
             </p>
             {mode === "login" && (
               <p style={{ color: "#c9a090", fontSize: "12px", textAlign: "center", marginTop: "10px", lineHeight: 1.6 }}>
@@ -726,25 +527,16 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
 // ── Admin Dashboard ────────────────────────────────────────────────────────────
 function AdminDashboard({ onLogout }) {
   const [users, setUsers] = useState({});
-  const [folders, setFolders] = useState([]);
-  const [folderDrafts, setFolderDrafts] = useState({});
-  const [folderSaved, setFolderSaved] = useState({});
+  const [kb, setKb] = useState("");
+  const [kbDraft, setKbDraft] = useState("");
+  const [kbSaved, setKbSaved] = useState(false);
   const [tab, setTab] = useState("clients");
   const [loading, setLoading] = useState(true);
-  const [usageData, setUsageData] = useState([]);
-  const [progressData, setProgressData] = useState([]);
-  const [folderUploading, setFolderUploading] = useState({});
-  const [folderUploadError, setFolderUploadError] = useState({});
 
   useEffect(() => {
     async function load() {
-      const [u, f, usage, progress] = await Promise.all([getUsers(), getKBFolders(), getUsageThisMonth(), getProgressSummary()]);
-      setUsers(u);
-      setFolders(f);
-      setFolderDrafts(Object.fromEntries(f.map(fl => [fl.id, { name: fl.name, content: fl.content }])));
-      setUsageData(usage);
-      setProgressData(progress);
-      setLoading(false);
+      const [u, k] = await Promise.all([getUsers(), getKB()]);
+      setUsers(u); setKb(k); setKbDraft(k); setLoading(false);
     }
     load();
   }, []);
@@ -752,9 +544,13 @@ function AdminDashboard({ onLogout }) {
   async function deleteClient(key) {
     if (!confirm(`Delete ${users[key].name} and all their data?`)) return;
     const uid = users[key].id;
-    await deleteUser(uid);
     const updated = { ...users };
     delete updated[key];
+    await saveUsers(updated);
+    try {
+      localStorage.removeItem(`spc-chat-${uid}`);
+      localStorage.removeItem(`spc-profile-${uid}`);
+    } catch {}
     setUsers(updated);
   }
 
@@ -773,54 +569,18 @@ function AdminDashboard({ onLogout }) {
 
   async function doReset() {
     if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
-    const res = await fetch("/api/reset-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: resetTarget.id, newPassword }) });
-    if (!res.ok) { setResetError("Failed to reset password. Please try again."); return; }
+    const updated = { ...users };
+    updated[resetTarget.username].passwordHash = hashPassword(newPassword);
+    await saveUsers(updated);
+    setUsers(updated);
     setResetDone(true);
     setTimeout(() => setResetTarget(null), 1800);
   }
 
-  async function doSaveFolder(id) {
-    const draft = folderDrafts[id];
-    if (!draft) return;
-    await saveKBFolder({ id, name: draft.name, content: draft.content });
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, ...draft } : f));
-    setFolderSaved(prev => ({ ...prev, [id]: true }));
-    setTimeout(() => setFolderSaved(prev => ({ ...prev, [id]: false })), 2000);
-  }
-
-  async function doUploadFile(folderId, file, e) {
-    if (!file) return;
-    e.target.value = "";
-    setFolderUploading(prev => ({ ...prev, [folderId]: true }));
-    setFolderUploadError(prev => ({ ...prev, [folderId]: "" }));
-    try {
-      const text = await extractTextFromFile(file);
-      const cleaned = text.replace(/\s+/g, " ").trim();
-      if (!cleaned) throw new Error("No text could be extracted from this file.");
-      setFolderDrafts(prev => {
-        const existing = prev[folderId] || { name: "", content: "" };
-        const appended = existing.content ? existing.content + "\n\n---\n\n" + cleaned : cleaned;
-        return { ...prev, [folderId]: { ...existing, content: appended } };
-      });
-    } catch (err) {
-      setFolderUploadError(prev => ({ ...prev, [folderId]: err.message || "Failed to read file." }));
-    }
-    setFolderUploading(prev => ({ ...prev, [folderId]: false }));
-  }
-
-  async function doCreateFolder() {
-    const id = 'folder_' + Date.now().toString(36);
-    const newFolder = { id, name: 'New Folder', content: '', updated_at: new Date().toISOString() };
-    await saveKBFolder(newFolder);
-    setFolders(prev => [...prev, newFolder]);
-    setFolderDrafts(prev => ({ ...prev, [id]: { name: 'New Folder', content: '' } }));
-  }
-
-  async function doDeleteFolder(id) {
-    if (!confirm('Delete this folder and all its content?')) return;
-    await deleteKBFolder(id);
-    setFolders(prev => prev.filter(f => f.id !== id));
-    setFolderDrafts(prev => { const d = { ...prev }; delete d[id]; return d; });
+  async function doSaveKB() {
+    await saveKB(kbDraft);
+    setKb(kbDraft); setKbSaved(true);
+    setTimeout(() => setKbSaved(false), 2000);
   }
 
   const clientList = Object.values(users);
@@ -850,7 +610,7 @@ function AdminDashboard({ onLogout }) {
         </div>
 
         <div style={{ display: "flex", gap: "8px", marginBottom: "22px" }}>
-          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"], ["usage", "📊 Usage"]].map(([t, label]) => (
+          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"]].map(([t, label]) => (
             <Btn key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(255,255,255,0.72)", color: tab === t ? "#fff" : "#7a70a0", boxShadow: tab === t ? "0 4px 14px rgba(120,100,200,0.28)" : "none", border: "none" }}>{label}</Btn>
           ))}
         </div>
@@ -865,14 +625,7 @@ function AdminDashboard({ onLogout }) {
                 <div style={{ fontSize: "15px", fontWeight: "600" }}>No clients yet</div>
                 <div style={{ fontSize: "13px", marginTop: "6px", lineHeight: 1.5 }}>Clients will appear here once they create an account.</div>
               </div>
-            ) : clientList.map(u => {
-              const uLogs = progressData.filter(p => p.user_id === u.id);
-              const uLogCount = uLogs.length;
-              const uLastLogged = uLogs.length > 0 ? new Date(uLogs.sort((a,b) => new Date(b.created_at)-new Date(a.created_at))[0].created_at) : null;
-              const uTypeCounts = {}; for (const l of uLogs) uTypeCounts[l.moment_type] = (uTypeCounts[l.moment_type]||0)+1;
-              const uTopType = Object.entries(uTypeCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
-              const PICONS = { held_firm:"💪", gave_in_caught_myself:"😅", kid_win:"🌟", free_write:"✍️" };
-              return (
+            ) : clientList.map(u => (
               <div key={u.id} style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(150,120,200,0.12)", borderRadius: "14px", padding: "15px 17px", marginBottom: "9px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#b8c8f0,#d0a8e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "700", color: "#4a4880", flexShrink: 0 }}>{u.name[0].toUpperCase()}</div>
@@ -888,13 +641,6 @@ function AdminDashboard({ onLogout }) {
                       </span>
                       {u.consentSignedAt && <span style={{ fontSize: "11px", color: "#b0a0d0" }}>{new Date(u.consentSignedAt).toLocaleDateString()}</span>}
                     </div>
-                    {uLogCount > 0 && (
-                      <div style={{ fontSize: "11px", color: "#7a70a0", marginTop: "4px", display: "flex", gap: "8px", alignItems: "center" }}>
-                        <span>📈 {uLogCount} moment{uLogCount !== 1 ? "s" : ""} logged</span>
-                        {uLastLogged && <><span>·</span><span>Last: {uLastLogged.toLocaleDateString()}</span></>}
-                        {uTopType && <><span>·</span><span>Top: {PICONS[uTopType]} {uTopType.replace(/_/g,' ')}</span></>}
-                      </div>
-                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
@@ -904,141 +650,28 @@ function AdminDashboard({ onLogout }) {
                     onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.35}>🗑</button>
                 </div>
               </div>
-            );
-            })}
+            ))}
           </div>
         )}
 
         {tab === "kb" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: "17px", fontWeight: "700", color: "#2a2850" }}>Clinical Knowledge Base</div>
-                <div style={{ fontSize: "13px", color: "#7a70a0", marginTop: "3px" }}>Each folder's content is included in every client's AI context. Organize by topic.</div>
-              </div>
-              <Btn onClick={doCreateFolder} style={{ background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.22)" }}>+ New Folder</Btn>
+          <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "20px", padding: "28px", border: "1px solid rgba(150,120,200,0.12)" }}>
+            <h3 style={{ color: "#2a2850", margin: "0 0 8px", fontSize: "17px" }}>Clinical Knowledge Base</h3>
+            <p style={{ color: "#7a70a0", fontSize: "13px", margin: "0 0 18px", lineHeight: 1.65 }}>
+              Anything pasted here is silently included in every client's AI context. Use it for general frameworks, preferred language, or practice-wide protocols. This does not give you access to individual client conversations.
+            </p>
+            {kb && <div style={{ background: "rgba(100,180,120,0.1)", border: "1px solid rgba(80,160,100,0.25)", borderRadius: "10px", padding: "9px 13px", marginBottom: "14px", fontSize: "12px", color: "#3a7a50" }}>✓ Active · {kb.split(" ").filter(Boolean).length} words loaded</div>}
+            <textarea value={kbDraft} onChange={e => setKbDraft(e.target.value)} rows={12}
+              placeholder={"Paste clinical notes, frameworks, or protocols here.\n\nExamples:\n• Preferred accommodation reduction language\n• SPACE protocol steps you use\n• Practice-specific scripts or frameworks\n• Any context you want the AI to reference"}
+              style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1.5px solid rgba(150,120,200,0.22)", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65, background: "#fdfcff" }} />
+            <div style={{ display: "flex", gap: "10px", marginTop: "13px" }}>
+              {kbDraft && <Btn onClick={() => setKbDraft("")} style={{ background: "rgba(220,80,80,0.07)", color: "#c05060", border: "1.5px solid rgba(220,80,80,0.15)" }}>🗑 Clear</Btn>}
+              <Btn onClick={doSaveKB} style={{ background: kbSaved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", boxShadow: "0 4px 14px rgba(120,100,200,0.22)", border: "none", padding: "11px 24px", transition: "background 0.3s" }}>
+                {kbSaved ? "✓ Saved!" : "Save & Apply"}
+              </Btn>
             </div>
-
-            {folders.length === 0 && (
-              <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: "16px", padding: "32px", textAlign: "center", color: "#9a8ac0" }}>
-                <div style={{ fontSize: "32px", marginBottom: "10px" }}>📁</div>
-                <div style={{ fontSize: "14px", fontWeight: "600" }}>No folders yet</div>
-                <div style={{ fontSize: "13px", marginTop: "6px" }}>Click "+ New Folder" to get started.</div>
-              </div>
-            )}
-
-            {folders.map(folder => {
-              const draft = folderDrafts[folder.id] || { name: folder.name, content: folder.content };
-              const saved = folderSaved[folder.id];
-              const wordCount = draft.content.split(' ').filter(Boolean).length;
-              const uploading = folderUploading[folder.id];
-              const uploadError = folderUploadError[folder.id];
-              return (
-                <div key={folder.id} style={{ background: "rgba(255,255,255,0.82)", border: "1px solid rgba(150,120,200,0.12)", borderRadius: "16px", overflow: "hidden" }}>
-                  <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(150,120,200,0.1)", display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ fontSize: "16px" }}>📁</span>
-                    <div style={{ flex: 1, position: "relative" }}>
-                      <input
-                        value={draft.name}
-                        onChange={e => setFolderDrafts(prev => ({ ...prev, [folder.id]: { ...draft, name: e.target.value } }))}
-                        style={{ width: "100%", border: "none", borderBottom: "1.5px dashed rgba(150,120,200,0.3)", background: "transparent", fontSize: "15px", fontWeight: "700", color: "#2a2850", fontFamily: "inherit", outline: "none", paddingBottom: "2px", boxSizing: "border-box" }}
-                        title="Click to rename folder"
-                      />
-                      <span style={{ fontSize: "10px", color: "#b0a0d0", position: "absolute", right: 0, top: 0 }}>✏️ rename</span>
-                    </div>
-                    {draft.content && <span style={{ fontSize: "11px", color: "#9a8ac0" }}>{wordCount} words</span>}
-                    <button onClick={() => doDeleteFolder(folder.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "15px", opacity: 0.3, transition: "opacity 0.15s", padding: "2px" }}
-                      onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.3}>🗑</button>
-                  </div>
-                  <div style={{ padding: "14px 18px 16px" }}>
-                    <textarea
-                      value={draft.content}
-                      onChange={e => setFolderDrafts(prev => ({ ...prev, [folder.id]: { ...draft, content: e.target.value } }))}
-                      rows={6}
-                      placeholder="Paste clinical notes, frameworks, scripts, or protocols here…"
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "10px", border: "1.5px solid rgba(150,120,200,0.2)", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65, background: "#fdfcff" }}
-                    />
-                    <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: uploading ? "rgba(150,120,200,0.12)" : "rgba(122,142,232,0.1)", border: "1.5px solid rgba(122,142,232,0.25)", borderRadius: "10px", padding: "8px 14px", fontSize: "13px", color: "#5a5890", fontWeight: "600", cursor: uploading ? "default" : "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                        onMouseEnter={e => { if (!uploading) e.currentTarget.style.background = "rgba(122,142,232,0.18)"; }}
-                        onMouseLeave={e => { if (!uploading) e.currentTarget.style.background = "rgba(122,142,232,0.1)"; }}>
-                        {uploading ? "⏳ Reading…" : "📄 Upload file"}
-                        <input type="file" accept=".pdf,.txt,.md" style={{ display: "none" }} disabled={uploading}
-                          onChange={e => doUploadFile(folder.id, e.target.files[0], e)} />
-                      </label>
-                      <Btn onClick={() => doSaveFolder(folder.id)} style={{ background: saved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.2)", transition: "background 0.3s" }}>
-                        {saved ? "✓ Saved!" : "Save & Apply"}
-                      </Btn>
-                    </div>
-                    {uploadError && <div style={{ marginTop: "8px", fontSize: "12px", color: "#c05060", background: "rgba(220,80,80,0.07)", border: "1px solid rgba(220,80,80,0.18)", borderRadius: "8px", padding: "7px 11px" }}>{uploadError}</div>}
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
-
-        {tab === "usage" && (() => {
-          const totalTokens = usageData.reduce((s, r) => s + r.tokens_estimated, 0);
-          const totalCost = (totalTokens * 0.000003).toFixed(4);
-          const now = new Date();
-          const monthName = now.toLocaleString("en-US", { month: "long", year: "numeric" });
-
-          // Group by username
-          const byUser = {};
-          for (const r of usageData) {
-            if (!byUser[r.username]) byUser[r.username] = { username: r.username, count: 0, tokens: 0 };
-            byUser[r.username].count++;
-            byUser[r.username].tokens += r.tokens_estimated;
-          }
-          const userRows = Object.values(byUser).sort((a, b) => b.tokens - a.tokens);
-
-          return (
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <h3 style={{ color: "#2a2850", margin: 0, fontSize: "17px" }}>Usage — {monthName}</h3>
-
-              {/* Summary cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", padding: "18px 20px", border: "1px solid rgba(150,120,200,0.12)" }}>
-                  <div style={{ fontSize: "12px", color: "#7a70a0", marginBottom: "6px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.04em" }}>Estimated Tokens</div>
-                  <div style={{ fontSize: "26px", fontWeight: "700", color: "#2a2850" }}>{totalTokens.toLocaleString()}</div>
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", padding: "18px 20px", border: "1px solid rgba(150,120,200,0.12)" }}>
-                  <div style={{ fontSize: "12px", color: "#7a70a0", marginBottom: "6px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.04em" }}>Estimated Cost</div>
-                  <div style={{ fontSize: "26px", fontWeight: "700", color: "#2a2850" }}>${totalCost}</div>
-                </div>
-              </div>
-
-              {/* Per-client breakdown */}
-              <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", border: "1px solid rgba(150,120,200,0.12)", overflow: "hidden" }}>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(150,120,200,0.1)", display: "grid", gridTemplateColumns: "1fr auto auto", gap: "12px" }}>
-                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7a70a0", textTransform: "uppercase", letterSpacing: "0.04em" }}>Client</div>
-                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7a70a0", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right" }}>Messages</div>
-                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#7a70a0", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right", minWidth: 80 }}>Tokens</div>
-                </div>
-                {userRows.length === 0 ? (
-                  <div style={{ padding: "28px", textAlign: "center", color: "#9a8ac0", fontSize: "13px" }}>No usage recorded this month yet.</div>
-                ) : (
-                  <>
-                    {userRows.map(r => (
-                      <div key={r.username} style={{ padding: "12px 18px", borderBottom: "1px solid rgba(150,120,200,0.07)", display: "grid", gridTemplateColumns: "1fr auto auto", gap: "12px", alignItems: "center" }}>
-                        <div style={{ fontSize: "14px", color: "#2a2850", fontWeight: "500" }}>@{r.username}</div>
-                        <div style={{ fontSize: "14px", color: "#5a5890", textAlign: "right" }}>{r.count}</div>
-                        <div style={{ fontSize: "14px", color: "#5a5890", textAlign: "right", minWidth: 80 }}>{r.tokens.toLocaleString()}</div>
-                      </div>
-                    ))}
-                    <div style={{ padding: "12px 18px", background: "rgba(122,142,232,0.06)", display: "grid", gridTemplateColumns: "1fr auto auto", gap: "12px", alignItems: "center" }}>
-                      <div style={{ fontSize: "13px", color: "#2a2850", fontWeight: "700" }}>Total</div>
-                      <div style={{ fontSize: "13px", color: "#2a2850", fontWeight: "700", textAlign: "right" }}>{usageData.length}</div>
-                      <div style={{ fontSize: "13px", color: "#2a2850", fontWeight: "700", textAlign: "right", minWidth: 80 }}>{totalTokens.toLocaleString()}</div>
-                    </div>
-                  </>
-                )}
-              </div>
-              <div style={{ fontSize: "11px", color: "#9a8ac0", textAlign: "center" }}>Token estimates based on character count ÷ 4. Actual billed tokens may vary.</div>
-            </div>
-          );
-        })()}
       </div>
 
       {/* Reset Password Modal */}
@@ -1177,103 +810,24 @@ function ProfileDrawer({ user, onClose }) {
 
 // ── Client Chat ────────────────────────────────────────────────────────────────
 function ClientChat({ user, onLogout }) {
-  const [conversations, setConversations] = useState([]);
-  const [activeConvId, setActiveConvId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
   const [kb, setKb] = useState("");
   const [profile, setProfile] = useState({});
   const [showProfile, setShowProfile] = useState(false);
   const [nateSending, setNateSending] = useState(false);
   const [nateSent, setNateSent] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [tutorialStep, setTutorialStep] = useState(0);
-  const [showLogPrompt, setShowLogPrompt] = useState(false);
-  const [showLogCard, setShowLogCard] = useState(false);
-  const [logPromptDismissed, setLogPromptDismissed] = useState(false);
-  const [exchangeCount, setExchangeCount] = useState(0);
-  const [progressLogs, setProgressLogs] = useState([]);
-  const [chatView, setChatView] = useState("chat");
-  const [selectedMoment, setSelectedMoment] = useState(null);
-  const [freeWriteNote, setFreeWriteNote] = useState("");
-  const [logSaving, setLogSaving] = useState(false);
-  const [logSaved, setLogSaved] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    if (!showMenu) return;
-    function handleClickOutside(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showMenu]);
-
-  const TUTORIAL_STEPS = [
-    {
-      icon: "🌿",
-      title: "Welcome to Steady Parent Coach",
-      body: "This is your between-session coaching space. Before you dive in, here's a quick tour of the key features — it'll only take a minute.",
-    },
-    {
-      icon: "⚡",
-      title: "Quick Scenarios",
-      body: "See the buttons at the bottom of the screen? Tap any of them to instantly start a conversation about a common situation — bedtime battles, school avoidance, meltdowns, and more. No need to type anything.",
-    },
-    {
-      icon: "👤",
-      title: "Your Profile",
-      body: "Tap 'My Profile' in the top bar to tell the coach about your specific situation — what you're working on in therapy, your child's triggers, and habits you're trying to change. The more you share, the more personal the coaching feels.",
-    },
-    {
-      icon: "📨",
-      title: "Send to Nate",
-      body: "At any point you can send your conversation transcript directly to Nate using the 'Send to Nate' button in the top bar. This is completely optional and only happens when you choose to share.",
-    },
-    {
-      icon: "🗑",
-      title: "Deleting Your Account",
-      body: "If you ever want to remove your account and all your data, click 'Delete Account' in the top bar. You'll be asked to confirm before anything is deleted. This is permanent and cannot be undone.",
-    },
-  ];
-
-  useEffect(() => {
     async function init() {
-      const [convs, k, p, logs] = await Promise.all([getConversations(user.id), getKB(), getProfile(user.id), getProgress(user.id)]);
-      setKb(k); setProfile(p); setProgressLogs(logs);
-      if (convs.length === 0) {
-        const convId = await createConversation(user.id);
-        const newConv = { id: convId, user_id: user.id, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
-        setConversations([newConv]);
-        setActiveConvId(convId);
-      } else {
-        setConversations(convs);
-      }
-      setInitializing(false);
-      const seen = localStorage.getItem(`spc-tutorial-${user.id}`);
-      if (!seen) { setShowTutorial(true); localStorage.setItem(`spc-tutorial-${user.id}`, "1"); }
+      const [msgs, k, p] = await Promise.all([getMessages(user.id), getKB(), getProfile(user.id)]);
+      setMessages(msgs); setKb(k); setProfile(p); setInitializing(false);
     }
     init();
   }, [user.id]);
-
-  useEffect(() => {
-    if (!activeConvId) return;
-    setLoadingMessages(true);
-    setExchangeCount(0);
-    setShowLogPrompt(false);
-    setLogPromptDismissed(false);
-    setShowLogCard(false);
-    setSelectedMoment(null);
-    setFreeWriteNote("");
-    getMessages(user.id, activeConvId).then(msgs => { setMessages(msgs); setLoadingMessages(false); });
-  }, [activeConvId]);
 
   // Reload profile when drawer closes so system prompt stays fresh
   async function handleProfileClose() {
@@ -1302,41 +856,6 @@ function ClientChat({ user, onLogout }) {
     return base;
   }
 
-  async function startNewConversation() {
-    const convId = await createConversation(user.id);
-    const newConv = { id: convId, user_id: user.id, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
-    setConversations(prev => [newConv, ...prev]);
-    setMessages([]);
-    setActiveConvId(convId);
-  }
-
-  const [logSaveError, setLogSaveError] = useState("");
-
-  async function saveProgressLog() {
-    if (!selectedMoment) return;
-    setLogSaving(true);
-    setLogSaveError("");
-    try {
-      const chatSummary = messages.find(m => m.role === 'user')?.content?.slice(0, 120) || '';
-      const note = selectedMoment === 'free_write' ? freeWriteNote : '';
-      await logProgress(user.id, user.username, chatSummary, selectedMoment, note);
-      const logs = await getProgress(user.id);
-      setProgressLogs(logs);
-      setLogSaving(false);
-      setLogSaved(true);
-      setShowLogCard(false);
-      setShowLogPrompt(false);
-      setLogPromptDismissed(true);
-      setSelectedMoment(null);
-      setFreeWriteNote('');
-      setTimeout(() => setLogSaved(false), 3000);
-    } catch (e) {
-      console.error('saveProgressLog error:', e);
-      setLogSaveError("Couldn't save — make sure the progress_logs table exists in Supabase.");
-      setLogSaving(false);
-    }
-  }
-
   async function sendMessage(text) {
     if (!text.trim() || loading) return;
     const newMsgs = [...messages, { role: "user", content: text }];
@@ -1350,17 +869,7 @@ function ClientChat({ user, onLogout }) {
       const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
       const updated = [...newMsgs, { role: "assistant", content: reply }];
       setMessages(updated);
-      await saveMessages(user.id, activeConvId, updated);
-      const preview = newMsgs[0]?.content?.slice(0, 80) || '';
-      const lastMessageAt = new Date().toISOString();
-      updateConversation(activeConvId, { preview, last_message_at: lastMessageAt });
-      setConversations(prev => prev.map(c => c.id === activeConvId ? { ...c, preview, last_message_at: lastMessageAt } : c));
-      logUsage(user.id, user.username, text, reply);
-      setExchangeCount(prev => {
-        const next = prev + 1;
-        if (next === 3 && !logPromptDismissed) setShowLogPrompt(true);
-        return next;
-      });
+      await saveMessages(user.id, updated);
     } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
     setLoading(false);
   }
@@ -1382,283 +891,45 @@ function ClientChat({ user, onLogout }) {
     setTimeout(() => setNateSent(false), 3000);
   }
 
-  async function handleDeleteAccount() {
-    setDeleting(true);
-    await deleteUser(user.id);
-    onLogout();
-  }
-
   const hasMessages = messages.length > 0;
   const profileFilled = Object.values(profile).some(v => v?.trim());
   const BG = "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)";
 
-  if (initializing || loadingMessages) return (
+  if (initializing) return (
     <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif" }}>
-      <div style={{ color: "#c9697a", fontSize: "14px" }}>{loadingMessages ? "Loading conversation…" : "Loading…"}</div>
+      <div style={{ color: "#c9697a", fontSize: "14px" }}>Loading your conversations…</div>
     </div>
   );
 
-  // ── Conversation List View ──────────────────────────────────────────────────
-  if (!activeConvId) return (
-    <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif" }}>
-      <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🌿</div>
-          <div>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>Steady Parent Coach</div>
-            <div style={{ fontSize: "12px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
-          </div>
-        </div>
-        <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
-      </div>
-
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 16px" }}>
-        <Btn onClick={startNewConversation} style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "15px", fontWeight: "700", boxShadow: "0 4px 16px rgba(200,100,100,0.25)", borderRadius: "14px", marginBottom: "24px" }}>
-          + Start New Conversation
-        </Btn>
-
-        {conversations.length > 0 && (
-          <div>
-            <div style={{ fontSize: "13px", fontWeight: "700", color: "#9a7060", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Previous Conversations</div>
-            {conversations.map(conv => (
-              <div key={conv.id} style={{ background: "rgba(255,255,255,0.88)", border: "1.5px solid rgba(200,120,90,0.15)", borderRadius: "16px", padding: "16px 18px", marginBottom: "10px", boxShadow: "0 2px 10px rgba(150,80,60,0.06)" }}>
-                <div style={{ fontSize: "12px", color: "#b89080", marginBottom: "6px" }}>
-                  {new Date(conv.last_message_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                </div>
-                <div style={{ fontSize: "14px", color: conv.preview ? "#4a2820" : "#b89080", lineHeight: 1.5, marginBottom: "12px", fontStyle: conv.preview ? "normal" : "italic" }}>
-                  {conv.preview ? `"${conv.preview.length >= 80 ? conv.preview + "…" : conv.preview}"` : "No messages yet"}
-                </div>
-                <Btn onClick={() => setActiveConvId(conv.id)} style={{ background: "rgba(232,147,122,0.12)", color: "#7c4a3a", border: "1.5px solid rgba(200,120,90,0.2)", padding: "7px 16px", fontSize: "13px", fontWeight: "600" }}>
-                  {conv.preview ? "Continue →" : "Open →"}
-                </Btn>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // ── Chat View ───────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
 
-      {showTutorial && (() => {
-        const step = TUTORIAL_STEPS[tutorialStep];
-        const isLast = tutorialStep === TUTORIAL_STEPS.length - 1;
-        return (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
-            <div style={{ background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", borderRadius: "28px", padding: "36px 32px 28px", maxWidth: 420, width: "92%", boxShadow: "0 24px 60px rgba(150,80,60,0.22)", textAlign: "center" }}>
-              <div style={{ fontSize: "42px", marginBottom: "14px" }}>{step.icon}</div>
-              <h2 style={{ color: "#4a2820", fontSize: "19px", margin: "0 0 12px", fontWeight: "700" }}>{step.title}</h2>
-              <p style={{ color: "#7c4a3a", fontSize: "14px", lineHeight: 1.7, margin: "0 0 28px" }}>{step.body}</p>
-
-              {/* Step dots */}
-              <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginBottom: "22px" }}>
-                {TUTORIAL_STEPS.map((_, i) => (
-                  <div key={i} style={{ width: i === tutorialStep ? 18 : 7, height: 7, borderRadius: "4px", background: i === tutorialStep ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.2)", transition: "all 0.25s" }} />
-                ))}
-              </div>
-
-              <div style={{ display: "flex", gap: "10px" }}>
-                {tutorialStep > 0 && (
-                  <Btn onClick={() => setTutorialStep(s => s - 1)} style={{ flex: 1, background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.2)" }}>← Back</Btn>
-                )}
-                <Btn onClick={() => { if (isLast) { setShowTutorial(false); } else { setTutorialStep(s => s + 1); } }}
-                  style={{ flex: 1, background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(200,100,100,0.3)", fontWeight: "700" }}>
-                  {isLast ? "Got it, let's go →" : "Next →"}
-                </Btn>
-              </div>
-              <button onClick={() => setShowTutorial(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#b89080", fontSize: "12px", marginTop: "14px", fontFamily: "inherit" }}>Skip tutorial</button>
-            </div>
-          </div>
-        );
-      })()}
-
-      {showLogCard && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", borderRadius: "28px", padding: "28px 24px 24px", maxWidth: 420, width: "92%", boxShadow: "0 24px 60px rgba(150,80,60,0.22)" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
-              <div>
-                <div style={{ fontSize: "18px", fontWeight: "700", color: "#4a2820" }}>Log this moment</div>
-                {messages.find(m => m.role === 'user') && (
-                  <div style={{ fontSize: "12px", color: "#9a7060", marginTop: "5px", fontStyle: "italic", lineHeight: 1.5 }}>
-                    "{messages.find(m => m.role === 'user').content.slice(0, 80)}{messages.find(m => m.role === 'user').content.length > 80 ? '…' : ''}"
-                  </div>
-                )}
-              </div>
-              <button onClick={() => { setShowLogCard(false); setLogPromptDismissed(true); setSelectedMoment(null); setFreeWriteNote(''); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#b89080", padding: "2px 2px 2px 10px", flexShrink: 0 }}>✕</button>
-            </div>
-            <div style={{ fontSize: "13px", color: "#7c4a3a", marginBottom: "12px", fontWeight: "600" }}>How did it go?</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "9px", marginBottom: "14px" }}>
-              {[
-                { type: "held_firm", icon: "💪", label: "I held firm" },
-                { type: "gave_in_caught_myself", icon: "😅", label: "Gave in, caught myself" },
-                { type: "kid_win", icon: "🌟", label: "Kid had a win" },
-                { type: "free_write", icon: "✍️", label: "Free write" },
-              ].map(opt => (
-                <button key={opt.type} onClick={() => setSelectedMoment(selectedMoment === opt.type ? null : opt.type)}
-                  style={{ background: selectedMoment === opt.type ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(255,255,255,0.88)", color: selectedMoment === opt.type ? "#fff" : "#7c4a3a", border: `1.5px solid ${selectedMoment === opt.type ? "transparent" : "rgba(200,120,90,0.2)"}`, borderRadius: "14px", padding: "14px 10px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.15s", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "22px" }}>{opt.icon}</span>
-                  <span>{opt.label}</span>
-                </button>
-              ))}
-            </div>
-            {selectedMoment === 'free_write' && (
-              <textarea value={freeWriteNote} onChange={e => setFreeWriteNote(e.target.value)}
-                placeholder="Write a sentence or two about what happened…" rows={3}
-                style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "12px" }} />
-            )}
-            {logSaveError && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "9px 13px", color: "#c05060", fontSize: "12px", marginBottom: "10px", lineHeight: 1.5 }}>{logSaveError}</div>}
-            <Btn onClick={saveProgressLog} disabled={!selectedMoment || logSaving}
-              style={{ width: "100%", padding: "13px", background: selectedMoment && !logSaving ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.2)", color: selectedMoment && !logSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: selectedMoment ? "0 4px 14px rgba(200,100,100,0.25)" : "none", transition: "all 0.2s" }}>
-              {logSaving ? "Saving…" : "Save"}
-            </Btn>
-          </div>
-        </div>
-      )}
-
-      {showDeleteConfirm && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" }} onClick={() => setShowDeleteConfirm(false)}>
-          <div style={{ background: "#fff8f5", borderRadius: "24px", padding: "32px", maxWidth: 380, width: "92%", boxShadow: "0 20px 60px rgba(150,80,60,0.2)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: "32px", marginBottom: "10px" }}>⚠️</div>
-            <h3 style={{ color: "#4a2820", margin: "0 0 10px", fontSize: "18px" }}>Delete Account?</h3>
-            <p style={{ color: "#7c4a3a", fontSize: "13px", lineHeight: 1.65, margin: "0 0 24px" }}>
-              This will permanently delete your account, all chat history, and your profile. This cannot be undone.
-            </p>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <Btn onClick={() => setShowDeleteConfirm(false)} style={{ flex: 1, background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.2)" }}>Cancel</Btn>
-              <Btn onClick={handleDeleteAccount} disabled={deleting} style={{ flex: 1, background: deleting ? "rgba(220,80,80,0.3)" : "linear-gradient(135deg,#e05060,#c03050)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(200,60,80,0.25)" }}>
-                {deleting ? "Deleting…" : "Yes, Delete"}
-              </Btn>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button onClick={() => { setActiveConvId(null); setMessages([]); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#9a7060", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", padding: "4px 8px 4px 0", display: "flex", alignItems: "center", gap: "3px" }}>← All</button>
           <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🌿</div>
           <div>
             <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>Steady Parent Coach</div>
             <div style={{ fontSize: "12px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
           </div>
         </div>
-        <div ref={menuRef} style={{ position: "relative" }}>
-          <button onClick={() => setShowMenu(v => !v)} style={{ background: "rgba(200,120,90,0.08)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "10px", padding: "7px 13px", fontSize: "20px", cursor: "pointer", color: "#7c4a3a", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, position: "relative" }}>
-            ☰
-            {(!profileFilled || logSaved) && <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: "50%", background: logSaved ? "#3aaa6a" : "#e8937a", border: "1.5px solid #fdf6f0" }} />}
+        <div style={{ display: "flex", gap: "7px", alignItems: "center" }}>
+          {/* Profile button with dot indicator if empty */}
+          <button onClick={() => setShowProfile(true)} style={{ position: "relative", background: profileFilled ? "rgba(232,147,122,0.12)" : "rgba(220,80,80,0.07)", border: `1.5px solid ${profileFilled ? "rgba(200,120,90,0.25)" : "rgba(220,80,80,0.2)"}`, borderRadius: "10px", padding: "7px 13px", fontSize: "13px", color: profileFilled ? "#7c4a3a" : "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", transition: "all 0.2s" }}>
+            {profileFilled ? "👤 My Profile" : "👤 Add Profile"}
+            {!profileFilled && <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: "50%", background: "#e8937a", border: "1.5px solid #fdf6f0" }} />}
           </button>
-          {showMenu && (
-            <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "14px", boxShadow: "0 8px 28px rgba(150,80,60,0.15)", minWidth: 190, zIndex: 50, overflow: "hidden" }}>
-              <button onClick={() => { setShowProfile(true); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: profileFilled ? "#7c4a3a" : "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", position: "relative" }}>
-                👤 {profileFilled ? "My Profile" : "Add Profile"}
-                {!profileFilled && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#e8937a", flexShrink: 0 }} />}
-              </button>
-              <button onClick={() => { setChatView(v => v === "progress" ? "chat" : "progress"); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: chatView === "progress" ? "rgba(232,147,122,0.12)" : "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
-                📈 Progress
-                {logSaved && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3aaa6a", flexShrink: 0 }} />}
-              </button>
-              {hasMessages && chatView === "chat" && <>
-                <button onClick={() => { exportChat(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
-                  💾 Export
-                </button>
-                <button onClick={() => { sendToNate(); setShowMenu(false); }} disabled={nateSending || nateSent} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: nateSent ? "rgba(80,180,100,0.1)" : "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: nateSent ? "#2a7a40" : "#7c4a3a", cursor: nateSending || nateSent ? "default" : "pointer", fontFamily: "inherit", fontWeight: "600", transition: "all 0.3s" }}>
-                  {nateSending ? "⏳ Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
-                </button>
-              </>}
-              <button onClick={() => { onLogout(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#9a7060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
-                Sign Out
-              </button>
-              <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", padding: "12px 16px", fontSize: "14px", color: "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
-                🗑 Delete Account
-              </button>
-            </div>
-          )}
+          {hasMessages && <>
+            <Btn onClick={exportChat} style={{ background: "#fff8f5", color: "#c9697a", border: "1.5px solid rgba(200,100,100,0.18)", padding: "7px 13px", fontSize: "13px" }}>💾 Export</Btn>
+            <Btn onClick={sendToNate} disabled={nateSending || nateSent} style={{ background: nateSent ? "rgba(80,180,100,0.15)" : "#fff8f5", color: nateSent ? "#2a7a40" : "#c9697a", border: `1.5px solid ${nateSent ? "rgba(60,160,80,0.3)" : "rgba(200,100,100,0.18)"}`, padding: "7px 13px", fontSize: "13px", transition: "all 0.3s" }}>
+              {nateSending ? "Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
+            </Btn>
+          </>}
+          <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
         </div>
       </div>
 
-      {chatView === "progress" && (() => {
-        const MOMENT_LABELS = {
-          held_firm: { label: "Held firm", icon: "💪", color: "#3a7a50", bg: "rgba(80,160,100,0.15)" },
-          gave_in_caught_myself: { label: "Gave in — caught myself", icon: "😅", color: "#8a6020", bg: "rgba(220,180,60,0.15)" },
-          kid_win: { label: "Kid had a win", icon: "🌟", color: "#7a4a8a", bg: "rgba(180,100,220,0.12)" },
-          free_write: { label: "Free write", icon: "✍️", color: "#4a6080", bg: "rgba(100,140,200,0.12)" },
-        };
-        const thisWeek = progressLogs.filter(l => Date.now() - new Date(l.created_at) < 7*24*60*60*1000).length;
-        const typeCounts = {}; for (const l of progressLogs) typeCounts[l.moment_type] = (typeCounts[l.moment_type]||0)+1;
-        const topType = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1])[0]?.[0];
-        // Group by week
-        const weekMap = {};
-        for (const log of progressLogs) {
-          const d = new Date(log.created_at);
-          const ws = new Date(d); ws.setDate(d.getDate()-d.getDay()); ws.setHours(0,0,0,0);
-          const key = ws.toISOString();
-          if (!weekMap[key]) weekMap[key] = { start: ws, logs: [] };
-          weekMap[key].logs.push(log);
-        }
-        const weeks = Object.values(weekMap).sort((a,b) => b.start - a.start);
-        const now = new Date();
-        const thisWS = new Date(now); thisWS.setDate(now.getDate()-now.getDay()); thisWS.setHours(0,0,0,0);
-        const lastWS = new Date(thisWS); lastWS.setDate(thisWS.getDate()-7);
-        return (
-          <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
-            <Btn onClick={() => { setShowLogCard(true); }} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: "0 4px 16px rgba(200,100,100,0.25)", borderRadius: "14px" }}>
-              + Log a Moment
-            </Btn>
-            <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "18px", padding: "20px 24px", border: "1.5px solid rgba(200,120,90,0.15)", display: "flex", gap: "0", alignItems: "stretch" }}>
-              {[
-                { value: progressLogs.length, label: "moments logged" },
-                { value: thisWeek, label: "this week" },
-                { value: topType ? (MOMENT_LABELS[topType]?.icon || "📝") : "—", label: "top moment", raw: true },
-              ].map((s, i) => (
-                <div key={i} style={{ flex: 1, textAlign: "center", padding: "0 8px", borderLeft: i > 0 ? "1px solid rgba(200,120,90,0.15)" : "none" }}>
-                  <div style={{ fontSize: s.raw ? "26px" : "28px", fontWeight: s.raw ? "400" : "700", color: "#4a2820", lineHeight: 1.1 }}>{s.value}</div>
-                  <div style={{ fontSize: "11px", color: "#9a7060", marginTop: "5px" }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-            {progressLogs.length === 0 ? (
-              <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "18px", padding: "40px 24px", textAlign: "center", border: "1.5px solid rgba(200,120,90,0.15)" }}>
-                <div style={{ fontSize: "34px", marginBottom: "12px" }}>🌱</div>
-                <div style={{ fontSize: "15px", fontWeight: "600", color: "#4a2820", marginBottom: "8px" }}>No moments logged yet</div>
-                <div style={{ fontSize: "13px", color: "#9a7060", lineHeight: 1.65 }}>After 3 back-and-forths with the coach, you'll see a prompt to log how the moment went.</div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
-                {weeks.map(week => {
-                  const wLabel = week.start >= thisWS ? "This week" : week.start >= lastWS ? "Last week" : week.start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                  return (
-                    <div key={week.start.toISOString()}>
-                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#9a7060", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>{wLabel}</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {week.logs.map(log => {
-                          const m = MOMENT_LABELS[log.moment_type] || { label: log.moment_type, icon: "📝", color: "#6a5040", bg: "rgba(200,150,100,0.1)" };
-                          return (
-                            <div key={log.id} style={{ background: "rgba(255,255,255,0.88)", border: `1.5px solid ${m.bg}`, borderRadius: "14px", padding: "13px 16px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                              <div style={{ fontSize: "22px", flexShrink: 0, marginTop: "1px" }}>{m.icon}</div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: "14px", fontWeight: "600", color: m.color, marginBottom: "3px" }}>{m.label}</div>
-                                {log.chat_summary && <div style={{ fontSize: "12px", color: "#9a7060", lineHeight: 1.5, marginBottom: log.note ? "5px" : 0, fontStyle: "italic" }}>"{log.chat_summary.length > 80 ? log.chat_summary.slice(0,80)+"…" : log.chat_summary}"</div>}
-                                {log.note && <div style={{ fontSize: "13px", color: "#4a2820", lineHeight: 1.55 }}>{log.note}</div>}
-                              </div>
-                              <div style={{ fontSize: "11px", color: "#b89080", flexShrink: 0 }}>{new Date(log.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {chatView === "chat" && <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
+      <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
         {!hasMessages && (
           <div style={{ textAlign: "center", paddingTop: "10px" }}>
             <div style={{ fontSize: "26px", marginBottom: "6px" }}>🌿</div>
@@ -1705,22 +976,6 @@ function ClientChat({ user, onLogout }) {
           <div ref={bottomRef} />
         </div>
 
-        {showLogPrompt && !showLogCard && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,255,0.88)", border: "1.5px solid rgba(200,120,90,0.22)", borderRadius: "14px", padding: "11px 15px", marginTop: "-6px" }}>
-            <span style={{ fontSize: "18px" }}>📝</span>
-            <div style={{ flex: 1, fontSize: "13px", color: "#7c4a3a", fontWeight: "500" }}>Want to log how this moment went?</div>
-            <button onClick={() => { setShowLogCard(true); setShowLogPrompt(false); }} style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", borderRadius: "10px", padding: "7px 14px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>Log it →</button>
-            <button onClick={() => { setShowLogPrompt(false); setLogPromptDismissed(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#b89080", fontSize: "16px", padding: "2px" }}>✕</button>
-          </div>
-        )}
-
-        {logSaved && (
-          <div style={{ display: "flex", alignItems: "center", gap: "9px", background: "rgba(80,160,100,0.12)", border: "1.5px solid rgba(60,140,80,0.25)", borderRadius: "14px", padding: "11px 15px" }}>
-            <span style={{ fontSize: "16px" }}>✅</span>
-            <div style={{ fontSize: "13px", color: "#3a7a50", fontWeight: "500" }}>Moment logged! View it in the Progress tab.</div>
-          </div>
-        )}
-
         {hasMessages && (
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
             {SCENARIOS.map(s => (
@@ -1731,9 +986,9 @@ function ClientChat({ user, onLogout }) {
             ))}
           </div>
         )}
-      </div>}
+      </div>
 
-      {chatView === "chat" && <div style={{ position: "sticky", bottom: 0, background: "rgba(253,246,240,0.93)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(180,120,90,0.11)", padding: "13px 15px" }}>
+      <div style={{ position: "sticky", bottom: 0, background: "rgba(253,246,240,0.93)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(180,120,90,0.11)", padding: "13px 15px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", gap: "9px", alignItems: "flex-end" }}>
           <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }} placeholder="Describe what's happening right now…" rows={1}
             style={{ flex: 1, padding: "11px 15px", borderRadius: "18px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.92)", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: "110px", overflow: "auto", transition: "border-color 0.15s" }}
@@ -1741,7 +996,7 @@ function ClientChat({ user, onLogout }) {
           <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading} style={{ width: 42, height: 42, borderRadius: "50%", background: input.trim() && !loading ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.17)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>➤</button>
         </div>
         <div style={{ maxWidth: 720, margin: "6px auto 0", textAlign: "center", fontSize: "11px", color: "#b89080" }}>Not a replacement for therapy · For crisis support, contact emergency services</div>
-      </div>}
+      </div>
 
       <style>{`
         @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
