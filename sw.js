@@ -1,4 +1,4 @@
-const CACHE = 'spc-v1';
+const CACHE = 'spc-v2';
 const PRECACHE = ['/', '/index.html', '/icon.svg', '/manifest.json'];
 
 self.addEventListener('install', e => {
