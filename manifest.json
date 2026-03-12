@@ -1,0 +1,17 @@
+{
+  "name": "Steady Parent Coach",
+  "short_name": "SPC",
+  "description": "Between-session coaching support from Nate Parish's practice",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fdf6f0",
+  "theme_color": "#e8937a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
