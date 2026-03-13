@@ -777,6 +777,14 @@ function AdminDashboard({ onLogout }) {
   const [progressData, setProgressData] = useState([]);
   const [folderUploading, setFolderUploading] = useState({});
   const [folderUploadError, setFolderUploadError] = useState({});
+  const [testMessages, setTestMessages] = useState([]);
+  const [testInput, setTestInput] = useState("");
+  const [testLoading, setTestLoading] = useState(false);
+  const [testFeedbackIdx, setTestFeedbackIdx] = useState(null);
+  const [testFeedbackText, setTestFeedbackText] = useState("");
+  const [testFeedbackSaving, setTestFeedbackSaving] = useState(false);
+  const [testFeedbackSaved, setTestFeedbackSaved] = useState(null);
+  const testBottomRef = useRef(null);
 
   useEffect(() => {
     async function load() {
@@ -865,6 +873,50 @@ function AdminDashboard({ onLogout }) {
     setFolderDrafts(prev => { const d = { ...prev }; delete d[id]; return d; });
   }
 
+  useEffect(() => { testBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [testMessages, testLoading]);
+
+  async function sendTestMessage(text) {
+    if (!text.trim() || testLoading) return;
+    const newMsgs = [...testMessages, { role: 'user', content: text.trim() }];
+    setTestMessages(newMsgs);
+    setTestInput("");
+    setTestLoading(true);
+    setTestFeedbackIdx(null);
+    try {
+      const kb = await getKB();
+      const system = SYSTEM_PROMPT + '\n\n[TEST MODE: This conversation is being run by Nate Parish to evaluate the AI. Respond naturally as if talking to a real client parent.]' + (kb ? `\n\n---\n\n## Therapist's Clinical Notes\n\n${kb}` : '');
+      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system, messages: newMsgs }) });
+      const data = await res.json();
+      const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong.";
+      setTestMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+    } catch(e) { console.error(e); }
+    setTestLoading(false);
+  }
+
+  async function saveTestFeedback(msgIdx) {
+    if (!testFeedbackText.trim() || testFeedbackSaving) return;
+    setTestFeedbackSaving(true);
+    const FEEDBACK_ID = 'folder_admin_feedback';
+    const aiSnippet = (testMessages[msgIdx]?.content || '').slice(0, 100);
+    const hasMore = (testMessages[msgIdx]?.content || '').length > 100;
+    const noteEntry = `[${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}]\nAI response: "${aiSnippet}${hasMore ? '…' : ''}"\nFeedback: ${testFeedbackText.trim()}`;
+    const allFolders = await getKBFolders();
+    const existing = allFolders.find(f => f.id === FEEDBACK_ID);
+    const newContent = existing?.content ? existing.content + '\n\n---\n\n' + noteEntry : noteEntry;
+    await saveKBFolder({ id: FEEDBACK_ID, name: '🔬 Admin Feedback', content: newContent });
+    setFolders(prev => {
+      const exists = prev.find(f => f.id === FEEDBACK_ID);
+      if (exists) return prev.map(f => f.id === FEEDBACK_ID ? { ...f, content: newContent } : f);
+      return [...prev, { id: FEEDBACK_ID, name: '🔬 Admin Feedback', content: newContent, updated_at: new Date().toISOString() }];
+    });
+    setFolderDrafts(prev => ({ ...prev, [FEEDBACK_ID]: { name: '🔬 Admin Feedback', content: newContent } }));
+    setTestFeedbackSaving(false);
+    setTestFeedbackSaved(msgIdx);
+    setTestFeedbackText("");
+    setTestFeedbackIdx(null);
+    setTimeout(() => setTestFeedbackSaved(null), 2500);
+  }
+
   const clientList = Object.values(users);
   const P = { background: "linear-gradient(145deg,#f0f4ff 0%,#e8eeff 50%,#f0e8ff 100%)" };
 
@@ -891,8 +943,8 @@ function AdminDashboard({ onLogout }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "8px", marginBottom: "22px" }}>
-          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"], ["usage", "📊 Usage"]].map(([t, label]) => (
+        <div style={{ display: "flex", gap: "8px", marginBottom: "22px", flexWrap: "wrap" }}>
+          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"], ["test", "🧪 Test Chat"], ["usage", "📊 Usage"]].map(([t, label]) => (
             <Btn key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(255,255,255,0.72)", color: tab === t ? "#fff" : "#7a70a0", boxShadow: tab === t ? "0 4px 14px rgba(120,100,200,0.28)" : "none", border: "none" }}>{label}</Btn>
           ))}
         </div>
@@ -1017,6 +1069,83 @@ function AdminDashboard({ onLogout }) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {tab === "test" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(122,142,232,0.2)", borderRadius: "14px", padding: "14px 18px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <span style={{ fontSize: "18px", flexShrink: 0 }}>🧪</span>
+              <div style={{ fontSize: "13px", color: "#5a5890", lineHeight: 1.65, flex: 1 }}>
+                <strong style={{ color: "#2a2850" }}>Test the AI coach here.</strong> Chat as if you're a client to evaluate responses. Use the <strong>📋 Feedback</strong> button on any AI reply to add a note — it saves directly to the Knowledge Base and immediately affects all clients.
+              </div>
+              {testMessages.length > 0 && (
+                <button onClick={() => { setTestMessages([]); setTestInput(""); setTestFeedbackIdx(null); setTestFeedbackText(""); }} style={{ background: "rgba(200,120,90,0.08)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "10px", padding: "6px 12px", fontSize: "12px", color: "#9a7060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", flexShrink: 0, whiteSpace: "nowrap" }}>Clear Chat</button>
+              )}
+            </div>
+
+            <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: "16px", border: "1px solid rgba(150,120,200,0.12)", minHeight: 320, display: "flex", flexDirection: "column" }}>
+              <div style={{ flex: 1, padding: "18px", display: "flex", flexDirection: "column", gap: "14px", overflowY: "auto", maxHeight: 480 }}>
+                {testMessages.length === 0 && (
+                  <div style={{ textAlign: "center", padding: "40px 20px", color: "#9a8ac0" }}>
+                    <div style={{ fontSize: "32px", marginBottom: "10px" }}>💬</div>
+                    <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "6px" }}>Start a test conversation</div>
+                    <div style={{ fontSize: "13px", lineHeight: 1.55 }}>Type a message as if you were a client parent. Evaluate the AI's response and add feedback notes that update the knowledge base in real time.</div>
+                  </div>
+                )}
+                {testMessages.map((m, i) => (
+                  <div key={i}>
+                    <div style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: "8px", alignItems: "flex-start" }}>
+                      {m.role === "assistant" && <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0, marginTop: 2 }}>🌿</div>}
+                      <div style={{ maxWidth: "80%", padding: "11px 14px", borderRadius: m.role === "user" ? "17px 17px 4px 17px" : "4px 17px 17px 17px", background: m.role === "user" ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(255,255,255,0.92)", color: m.role === "user" ? "#fff" : "#2a2850", fontSize: "13px", lineHeight: 1.65, boxShadow: "0 2px 8px rgba(100,80,200,0.08)", border: m.role === "assistant" ? "1px solid rgba(150,120,200,0.12)" : "none" }}>
+                        {m.role === "assistant" ? formatMessage(m.content) : m.content}
+                      </div>
+                    </div>
+                    {m.role === "assistant" && (
+                      <div style={{ marginLeft: 36, marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        {testFeedbackSaved === i ? (
+                          <span style={{ fontSize: "12px", color: "#3a7a50", fontWeight: "600" }}>✅ Feedback saved to KB</span>
+                        ) : testFeedbackIdx === i ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%", maxWidth: 400 }}>
+                            <textarea value={testFeedbackText} onChange={e => setTestFeedbackText(e.target.value)}
+                              placeholder="What should the AI do differently here? What worked well? Be specific…" rows={2} autoFocus
+                              style={{ width: "100%", padding: "9px 12px", borderRadius: "10px", border: "1.5px solid rgba(122,142,232,0.35)", fontSize: "12px", fontFamily: "inherit", color: "#2a2850", outline: "none", resize: "none", lineHeight: 1.55, boxSizing: "border-box", background: "#fdfcff" }} />
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button onClick={() => saveTestFeedback(i)} disabled={!testFeedbackText.trim() || testFeedbackSaving}
+                                style={{ padding: "6px 14px", background: testFeedbackText.trim() ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(150,120,200,0.2)", color: testFeedbackText.trim() ? "#fff" : "#9a8ac0", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: "700", cursor: testFeedbackText.trim() ? "pointer" : "default", fontFamily: "inherit" }}>
+                                {testFeedbackSaving ? "Saving…" : "Save to KB"}
+                              </button>
+                              <button onClick={() => { setTestFeedbackIdx(null); setTestFeedbackText(""); }} style={{ padding: "6px 10px", background: "none", border: "1px solid rgba(150,120,200,0.2)", borderRadius: "8px", fontSize: "12px", color: "#9a8ac0", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setTestFeedbackIdx(i); setTestFeedbackText(""); }} style={{ fontSize: "11px", color: "#7a70a0", background: "rgba(122,142,232,0.08)", border: "1px solid rgba(122,142,232,0.2)", borderRadius: "7px", padding: "3px 9px", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>📋 Feedback</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {testLoading && (
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px" }}>🌿</div>
+                    <div style={{ background: "rgba(255,255,255,0.92)", padding: "11px 14px", borderRadius: "4px 17px 17px 17px", border: "1px solid rgba(150,120,200,0.12)" }}>
+                      <div style={{ display: "flex", gap: "4px" }}>{[0,1,2].map(j => <div key={j} style={{ width: 5, height: 5, borderRadius: "50%", background: "#7a8ee8", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}</div>
+                    </div>
+                  </div>
+                )}
+                <div ref={testBottomRef} />
+              </div>
+
+              <div style={{ borderTop: "1px solid rgba(150,120,200,0.12)", padding: "12px 14px", display: "flex", gap: "8px", alignItems: "flex-end" }}>
+                <textarea value={testInput} onChange={e => setTestInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendTestMessage(testInput); } }}
+                  placeholder="Type as if you're a client parent…" rows={1}
+                  style={{ flex: 1, padding: "9px 13px", borderRadius: "14px", border: "1.5px solid rgba(150,120,200,0.2)", background: "#fdfcff", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: "90px", overflow: "auto" }}
+                  onFocus={e => e.target.style.borderColor = "#7a8ee8"} onBlur={e => e.target.style.borderColor = "rgba(150,120,200,0.2)"} />
+                <button onClick={() => sendTestMessage(testInput)} disabled={!testInput.trim() || testLoading}
+                  style={{ width: 38, height: 38, borderRadius: "50%", background: testInput.trim() && !testLoading ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(150,120,200,0.15)", border: "none", cursor: testInput.trim() && !testLoading ? "pointer" : "default", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>➤</button>
+              </div>
+            </div>
           </div>
         )}
 
