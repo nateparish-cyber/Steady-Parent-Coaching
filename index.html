@@ -401,11 +401,17 @@ async function getProfile(uid) {
   try {
     const { data, error } = await db.from('profiles').select('*').eq('user_id', uid).single();
     if (error && error.code !== 'PGRST116') throw error;
-    return data ? { working_on: data.working_on || '', triggers: data.triggers || '', accommodations: data.accommodations || '', notes: data.notes || '', child_gender: data.child_gender || '', child_age: data.child_age || '', focus_areas: data.focus_areas || '' } : {};
+    return data ? { working_on: data.working_on || '', triggers: data.triggers || '', accommodations: data.accommodations || '', notes: data.notes || '', child_gender: data.child_gender || '', child_age: data.child_age || '', focus_areas: data.focus_areas || '', weekly_goal: data.weekly_goal || '', weekly_goal_set_at: data.weekly_goal_set_at || null } : {};
   } catch { return {}; }
 }
 async function saveProfile(uid, p) {
   try { const { error } = await db.from('profiles').upsert({ user_id: uid, ...p, updated_at: new Date().toISOString() }, { onConflict: 'user_id' }); if (error) throw error; } catch (e) { console.error('saveProfile error:', e); }
+}
+async function saveWeeklyGoal(uid, goalText) {
+  try {
+    const { error } = await db.from('profiles').upsert({ user_id: uid, weekly_goal: goalText, weekly_goal_set_at: goalText ? new Date().toISOString() : null, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) throw error;
+  } catch (e) { console.error('saveWeeklyGoal error:', e); }
 }
 async function logUsage(uid, username, userText, replyText) {
   try {
@@ -1297,6 +1303,11 @@ function ClientChat({ user, onLogout }) {
   const [logSaving, setLogSaving] = useState(false);
   const [logSaved, setLogSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
+  const [showGoalReflect, setShowGoalReflect] = useState(false);
+  const [goalReflectText, setGoalReflectText] = useState("");
+  const [goalSaving, setGoalSaving] = useState(false);
   const menuRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -1385,6 +1396,7 @@ function ClientChat({ user, onLogout }) {
     if (p.child_gender?.trim())   profileLines.push(`Child's gender: ${p.child_gender.trim()}`);
     if (p.child_age?.trim())      profileLines.push(`Child's age range: ${p.child_age.trim()}`);
     if (p.focus_areas?.trim())    profileLines.push(`Primary focus areas: ${p.focus_areas.trim()}`);
+    if (p.weekly_goal?.trim())    profileLines.push(`This week's parenting goal: ${p.weekly_goal.trim()}`);
     if (p.working_on?.trim())    profileLines.push(`What they are currently working on in therapy: ${p.working_on.trim()}`);
     if (p.triggers?.trim())      profileLines.push(`Specific triggers or patterns to be aware of: ${p.triggers.trim()}`);
     if (p.accommodations?.trim()) profileLines.push(`Accommodation habits they are actively trying to break: ${p.accommodations.trim()}`);
@@ -1615,6 +1627,45 @@ function ClientChat({ user, onLogout }) {
         </div>
       )}
 
+      {showGoalModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", borderRadius: "28px", padding: "28px 24px 24px", maxWidth: 420, width: "92%", boxShadow: "0 24px 60px rgba(150,80,60,0.22)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#4a2820" }}>🎯 Weekly Goal</div>
+              <button onClick={() => setShowGoalModal(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#b89080", padding: "2px 2px 2px 10px" }}>✕</button>
+            </div>
+            <div style={{ fontSize: "13px", color: "#7c4a3a", marginBottom: "12px", lineHeight: 1.55 }}>What's one parenting goal you want to focus on this week?</div>
+            <textarea value={goalInput} onChange={e => setGoalInput(e.target.value)} placeholder="e.g. Stay calm during bedtime even when my child pushes back…" rows={3}
+              style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "16px" }} />
+            <Btn onClick={async () => { if (!goalInput.trim() || goalSaving) return; setGoalSaving(true); await saveWeeklyGoal(user.id, goalInput.trim()); const p = await getProfile(user.id); setProfile(p); setGoalSaving(false); setShowGoalModal(false); }} disabled={!goalInput.trim() || goalSaving}
+              style={{ width: "100%", padding: "13px", background: goalInput.trim() && !goalSaving ? "linear-gradient(135deg,#8a6aaa,#6a4a8a)" : "rgba(200,120,90,0.2)", color: goalInput.trim() && !goalSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: goalInput.trim() ? "0 4px 14px rgba(120,80,180,0.25)" : "none", transition: "all 0.2s" }}>
+              {goalSaving ? "Saving…" : "Set Goal"}
+            </Btn>
+          </div>
+        </div>
+      )}
+
+      {showGoalReflect && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", borderRadius: "28px", padding: "28px 24px 24px", maxWidth: 420, width: "92%", boxShadow: "0 24px 60px rgba(150,80,60,0.22)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div>
+                <div style={{ fontSize: "18px", fontWeight: "700", color: "#4a2820" }}>🎯 Goal Check-In</div>
+                <div style={{ fontSize: "12px", color: "#9a7060", marginTop: "6px", lineHeight: 1.5, fontStyle: "italic" }}>"{profile.weekly_goal?.length > 80 ? profile.weekly_goal.slice(0,80)+'…' : profile.weekly_goal}"</div>
+              </div>
+              <button onClick={() => { setShowGoalReflect(false); setGoalReflectText(""); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#b89080", padding: "2px 2px 2px 10px", flexShrink: 0 }}>✕</button>
+            </div>
+            <div style={{ fontSize: "13px", color: "#7c4a3a", marginBottom: "10px", fontWeight: "600" }}>How are you doing with this goal?</div>
+            <textarea value={goalReflectText} onChange={e => setGoalReflectText(e.target.value)} placeholder="Reflect on your progress, what's working, what's been hard…" rows={4}
+              style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "16px" }} />
+            <Btn onClick={async () => { if (!goalReflectText.trim() || goalSaving) return; setGoalSaving(true); try { await logProgress(user.id, user.username, `Goal: ${profile.weekly_goal}`, 'goal_check_in', goalReflectText.trim()); const logs = await getProgress(user.id); setProgressLogs(logs); setShowGoalReflect(false); setGoalReflectText(""); } catch(e) { console.error(e); } setGoalSaving(false); }} disabled={!goalReflectText.trim() || goalSaving}
+              style={{ width: "100%", padding: "13px", background: goalReflectText.trim() && !goalSaving ? "linear-gradient(135deg,#8a6aaa,#6a4a8a)" : "rgba(200,120,90,0.2)", color: goalReflectText.trim() && !goalSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: goalReflectText.trim() ? "0 4px 14px rgba(120,80,180,0.25)" : "none", transition: "all 0.2s" }}>
+              {goalSaving ? "Saving…" : "Save Reflection"}
+            </Btn>
+          </div>
+        </div>
+      )}
+
       {showDeleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" }} onClick={() => setShowDeleteConfirm(false)}>
           <div style={{ background: "#fff8f5", borderRadius: "24px", padding: "32px", maxWidth: 380, width: "92%", boxShadow: "0 20px 60px rgba(150,80,60,0.2)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
@@ -1682,6 +1733,7 @@ function ClientChat({ user, onLogout }) {
           gave_in_caught_myself: { label: "Gave in — caught myself", icon: "😅", color: "#8a6020", bg: "rgba(220,180,60,0.15)" },
           kid_win: { label: "Kid had a win", icon: "🌟", color: "#7a4a8a", bg: "rgba(180,100,220,0.12)" },
           free_write: { label: "Free write", icon: "✍️", color: "#4a6080", bg: "rgba(100,140,200,0.12)" },
+          goal_check_in: { label: "Goal check-in", icon: "🎯", color: "#5a4a80", bg: "rgba(140,100,200,0.12)" },
         };
         const thisWeek = progressLogs.filter(l => Date.now() - new Date(l.created_at) < 7*24*60*60*1000).length;
         const typeCounts = {}; for (const l of progressLogs) typeCounts[l.moment_type] = (typeCounts[l.moment_type]||0)+1;
@@ -1701,6 +1753,25 @@ function ClientChat({ user, onLogout }) {
         const lastWS = new Date(thisWS); lastWS.setDate(thisWS.getDate()-7);
         return (
           <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
+            {profile.weekly_goal ? (
+              <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "18px", padding: "18px 20px", border: "1.5px solid rgba(140,100,200,0.2)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: "#5a4a80", textTransform: "uppercase", letterSpacing: "0.05em" }}>🎯 This Week's Goal</div>
+                  <button onClick={() => { setGoalInput(profile.weekly_goal); setShowGoalModal(true); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "12px", color: "#b89080", fontFamily: "inherit", padding: "2px 4px" }}>Edit</button>
+                </div>
+                <div style={{ fontSize: "15px", color: "#4a2820", lineHeight: 1.55, marginBottom: "6px" }}>{profile.weekly_goal}</div>
+                {profile.weekly_goal_set_at && <div style={{ fontSize: "11px", color: "#b89080", marginBottom: "14px" }}>Set {new Date(profile.weekly_goal_set_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>}
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <Btn onClick={() => { setGoalReflectText(""); setShowGoalReflect(true); }} style={{ flex: 1, padding: "10px", background: "linear-gradient(135deg,#8a6aaa,#6a4a8a)", color: "#fff", border: "none", fontSize: "13px", fontWeight: "700", boxShadow: "0 3px 12px rgba(120,80,180,0.2)" }}>Reflect on Goal</Btn>
+                  <button onClick={async () => { await saveWeeklyGoal(user.id, ''); const p = await getProfile(user.id); setProfile(p); }} style={{ padding: "10px 14px", background: "rgba(200,120,90,0.08)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "12px", fontSize: "12px", color: "#9a7060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>Clear</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => { setGoalInput(""); setShowGoalModal(true); }} style={{ width: "100%", padding: "14px", background: "rgba(255,255,255,0.82)", border: "1.5px dashed rgba(140,100,200,0.4)", borderRadius: "14px", fontSize: "14px", color: "#5a4a80", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", textAlign: "center", transition: "all 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(240,230,255,0.9)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.82)"}
+              >🎯 Set a Weekly Goal</button>
+            )}
             <Btn onClick={() => { setShowLogCard(true); }} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: "0 4px 16px rgba(200,100,100,0.25)", borderRadius: "14px" }}>
               + Log a Moment
             </Btn>
