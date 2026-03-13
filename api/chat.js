@@ -12,7 +12,10 @@ export default async function handler(req, res) {
       body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600, system, messages }),
     });
     const data = await response.json();
-    if (!response.ok) return res.status(response.status).json({ error: data });
+    if (!response.ok) {
+      const msg = data?.error?.message || JSON.stringify(data?.error) || `API error ${response.status}`;
+      return res.status(response.status).json({ error: msg });
+    }
     return res.status(200).json(data);
   } catch (err) {
     return res.status(500).json({ error: "Internal server error" });

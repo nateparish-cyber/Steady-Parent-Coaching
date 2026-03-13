@@ -887,9 +887,13 @@ function AdminDashboard({ onLogout }) {
       const system = SYSTEM_PROMPT + '\n\n[TEST MODE: This conversation is being run by Nate Parish to evaluate the AI. Respond naturally as if talking to a real client parent.]' + (kb ? `\n\n---\n\n## Therapist's Clinical Notes\n\n${kb}` : '');
       const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ system, messages: newMsgs }) });
       const data = await res.json();
-      const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong.";
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+      const reply = data.content?.map(b => b.text || "").join("") || "No response.";
       setTestMessages(prev => [...prev, { role: 'assistant', content: reply }]);
-    } catch(e) { console.error(e); }
+    } catch(e) {
+      console.error("Test chat error:", e);
+      setTestMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e.message || "Something went wrong."}` }]);
+    }
     setTestLoading(false);
   }
 
@@ -1584,6 +1588,7 @@ function ClientChat({ user, onLogout }) {
         body: JSON.stringify({ system: buildSystemPrompt(), messages: newMsgs }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
       const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
       const updated = [...newMsgs, { role: "assistant", content: reply }];
       setMessages(updated);
@@ -1598,7 +1603,13 @@ function ClientChat({ user, onLogout }) {
         if (next === 3 && !logPromptDismissed) setShowLogPrompt(true);
         return next;
       });
-    } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
+    } catch (err) {
+      console.error("Chat error:", err);
+      const msg = err?.message?.includes("overloaded") ? "The AI is overloaded right now — please try again in a moment." :
+                  err?.message?.includes("too long") || err?.message?.includes("context") ? "The conversation is getting very long. Try starting a new chat." :
+                  "Couldn't reach the coach. Please check your connection and try again.";
+      setMessages([...newMsgs, { role: "assistant", content: msg }]);
+    }
     setLoading(false);
   }
 
