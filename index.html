@@ -1502,46 +1502,46 @@ const LearnTab = () => {
 
         {current===0 && (
           <div>
-            <svg width="100%" viewBox="0 0 680 420" style={{maxWidth:"100%"}}>
-              <defs><marker id="la0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+            <svg width="100%" viewBox="0 0 680 410" style={{maxWidth:"100%"}}>
+              <defs><marker id="la0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#D85A30" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+              <rect x="252" y="197" width="176" height="36" rx="8" fill="#FCEBEB" stroke="#E24B4A" strokeWidth="0.5"/>
+              <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="215" textAnchor="middle" dominantBaseline="central" fill="#A32D2D">The anxiety cycle</text>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['child-anxiety'])}>
-                <circle cx="340" cy="100" r="34" fill="#FAECE7" stroke="#D85A30" strokeWidth="1"/>
-                <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="340" y="95" textAnchor="middle" dominantBaseline="central" fill="#993C1D">Child</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="112" textAnchor="middle" fill="#993C1D">feels anxious</text>
+                <circle cx="340" cy="85" r="34" fill="#FAECE7" stroke="#D85A30" strokeWidth="1"/>
+                <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="340" y="78" textAnchor="middle" dominantBaseline="central" fill="#993C1D">Child</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="95" textAnchor="middle" fill="#993C1D">feels anxious</text>
               </g>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['distress-signal'])}>
-                <rect x="476" y="74" width="164" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="96" textAnchor="middle" dominantBaseline="central" fill="#854F0B">Distress signal</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="113" textAnchor="middle" fill="#854F0B">crying, clinging, refusing</text>
+                <rect x="370" y="125" width="165" height="50" rx="8" fill="#FAEEDA" stroke="#BA7517" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="453" y="142" textAnchor="middle" dominantBaseline="central" fill="#854F0B">Distress signal</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="453" y="160" textAnchor="middle" fill="#854F0B">crying, clinging, refusing</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M370 100 Q430 80 474 95"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['parent-urgency'])}>
-                <rect x="476" y="200" width="164" height="52" rx="8" fill="#E6F1FB" stroke="#378ADD" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="222" textAnchor="middle" dominantBaseline="central" fill="#185FA5">Parent urgency</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="239" textAnchor="middle" fill="#185FA5">instinct to relieve pain</text>
+                <rect x="370" y="255" width="165" height="50" rx="8" fill="#E6F1FB" stroke="#378ADD" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="453" y="272" textAnchor="middle" dominantBaseline="central" fill="#185FA5">Parent urgency</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="453" y="290" textAnchor="middle" fill="#185FA5">instinct to relieve pain</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#378ADD" strokeWidth="1.5" markerEnd="url(#la0)" d="M558 126 L558 198"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['accommodation'])}>
-                <rect x="426" y="316" width="214" height="52" rx="8" fill="#FBEAF0" stroke="#D4537E" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="533" y="338" textAnchor="middle" dominantBaseline="central" fill="#993556">Accommodation</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="533" y="355" textAnchor="middle" fill="#993556">avoidance removed</text>
+                <rect x="257" y="320" width="165" height="50" rx="8" fill="#FBEAF0" stroke="#D4537E" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="337" textAnchor="middle" dominantBaseline="central" fill="#993556">Accommodation</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="355" textAnchor="middle" fill="#993556">avoidance removed</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#D4537E" strokeWidth="1.5" markerEnd="url(#la0)" d="M515 252 Q495 304 478 314"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['brief-relief'])}>
-                <rect x="40" y="316" width="180" height="52" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="130" y="338" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Brief relief</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="130" y="355" textAnchor="middle" fill="#3B6D11">anxiety drops... for now</text>
+                <rect x="144" y="255" width="165" height="50" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="227" y="272" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Brief relief</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="227" y="290" textAnchor="middle" fill="#3B6D11">anxiety drops... for now</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la0)" d="M424 342 L222 342"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['anxiety-grows'])}>
-                <rect x="40" y="200" width="180" height="52" rx="8" fill="#FAECE7" stroke="#993C1D" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="130" y="222" textAnchor="middle" dominantBaseline="central" fill="#993C1D">Anxiety grows</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="130" y="239" textAnchor="middle" fill="#993C1D">brain learns: avoid = safe</text>
+                <rect x="144" y="125" width="165" height="50" rx="8" fill="#FAECE7" stroke="#993C1D" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="227" y="142" textAnchor="middle" dominantBaseline="central" fill="#993C1D">Anxiety grows</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="227" y="160" textAnchor="middle" fill="#993C1D">brain learns: avoid = safe</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#993C1D" strokeWidth="1.5" markerEnd="url(#la0)" d="M130 314 L130 254"/>
-              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M130 198 Q160 120 304 105"/>
-              <rect x="252" y="190" width="176" height="36" rx="8" fill="#FCEBEB" stroke="#E24B4A" strokeWidth="0.5"/>
-              <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="212" textAnchor="middle" dominantBaseline="central" fill="#A32D2D">The anxiety cycle</text>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M372,74 Q432,55 448,125"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M453,175 Q525,215 453,255"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M390,305 Q442,360 422,332"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M257,358 Q222,378 309,305"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M227,255 Q155,215 227,175"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M245,125 Q248,55 308,75"/>
             </svg>
             <p style={{textAlign:"center",fontSize:"12px",color:"#9a7060",marginTop:"4px"}}>Tap any part to learn more</p>
           </div>
@@ -1610,46 +1610,46 @@ const LearnTab = () => {
 
         {current===3 && (
           <div>
-            <svg width="100%" viewBox="0 0 680 420" style={{maxWidth:"100%"}}>
-              <defs><marker id="la3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+            <svg width="100%" viewBox="0 0 680 410" style={{maxWidth:"100%"}}>
+              <defs><marker id="la3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#639922" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+              <rect x="252" y="197" width="176" height="36" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+              <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="215" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">The growth cycle</text>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['child-steady'])}>
-                <circle cx="340" cy="100" r="34" fill="#EAF3DE" stroke="#639922" strokeWidth="1"/>
-                <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="340" y="95" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Child</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="112" textAnchor="middle" fill="#3B6D11">feels anxious</text>
+                <circle cx="340" cy="85" r="34" fill="#EAF3DE" stroke="#639922" strokeWidth="1"/>
+                <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="340" y="78" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Child</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="95" textAnchor="middle" fill="#3B6D11">feels anxious</text>
               </g>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['distress-steady'])}>
-                <rect x="476" y="74" width="164" height="52" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="96" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Distress signal</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="113" textAnchor="middle" fill="#3B6D11">child expresses fear</text>
+                <rect x="370" y="125" width="165" height="50" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="453" y="142" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Distress signal</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="453" y="160" textAnchor="middle" fill="#3B6D11">child expresses fear</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M370 100 Q430 88 474 103"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['parent-steady'])}>
-                <rect x="476" y="200" width="164" height="52" rx="8" fill="#E1F5EE" stroke="#1D9E75" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="222" textAnchor="middle" dominantBaseline="central" fill="#0F6E56">Parent stays steady</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="239" textAnchor="middle" fill="#0F6E56">warm, present, not fixing</text>
+                <rect x="370" y="255" width="165" height="50" rx="8" fill="#E1F5EE" stroke="#1D9E75" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="453" y="272" textAnchor="middle" dominantBaseline="central" fill="#0F6E56">Parent stays steady</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="453" y="290" textAnchor="middle" fill="#0F6E56">warm, present, not fixing</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#1D9E75" strokeWidth="1.5" markerEnd="url(#la3)" d="M558 126 L558 198"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['child-tolerates'])}>
-                <rect x="426" y="316" width="214" height="52" rx="8" fill="#EAF3DE" stroke="#3B6D11" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="533" y="338" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Child tolerates it</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="533" y="355" textAnchor="middle" fill="#3B6D11">gets through the hard moment</text>
+                <rect x="257" y="320" width="165" height="50" rx="8" fill="#EAF3DE" stroke="#3B6D11" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="337" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Child tolerates it</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="355" textAnchor="middle" fill="#3B6D11">gets through the hard moment</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#3B6D11" strokeWidth="1.5" markerEnd="url(#la3)" d="M510 252 Q490 298 480 314"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['builds-capacity'])}>
-                <rect x="40" y="316" width="214" height="52" rx="8" fill="#E1F5EE" stroke="#0F6E56" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="147" y="338" textAnchor="middle" dominantBaseline="central" fill="#0F6E56">Builds real capacity</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="147" y="355" textAnchor="middle" fill="#0F6E56">I can handle hard things</text>
+                <rect x="144" y="255" width="165" height="50" rx="8" fill="#E1F5EE" stroke="#0F6E56" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="227" y="272" textAnchor="middle" dominantBaseline="central" fill="#0F6E56">Builds real capacity</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="227" y="290" textAnchor="middle" fill="#0F6E56">I can handle hard things</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#0F6E56" strokeWidth="1.5" markerEnd="url(#la3)" d="M424 342 L256 342"/>
               <g style={{cursor:"pointer"}} onClick={()=>setModal(content['anxiety-reduces'])}>
-                <rect x="40" y="200" width="214" height="52" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
-                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="147" y="222" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Anxiety reduces</text>
-                <text fontFamily="Georgia,serif" fontSize="11" x="147" y="239" textAnchor="middle" fill="#3B6D11">over days and weeks</text>
+                <rect x="144" y="125" width="165" height="50" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="227" y="142" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Anxiety reduces</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="227" y="160" textAnchor="middle" fill="#3B6D11">over days and weeks</text>
               </g>
-              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M147 314 L147 254"/>
-              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M147 198 Q200 130 304 105"/>
-              <rect x="252" y="190" width="176" height="36" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
-              <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="212" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">The growth cycle</text>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M372,74 Q432,55 448,125"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M453,175 Q525,215 453,255"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M390,305 Q442,360 422,332"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M257,358 Q222,378 309,305"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M227,255 Q155,215 227,175"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M245,125 Q248,55 308,75"/>
             </svg>
             <p style={{textAlign:"center",fontSize:"12px",color:"#9a7060",marginTop:"4px"}}>Tap any part to learn more</p>
           </div>
