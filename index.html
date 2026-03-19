@@ -1430,6 +1430,235 @@ function ProfileDrawer({ user, onClose }) {
   );
 }
 
+// ── Learn Tab ──────────────────────────────────────────────────────────────────
+const LearnTab = () => {
+  const [current, setCurrent] = React.useState(0);
+  const [modal, setModal] = React.useState(null);
+  const total = 4;
+  const isMobile = window.innerWidth < 600;
+
+  const content = {
+    'child-anxiety': {tag:'The anxiety cycle', tagColor:'#FAECE7', tagText:'#993C1D', title:'What child anxiety actually looks like', body:`Child anxiety lives in the body first — and words come second, if at all.\n\nIn younger children it's physical: rigid body, won't move, won't let go. Crying that feels bottomless — not a tantrum, something more desperate. Clinging to a leg, a doorframe, a routine. Saying "I feel sick" and meaning it completely even when nothing is medically wrong.\n\nIn older children it looks different. Irritability from nowhere. Shutdown that reads as attitude but is actually overwhelm. Elaborate negotiation — "just this once," "just five more minutes." Avoidance that looks like defiance. Rage that looks like disrespect.\n\nWhat's happening underneath: the brain's threat detector has flagged something as dangerous. It doesn't matter whether the threat is real — the body responds identically to a bear and a birthday party. Heart rate up. Stomach tight. Breathing shallow. The reasoning brain partially goes offline, which is why logic doesn't work in the moment.\n\nThe child isn't being irrational. They're being human.`},
+    'distress-signal': {tag:'The anxiety cycle', tagColor:'#FAEEDA', tagText:'#854F0B', title:'How children signal distress', body:`Children's distress signals are designed — not manipulatively, but biologically — to activate a caregiver's rescue response. They are powerful precisely because they work.\n\nThe obvious signals: crying, screaming, clinging, refusing to move, saying "I can't," physical complaints before triggering situations, begging and bargaining.\n\nThe less obvious ones: shutdown and withdrawal — going quiet, going flat. Rage and aggression — which is often fear wearing an angry costume. Somatic symptoms that are completely real: the stomach genuinely hurts, the head genuinely aches, because the nervous system doesn't separate perceived danger from real danger.\n\nThe ones that fool parents most: the child who becomes suddenly very reasonable — "just explain it one more time." The child who escalates just enough to tip the parent into accommodating. The child who waits until the last possible moment because proximity to the trigger makes the signal most powerful.`},
+    'parent-urgency': {tag:'The anxiety cycle', tagColor:'#E6F1FB', tagText:'#185FA5', title:'Why parents feel such urgency', body:`The parental urge to relieve a child's distress is not a character flaw. It is evolution doing exactly what it was designed to do.\n\nWhen a child signals danger — crying, clinging, in pain — a parent's nervous system activates in response. This is attachment working correctly. The problem isn't the urge. The problem is that in the context of anxiety, following the urge makes things worse over time.\n\nMany parents also carry their own history with distress. If big feelings were scary, unseen, or punished in their own childhood, their child's meltdown activates something old — not just parental concern, but something more personal and urgent.\n\nUnderstanding why the urgency is so powerful is the first step to responding differently. It's not about feeling less. It's about choosing a different response to what you feel.`},
+    'accommodation': {tag:'The anxiety cycle', tagColor:'#FBEAF0', tagText:'#993556', title:'What accommodation is — and why it feels right', body:`Accommodation is anything a parent does to prevent or reduce a child's contact with anxiety-provoking situations or feelings. It feels like love. It feels like good parenting. It feels like the right thing to do in the moment — because it works immediately.\n\nCommon examples: staying until a child falls asleep, answering "what if" questions repeatedly, allowing a child to miss school or social events, changing family routines to avoid triggers, speaking for a child in social situations, or giving in when a child escalates.\n\nThe problem isn't the behavior — it's what the brain learns from it. Every time accommodation removes the discomfort, the brain records: this was dangerous, and we needed to escape. The anxiety is confirmed rather than challenged.\n\nWarmth is never accommodation. A parent can be completely warm, loving, and present — and still hold firm. In fact, that combination — warmth plus steadiness — is exactly what builds real courage.`},
+    'brief-relief': {tag:'The anxiety cycle', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'Why brief relief is so misleading', body:`When a parent accommodates and the child's distress stops — the crying settles, the meltdown ends, the refusal dissolves — it feels like success. The child is okay. The parent is okay. The crisis passed.\n\nThis is the trap. The relief is real, and it's immediate. But it comes at a cost that isn't visible until later: the anxiety is still there, unchanged, waiting for the next trigger. And the brain has just been told — again — that escape was the right move.\n\nBrief relief also reinforces the parent's behavior. Parents get relief too when accommodation works. This creates a two-way loop: both the child and the parent are being reinforced for a pattern that keeps anxiety alive.\n\nThe discomfort of holding firm is front-loaded. The benefit — real, lasting reduction in anxiety — takes days or weeks to show up. This timing mismatch is one of the hardest things about this work.`},
+    'anxiety-grows': {tag:'The anxiety cycle', tagColor:'#FAECE7', tagText:'#993C1D', title:'Why anxiety grows with accommodation', body:`Anxiety is maintained by avoidance. Every time a child avoids something that feels scary — and nothing bad happens — the brain draws the wrong conclusion: it was good that we avoided. The threat was real. We should avoid again next time.\n\nOver time, the list of things that feel threatening expands. The threshold for anxiety lowers. Things that felt manageable six months ago now feel impossible. The world feels smaller.\n\nThis is not the child's fault, and it's not the parent's fault. It's the predictable result of a nervous system doing what nervous systems do: learning from experience. The experience it's been given, repeatedly, is that avoidance is safety.\n\nThe reversal requires contact with the fear, tolerated, with a regulated adult present. That's what exposure is. That's what holding steady makes possible.`},
+    'staying-bedtime': {tag:'Accommodation', tagColor:'#FAECE7', tagText:'#993C1D', title:'Staying until they fall asleep', body:`This is one of the most common and most understandable accommodations. A child is distressed at bedtime — scared, anxious, unable to settle — and a parent stays until they fall asleep. It works. The child settles. Everyone gets some rest.\n\nWhat the brain learns: I cannot fall asleep without my parent present. Sleep itself becomes associated with a need for rescue. Over time the child's ability to self-settle — which is a learnable, buildable skill — never develops.\n\nThe fade approach for bedtime: start with parent present but not engaging, move the chair gradually toward the door over several nights, eventually to outside the door. Slow, steady, with warmth. Each step teaches the brain: I can do this with a little less help than yesterday.\n\nScript: "I know it's hard to fall asleep. I'm going to sit quietly while you practice. I'm right outside when you're ready for morning."`},
+    'answering-again': {tag:'Accommodation', tagColor:'#FAECE7', tagText:'#993C1D', title:'Answering repeated what-if questions', body:`"What if something bad happens?" "What if I get sick?" "What if you don't come back?" The questions feel like they need answers. And answering feels kind — it feels like you're helping the child feel safe.\n\nBut reassurance is a form of accommodation. Each answer provides temporary relief — and teaches the brain to seek reassurance again next time anxiety spikes. The questions multiply rather than decrease.\n\nWhat to say instead: acknowledge the feeling without answering the content. "I can see you're really worried about that. That's a hard feeling to sit with. You don't need to know the answer right now — your brain is just trying to find certainty, and that's not something I can give you. But I know you can handle not knowing."\n\nThis feels like withholding. It isn't — it's building the child's capacity to tolerate uncertainty, which is one of the most important skills anxiety treatment can develop.`},
+    'allowing-avoidance': {tag:'Accommodation', tagColor:'#FAECE7', tagText:'#993C1D', title:'Allowing avoidance of school, parties, activities', body:`When a child refuses school, a party, a sports practice — and it's allowed — the immediate relief is real. The morning battle ends. Everyone gets some peace. But the next morning is harder. And the one after that.\n\nAvoidance is the engine of anxiety. The only thing that actually reduces anxiety is contact with the feared situation, survived. Every day of avoidance is a day the brain doesn't get to learn that the feared thing is survivable.\n\nThis doesn't mean forcing. It means not removing the expectation. "I know this feels really scary. You're still going. I'll be right here when you get home and you can tell me everything." Warm, clear, non-negotiating.\n\nThe first few days of returning to something avoided are the hardest. Anxiety spikes before it drops. That spike is not a sign it isn't working — it's a sign the brain is being asked to update its threat assessment. Stay the course.`},
+    'changing-routines': {tag:'Accommodation', tagColor:'#FAECE7', tagText:'#993C1D', title:'Changing routines to avoid triggers', body:`Families reorganize themselves around a child's anxiety in ways that feel completely normal until someone points them out. Different foods prepared. Different routes driven. Particular seats, particular rituals, particular sequences that must happen exactly right or the whole system breaks down.\n\nEach accommodation feels small in isolation. Together, they add up to a family life shaped by anxiety — where the child's fear has quietly become the organizing principle of the household.\n\nThe goal isn't to eliminate all accommodation overnight. It's to begin, gradually and warmly, to reintroduce flexibility. "Tonight we're going to try it a slightly different way. I know that might feel hard — that's okay. We'll get through it together."\n\nEven small acts of flexibility — a different cup, a slightly different routine — are meaningful exposures that teach the brain: change is survivable.`},
+    'speaking-for-them': {tag:'Accommodation', tagColor:'#FAECE7', tagText:'#993C1D', title:'Speaking for a child in social situations', body:`A parent speaks for their child at the restaurant, at the doctor's office, at the playdate. The child is capable of speaking — but anxiety freezes them, and the parent steps in before the silence becomes unbearable.\n\nIt feels helpful. It saves the child from embarrassment. It keeps things moving. But it also communicates, over and over: you can't handle this without me. Social situations are too hard for you alone.\n\nThe alternative: pause a beat longer than feels comfortable. Let the silence sit. If the child needs prompting: "Do you want to tell them, or should I wait while you think about it?" Give them the chance to find their words before stepping in.\n\nThis is about tolerating your own discomfort — the awkward pause, the social moment hovering — long enough for the child to discover they can actually do it.`},
+    'giving-in': {tag:'Accommodation', tagColor:'#FAECE7', tagText:'#993C1D', title:'Giving in to meltdowns', body:`The meltdown escalates. The child screams, cries, refuses, sometimes becomes physically disruptive. The parent holds firm — and holds firm — and then, at some point, gives in. The meltdown stops. Peace returns.\n\nWhat just happened, from the brain's perspective: the child learned that escalating further produces results. The behavior that got rewarded was the most intense behavior. Next time, the escalation will come sooner and harder.\n\nThis is one of the most painful cycles to be in as a parent because holding firm through an escalating meltdown requires tolerating your own distress — your child's pain, your own guilt, the noise, the chaos — without acting on the urge to make it stop.\n\nScript: "I can see you're really overwhelmed. I'm not going anywhere, and I'm not changing my answer. We're going to get through this together." Then go quiet. Presence without words.`},
+    'brain-with': {tag:'What the brain learns', tagColor:'#FAECE7', tagText:'#993C1D', title:'The accommodation sequence', body:`When anxiety is accommodated, a predictable sequence plays out — not just in the moment, but as a pattern the brain is actively learning from.\n\nAnxiety triggers. The child signals distress. The parent responds by removing or reducing the threat. The discomfort disappears.\n\nFrom the outside, this looks like resolution. From the brain's perspective, it's education. The brain has just run an experiment and received a result: when this situation arose, escape was the response, and escape worked. File that away. Do it again next time.\n\nThe problem is that the experiment never gets to run its full course. The child never finds out what would have happened if they stayed with the discomfort — because the discomfort was removed before that data could be collected.`},
+    'brain-records-bad': {tag:'What the brain learns', tagColor:'#FAECE7', tagText:'#993C1D', title:'What gets recorded: avoid = relief', body:`The amygdala — the brain's threat detection system — learns through association. When avoidance produces relief, repeatedly, the association becomes deeply encoded: this situation is dangerous, and escape is the correct response.\n\nThis is not conscious or deliberate. The child isn't choosing to be anxious. Their brain has learned a pattern that feels true because it has been repeatedly confirmed by experience.\n\nThe confirmation of the threat is the most important part. Each accommodation doesn't just provide relief — it validates the fear. It says, implicitly: yes, that was dangerous, and yes, you needed to be rescued.\n\nReversing this requires new data. The brain needs repeated experiences of: this felt dangerous, I stayed with it, and I survived. That's what exposure creates. That's what parental steadiness makes possible.`},
+    'threshold-lowers': {tag:'What the brain learns', tagColor:'#FCEBEB', tagText:'#A32D2D', title:'The anxiety threshold lowers over time', body:`One of the most important — and least visible — effects of sustained accommodation is that the anxiety threshold lowers. Things that were manageable six months ago now feel impossible. The world gets smaller.\n\nThis happens because the brain is a calibration system. It adjusts its threat assessment based on available data. If the data it keeps receiving is: these situations require escape and rescue, then more situations get classified as requiring escape and rescue.\n\nParents often describe a bewildering expansion of what their child finds impossible. It started with one thing. Now it's everything. This isn't a character shift. It's a nervous system that has been trained, through experience, to expect danger broadly.\n\nThe good news: the calibration works in both directions. With enough experiences of: this was hard and I survived, the threshold rises again. It takes time. It requires tolerating a lot of distress along the way. But the recalibration happens.`},
+    'brain-without': {tag:'What the brain learns', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'The exposure sequence', body:`When a parent holds steady — warmly present but not accommodating — a different sequence plays out.\n\nAnxiety triggers. The child signals distress. The parent acknowledges the feeling without removing the trigger: "I can see this is really hard. I'm right here. We're going to get through this." The child stays with the discomfort.\n\nThis is an exposure. The child is in contact with the feared situation, with a regulated adult present, not being rescued. The brain is running the experiment all the way to completion.\n\nWhat the brain discovers: this felt dangerous, I stayed with it, my parent didn't panic, and I survived. That data point is valuable. One is not enough — repetition is what creates learning. But each exposure adds to a growing body of evidence that the feared thing is survivable.`},
+    'brain-records-good': {tag:'What the brain learns', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'What gets recorded: I got through it', body:`When a child tolerates discomfort and gets through a hard moment, the brain records something completely different: this situation arose, I stayed, it was hard, and I survived.\n\nThis is the foundation of real confidence — not the reassurance that nothing bad will happen, but the accumulated evidence that hard things can be survived. That kind of confidence is earned through experience, not given through words.\n\nOver repeated exposures, the brain's threat assessment of the situation changes. Not because the situation changed — but because the evidence changed. The feared thing is no longer associated only with danger and escape. It's now associated with difficulty, endurance, and survival.\n\nThis is why exposure works. Not because it eliminates anxiety — but because it teaches a different relationship to it.`},
+    'threshold-rises': {tag:'What the brain learns', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'The anxiety threshold rises', body:`As exposures accumulate — as the child survives more and more hard moments — the anxiety threshold gradually rises. Things that once felt impossible begin to feel manageable. The world gets larger.\n\nThis doesn't happen in a straight line. There will be hard days and regression. A child who has been doing well will sometimes hit a wall. That's normal, expected, and not a sign that the work isn't working.\n\nThe trajectory, over weeks and months, is toward more capacity — more situations the child can enter, more discomfort they can tolerate, more moments they can move through without needing rescue.\n\nFor parents, one of the most meaningful signs of progress is not that their child stops feeling anxious. It's that their child feels anxious — and goes anyway.`},
+    'child-steady': {tag:'The growth cycle', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'The same child, a different cycle', body:`The child is the same child. The anxiety is real. The distress signals are genuine. What changes in the growth cycle is not the child's internal experience — at least not at first — but the parent's response to it.\n\nAnxiety doesn't disappear because a parent holds steady. The child still feels scared. The meltdown still happens. The refusal is still real. What changes is what those experiences teach.\n\nOver time, as the child accumulates experiences of getting through hard things, the anxiety does reduce. The cycle becomes self-reinforcing in the right direction: more tolerance leads to more exposure, which leads to more evidence of survivability, which leads to more tolerance.\n\nBut it starts with the parent. The child's nervous system co-regulates with the parent's. A regulated parent — warm, steady, not alarmed — is the most powerful tool available.`},
+    'distress-steady': {tag:'The growth cycle', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'Reading the distress signal differently', body:`In the growth cycle, the distress signal is the same — but the parent reads it differently.\n\nNot as: my child is in danger and needs rescue. But as: my child's nervous system has activated, and this is an opportunity for them to practice getting through something hard.\n\nThis reframe doesn't make the parent cold or indifferent. It makes them purposeful. The warmth is still completely present. The presence is still completely there. What changes is the goal — from eliminating the distress to accompanying the child through it.\n\n"I see you. This is hard. I'm right here. And we're going to get through this together." That sentence is not accommodation. It's the most loving thing a parent can offer in that moment.`},
+    'parent-steady': {tag:'The growth cycle', tagColor:'#E1F5EE', tagText:'#0F6E56', title:'What staying steady actually looks like', body:`Staying steady doesn't mean being cold or pretending nothing is happening. It means being a regulated, present anchor while not removing the discomfort.\n\nPhysically: you stay nearby. You don't flee the emotion, but you don't rush in to fix it either. You might sit down, lower your body, slow your breathing. Your nervous system is saying "I'm not alarmed by this" — even when internally you are.\n\nVerbally: short, calm, present. "I can see this feels really hard." "You're really upset, and that makes sense." "I'm right here." Not a lecture. Not a negotiation. Just a few words that say I see you and I'm not going anywhere.\n\nThe internal move is the hardest part. Staying steady on the outside requires tolerating your own distress inside. Steadiness is you managing your urge to fix — and choosing presence over rescue instead.\n\nScript: "You look really overwhelmed right now, and that makes complete sense. I'm right here with you, and I'm not going anywhere until we get through this together."`},
+    'child-tolerates': {tag:'The growth cycle', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'What it looks like when a child tolerates distress', body:`Tolerating distress doesn't look triumphant. It often looks messy, tearful, resistant — and then, slowly, it settles. The child doesn't get through it because they stopped feeling scared. They get through it because they kept going while scared.\n\nSometimes it's a few minutes of crying that gradually subsides. Sometimes it's getting to the school door, staying for five minutes, then ten. Sometimes it's tolerating a changed routine without the meltdown lasting as long as it used to.\n\nParents often miss these moments because they're looking for the wrong thing — a child who seems fine, who appears to have "gotten over it." What to look for instead: a child who felt the fear and stayed anyway. That's the moment to name and honor.\n\n"I noticed how hard that was for you, and you did it anyway. That's real courage."`},
+    'builds-capacity': {tag:'The growth cycle', tagColor:'#E1F5EE', tagText:'#0F6E56', title:'What real capacity looks like', body:`Real capacity — the kind that lasts — isn't the absence of anxiety. It's the presence of a self that knows it can handle anxiety.\n\nChildren who have been through the growth cycle develop something that reassurance can never provide: evidence. Not a belief that nothing bad will happen, but a lived knowledge that hard things can be gotten through.\n\nThis shows up in specific ways: attempting things that used to be impossible. Returning to situations they once avoided. Feeling scared and going anyway. Saying, unprompted, "I was nervous but I did it."\n\nIt also shows up in the relationship with the parent. A child whose parent has held steady — warmly, consistently, over time — often develops a deeper trust. Not because the parent made everything easy. Because the parent believed in them enough not to rescue them from their own growth.`},
+    'anxiety-reduces': {tag:'The growth cycle', tagColor:'#EAF3DE', tagText:'#3B6D11', title:'How long does it take for anxiety to reduce?', body:`This is the question every parent asks, and the honest answer is: it depends, and it's slower than anyone wants it to be.\n\nResearch on SPACE — the model this approach is based on — shows meaningful reduction in child anxiety within 12 weeks of parents consistently reducing accommodation. Some families see shifts in weeks. Others take longer.\n\nWhat predicts faster progress: parental consistency (the more consistent the reduction in accommodation, the faster the brain recalibrates), the child's age (younger children tend to respond more quickly), and how long the accommodation patterns have been in place.\n\nWhat to expect along the way: things often get harder before they get easier. When accommodation is reduced, anxiety spikes — because the brain is being asked to update a deeply learned pattern. That spike is not failure. It's the process working.\n\nThe most important thing a parent can track is not whether their child seems less anxious day to day — it's whether their child is doing more things despite feeling anxious. That's the real metric.`}
+  };
+
+  const sceneLabels = ["The anxiety cycle", "What accommodation looks like", "What the brain learns", "The steady parent cycle"];
+  const closeModal = () => setModal(null);
+
+  return (
+    <div style={{fontFamily:"Georgia,serif", flex:1, overflowY:"auto", background:"linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)"}}>
+
+      {modal && (
+        <div onClick={closeModal} style={{position:"fixed",inset:0,background:"rgba(74,40,32,0.5)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:1000,padding: isMobile ? "0" : "20px", backdropFilter:"blur(4px)"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"linear-gradient(160deg,#fdf6f0,#fce8d8)",borderRadius: isMobile ? "24px 24px 0 0" : "20px",border:"1px solid rgba(200,120,90,0.2)",width:"100%",maxWidth: isMobile ? "100%" : "520px",maxHeight: isMobile ? "88vh" : "82vh",overflowY:"auto",boxShadow:"0 -8px 40px rgba(150,80,60,0.18)"}}>
+            <div style={{padding:"20px 20px 12px",borderBottom:"1px solid rgba(200,120,90,0.12)",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"12px",position:"sticky",top:0,background:"linear-gradient(160deg,#fdf6f0,#fce8d8)",zIndex:1}}>
+              <div>
+                <div style={{fontSize:"11px",fontWeight:"600",padding:"3px 10px",borderRadius:"20px",display:"inline-block",marginBottom:"8px",background:modal.tagColor,color:modal.tagText}}>{modal.tag}</div>
+                <div style={{fontSize:"16px",fontWeight:"700",color:"#4a2820",lineHeight:1.3}}>{modal.title}</div>
+              </div>
+              <button onClick={closeModal} style={{background:"rgba(200,120,90,0.1)",border:"none",cursor:"pointer",fontSize:"16px",color:"#9a7060",padding:"6px 10px",lineHeight:1,flexShrink:0,borderRadius:"8px"}}>✕</button>
+            </div>
+            <div style={{padding:"16px 20px 28px"}}>
+              {modal.body.split("\n\n").map((p,i) => (
+                <p key={i} style={{fontSize:"14px",color:"#4a3028",lineHeight:1.85,marginBottom:"14px"}}>{p}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{padding:"20px 16px 32px", maxWidth:"680px", margin:"0 auto"}}>
+        <div style={{textAlign:"center",marginBottom:"4px",fontSize:"13px",color:"#9a7060",fontWeight:"600"}}>{sceneLabels[current]}</div>
+
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"8px",marginBottom:"16px"}}>
+          <button onClick={()=>setCurrent(Math.max(0,current-1))} disabled={current===0} style={{background:"rgba(200,120,90,0.08)",border:"1px solid rgba(200,120,90,0.2)",borderRadius:"8px",padding:"6px 14px",fontSize:"13px",color:"#c9697a",cursor:current===0?"default":"pointer",opacity:current===0?0.35:1,fontFamily:"Georgia,serif"}}>←</button>
+          {[0,1,2,3].map(i=>(
+            <div key={i} onClick={()=>setCurrent(i)} style={{width:"7px",height:"7px",borderRadius:"50%",background:i===current?"#c9697a":"rgba(200,120,90,0.25)",cursor:"pointer",transition:"background .2s"}}/>
+          ))}
+          <button onClick={()=>setCurrent(Math.min(3,current+1))} disabled={current===3} style={{background:"rgba(200,120,90,0.08)",border:"1px solid rgba(200,120,90,0.2)",borderRadius:"8px",padding:"6px 14px",fontSize:"13px",color:"#c9697a",cursor:current===3?"default":"pointer",opacity:current===3?0.35:1,fontFamily:"Georgia,serif"}}>→</button>
+        </div>
+
+        {current===0 && (
+          <div>
+            <svg width="100%" viewBox="0 0 680 420" style={{maxWidth:"100%"}}>
+              <defs><marker id="la0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['child-anxiety'])}>
+                <circle cx="340" cy="100" r="34" fill="#FAECE7" stroke="#D85A30" strokeWidth="1"/>
+                <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="340" y="95" textAnchor="middle" dominantBaseline="central" fill="#993C1D">Child</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="112" textAnchor="middle" fill="#993C1D">feels anxious</text>
+              </g>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['distress-signal'])}>
+                <rect x="476" y="74" width="164" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="96" textAnchor="middle" dominantBaseline="central" fill="#854F0B">Distress signal</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="113" textAnchor="middle" fill="#854F0B">crying, clinging, refusing</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M370 100 Q430 80 474 95"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['parent-urgency'])}>
+                <rect x="476" y="200" width="164" height="52" rx="8" fill="#E6F1FB" stroke="#378ADD" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="222" textAnchor="middle" dominantBaseline="central" fill="#185FA5">Parent urgency</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="239" textAnchor="middle" fill="#185FA5">instinct to relieve pain</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#378ADD" strokeWidth="1.5" markerEnd="url(#la0)" d="M558 126 L558 198"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['accommodation'])}>
+                <rect x="426" y="316" width="214" height="52" rx="8" fill="#FBEAF0" stroke="#D4537E" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="533" y="338" textAnchor="middle" dominantBaseline="central" fill="#993556">Accommodation</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="533" y="355" textAnchor="middle" fill="#993556">avoidance removed</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#D4537E" strokeWidth="1.5" markerEnd="url(#la0)" d="M515 252 Q495 304 478 314"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['brief-relief'])}>
+                <rect x="40" y="316" width="180" height="52" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="130" y="338" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Brief relief</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="130" y="355" textAnchor="middle" fill="#3B6D11">anxiety drops... for now</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la0)" d="M424 342 L222 342"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['anxiety-grows'])}>
+                <rect x="40" y="200" width="180" height="52" rx="8" fill="#FAECE7" stroke="#993C1D" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="130" y="222" textAnchor="middle" dominantBaseline="central" fill="#993C1D">Anxiety grows</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="130" y="239" textAnchor="middle" fill="#993C1D">brain learns: avoid = safe</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#993C1D" strokeWidth="1.5" markerEnd="url(#la0)" d="M130 314 L130 254"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la0)" d="M130 198 Q160 120 304 105"/>
+              <rect x="252" y="190" width="176" height="36" rx="8" fill="#FCEBEB" stroke="#E24B4A" strokeWidth="0.5"/>
+              <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="212" textAnchor="middle" dominantBaseline="central" fill="#A32D2D">The anxiety cycle</text>
+            </svg>
+            <p style={{textAlign:"center",fontSize:"12px",color:"#9a7060",marginTop:"4px"}}>Tap any part to learn more</p>
+          </div>
+        )}
+
+        {current===1 && (
+          <div>
+            <svg width="100%" viewBox="0 0 680 370" style={{maxWidth:"100%"}}>
+              <defs><marker id="la1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+              {[
+                {x:40,y:60,key:'staying-bedtime',title:'Staying at bedtime',sub:'until they fall asleep'},
+                {x:250,y:60,key:'answering-again',title:'Answering again',sub:'repeated what-if questions'},
+                {x:460,y:60,key:'allowing-avoidance',title:'Allowing avoidance',sub:'school, parties, activities'},
+                {x:40,y:160,key:'changing-routines',title:'Changing routines',sub:'food, routes, rituals'},
+                {x:250,y:160,key:'speaking-for-them',title:'Speaking for them',sub:'in social situations'},
+                {x:460,y:160,key:'giving-in',title:'Giving in to meltdowns',sub:'to stop the distress'},
+              ].map(n=>(
+                <g key={n.key} style={{cursor:"pointer"}} onClick={()=>setModal(content[n.key])}>
+                  <rect x={n.x} y={n.y} width="180" height="64" rx="8" fill="#FAECE7" stroke="#D85A30" strokeWidth="0.5"/>
+                  <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x={n.x+90} y={n.y+28} textAnchor="middle" dominantBaseline="central" fill="#993C1D">{n.title}</text>
+                  <text fontFamily="Georgia,serif" fontSize="11" x={n.x+90} y={n.y+48} textAnchor="middle" fill="#993C1D">{n.sub}</text>
+                </g>
+              ))}
+              <rect x="150" y="268" width="380" height="56" rx="10" fill="#FDF6F0" stroke="#D85A30" strokeWidth="0.5"/>
+              <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="288" textAnchor="middle" dominantBaseline="central" fill="#993C1D">All remove the chance to tolerate discomfort</text>
+              <text fontFamily="Georgia,serif" fontSize="11" x="340" y="308" textAnchor="middle" fill="#993C1D">they work in the moment — and make things harder over time</text>
+              <path fill="none" stroke="#D85A30" strokeWidth="1" markerEnd="url(#la1)" d="M130 224 Q175 260 204 266"/>
+              <path fill="none" stroke="#D85A30" strokeWidth="1" markerEnd="url(#la1)" d="M340 224 L340 266"/>
+              <path fill="none" stroke="#D85A30" strokeWidth="1" markerEnd="url(#la1)" d="M550 224 Q505 260 476 266"/>
+            </svg>
+            <p style={{textAlign:"center",fontSize:"12px",color:"#9a7060",marginTop:"4px"}}>Tap any card to learn more</p>
+          </div>
+        )}
+
+        {current===2 && (
+          <div>
+            <svg width="100%" viewBox="0 0 680 370" style={{maxWidth:"100%"}}>
+              <defs><marker id="la2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+              <rect x="40" y="50" width="270" height="36" rx="8" fill="#FAECE7" stroke="#D85A30" strokeWidth="0.5"/>
+              <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="175" y="72" textAnchor="middle" dominantBaseline="central" fill="#993C1D">With accommodation</text>
+              <rect x="370" y="50" width="270" height="36" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+              <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="505" y="72" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Without accommodation</text>
+              {[
+                {x:60,y:110,key:'brain-with',fill:'#FAECE7',stroke:'#D85A30',tc:'#993C1D',l1:'Anxiety triggers → parent steps in',l2:'Discomfort disappears'},
+                {x:60,y:182,key:'brain-records-bad',fill:'#FAECE7',stroke:'#D85A30',tc:'#993C1D',l1:'Brain records: avoid = relief',l2:'Threat feels confirmed'},
+                {x:60,y:254,key:'threshold-lowers',fill:'#FCEBEB',stroke:'#E24B4A',tc:'#A32D2D',l1:'Anxiety threshold lowers',l2:'More things feel dangerous'},
+                {x:390,y:110,key:'brain-without',fill:'#EAF3DE',stroke:'#639922',tc:'#3B6D11',l1:'Anxiety triggers → parent stays calm',l2:'Discomfort is tolerated'},
+                {x:390,y:182,key:'brain-records-good',fill:'#EAF3DE',stroke:'#639922',tc:'#3B6D11',l1:'Brain records: I got through it',l2:'Threat feels manageable'},
+                {x:390,y:254,key:'threshold-rises',fill:'#EAF3DE',stroke:'#3B6D11',tc:'#3B6D11',l1:'Anxiety threshold rises',l2:'More things feel possible'},
+              ].map(n=>(
+                <g key={n.key} style={{cursor:"pointer"}} onClick={()=>setModal(content[n.key])}>
+                  <rect x={n.x} y={n.y} width="230" height="50" rx="8" fill={n.fill} stroke={n.stroke} strokeWidth="0.5"/>
+                  <text fontFamily="Georgia,serif" fontSize="11" x={n.x+115} y={n.y+18} textAnchor="middle" fill={n.tc}>{n.l1}</text>
+                  <text fontFamily="Georgia,serif" fontSize="11" x={n.x+115} y={n.y+35} textAnchor="middle" fill={n.tc}>{n.l2}</text>
+                </g>
+              ))}
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la2)" d="M175 160 L175 180"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#D85A30" strokeWidth="1.5" markerEnd="url(#la2)" d="M175 232 L175 252"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la2)" d="M505 160 L505 180"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la2)" d="M505 232 L505 252"/>
+              <line x1="340" y1="50" x2="340" y2="330" stroke="rgba(200,120,90,0.2)" strokeWidth="0.5" strokeDasharray="4 4"/>
+            </svg>
+            <p style={{textAlign:"center",fontSize:"12px",color:"#9a7060",marginTop:"4px"}}>Tap any step to learn more</p>
+          </div>
+        )}
+
+        {current===3 && (
+          <div>
+            <svg width="100%" viewBox="0 0 680 420" style={{maxWidth:"100%"}}>
+              <defs><marker id="la3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></marker></defs>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['child-steady'])}>
+                <circle cx="340" cy="100" r="34" fill="#EAF3DE" stroke="#639922" strokeWidth="1"/>
+                <text fontFamily="Georgia,serif" fontSize="13" fontWeight="700" x="340" y="95" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Child</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="340" y="112" textAnchor="middle" fill="#3B6D11">feels anxious</text>
+              </g>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['distress-steady'])}>
+                <rect x="476" y="74" width="164" height="52" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="96" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Distress signal</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="113" textAnchor="middle" fill="#3B6D11">child expresses fear</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M370 100 Q430 88 474 103"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['parent-steady'])}>
+                <rect x="476" y="200" width="164" height="52" rx="8" fill="#E1F5EE" stroke="#1D9E75" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="558" y="222" textAnchor="middle" dominantBaseline="central" fill="#0F6E56">Parent stays steady</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="558" y="239" textAnchor="middle" fill="#0F6E56">warm, present, not fixing</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#1D9E75" strokeWidth="1.5" markerEnd="url(#la3)" d="M558 126 L558 198"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['child-tolerates'])}>
+                <rect x="426" y="316" width="214" height="52" rx="8" fill="#EAF3DE" stroke="#3B6D11" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="533" y="338" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Child tolerates it</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="533" y="355" textAnchor="middle" fill="#3B6D11">gets through the hard moment</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#3B6D11" strokeWidth="1.5" markerEnd="url(#la3)" d="M510 252 Q490 298 480 314"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['builds-capacity'])}>
+                <rect x="40" y="316" width="214" height="52" rx="8" fill="#E1F5EE" stroke="#0F6E56" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="147" y="338" textAnchor="middle" dominantBaseline="central" fill="#0F6E56">Builds real capacity</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="147" y="355" textAnchor="middle" fill="#0F6E56">I can handle hard things</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#0F6E56" strokeWidth="1.5" markerEnd="url(#la3)" d="M424 342 L256 342"/>
+              <g style={{cursor:"pointer"}} onClick={()=>setModal(content['anxiety-reduces'])}>
+                <rect x="40" y="200" width="214" height="52" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+                <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="147" y="222" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">Anxiety reduces</text>
+                <text fontFamily="Georgia,serif" fontSize="11" x="147" y="239" textAnchor="middle" fill="#3B6D11">over days and weeks</text>
+              </g>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M147 314 L147 254"/>
+              <path strokeDasharray="8 4" fill="none" stroke="#639922" strokeWidth="1.5" markerEnd="url(#la3)" d="M147 198 Q200 130 304 105"/>
+              <rect x="252" y="190" width="176" height="36" rx="8" fill="#EAF3DE" stroke="#639922" strokeWidth="0.5"/>
+              <text fontFamily="Georgia,serif" fontSize="12" fontWeight="700" x="340" y="212" textAnchor="middle" dominantBaseline="central" fill="#3B6D11">The growth cycle</text>
+            </svg>
+            <p style={{textAlign:"center",fontSize:"12px",color:"#9a7060",marginTop:"4px"}}>Tap any part to learn more</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Client Chat ────────────────────────────────────────────────────────────────
 function ClientChat({ user, onLogout }) {
   const [conversations, setConversations] = useState([]);
@@ -1871,6 +2100,9 @@ function ClientChat({ user, onLogout }) {
                 📈 Progress
                 {logSaved && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3aaa6a", flexShrink: 0 }} />}
               </button>
+              <button onClick={() => { setChatView(v => v === "learn" ? "chat" : "learn"); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: chatView === "learn" ? "rgba(232,147,122,0.12)" : "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+                📖 Learn
+              </button>
               {hasMessages && chatView === "chat" && <>
                 <button onClick={() => { exportChat(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
                   💾 Export
@@ -1987,6 +2219,8 @@ function ClientChat({ user, onLogout }) {
           </div>
         );
       })()}
+
+      {chatView === "learn" && <LearnTab />}
 
       {chatView === "chat" && <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
         {!hasMessages && (
