@@ -1690,6 +1690,8 @@ function ClientChat({ user, onLogout }) {
   const [logSaving, setLogSaving] = useState(false);
   const [logSaved, setLogSaved] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showPrevConvs, setShowPrevConvs] = useState(true);
+  const [deletingConvId, setDeletingConvId] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
   const [showGoalReflect, setShowGoalReflect] = useState(false);
@@ -1921,20 +1923,51 @@ function ClientChat({ user, onLogout }) {
 
         {conversations.length > 0 && (
           <div>
-            <div style={{ fontSize: "13px", fontWeight: "700", color: "#9a7060", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Previous Conversations</div>
-            {conversations.map(conv => (
-              <div key={conv.id} style={{ background: "rgba(255,255,255,0.88)", border: "1.5px solid rgba(200,120,90,0.15)", borderRadius: "16px", padding: "16px 18px", marginBottom: "10px", boxShadow: "0 2px 10px rgba(150,80,60,0.06)" }}>
-                <div style={{ fontSize: "12px", color: "#b89080", marginBottom: "6px" }}>
-                  {new Date(conv.last_message_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                </div>
-                <div style={{ fontSize: "14px", color: conv.preview ? "#4a2820" : "#b89080", lineHeight: 1.5, marginBottom: "12px", fontStyle: conv.preview ? "normal" : "italic" }}>
-                  {conv.preview ? `"${conv.preview.length >= 80 ? conv.preview + "…" : conv.preview}"` : "No messages yet"}
-                </div>
-                <Btn onClick={() => setActiveConvId(conv.id)} style={{ background: "rgba(232,147,122,0.12)", color: "#7c4a3a", border: "1.5px solid rgba(200,120,90,0.2)", padding: "7px 16px", fontSize: "13px", fontWeight: "600" }}>
-                  {conv.preview ? "Continue →" : "Open →"}
-                </Btn>
+            <button onClick={() => setShowPrevConvs(v => !v)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.6)", border: "1.5px solid rgba(200,120,90,0.18)", borderRadius: showPrevConvs ? "14px 14px 0 0" : "14px", padding: "12px 16px", cursor: "pointer", marginBottom: 0 }}>
+              <span style={{ fontSize: "13px", fontWeight: "700", color: "#9a7060", textTransform: "uppercase", letterSpacing: "0.05em" }}>Previous Conversations ({conversations.length})</span>
+              <span style={{ fontSize: "12px", color: "#b89080", transition: "transform 0.2s", display: "inline-block", transform: showPrevConvs ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+            </button>
+            {showPrevConvs && (
+              <div style={{ border: "1.5px solid rgba(200,120,90,0.18)", borderTop: "none", borderRadius: "0 0 14px 14px", overflow: "hidden", marginBottom: "10px" }}>
+                {conversations.map((conv, i) => (
+                  <div key={conv.id} style={{ background: i % 2 === 0 ? "rgba(255,255,255,0.88)" : "rgba(253,246,240,0.9)", borderTop: i > 0 ? "1px solid rgba(200,120,90,0.1)" : "none", padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "11px", color: "#b89080", marginBottom: "4px" }}>
+                          {new Date(conv.last_message_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                        </div>
+                        <div style={{ fontSize: "13px", color: conv.preview ? "#4a2820" : "#b89080", lineHeight: 1.5, fontStyle: conv.preview ? "normal" : "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {conv.preview ? `"${conv.preview}"` : "No messages yet"}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                        <Btn onClick={() => setActiveConvId(conv.id)} style={{ background: "rgba(232,147,122,0.12)", color: "#7c4a3a", border: "1.5px solid rgba(200,120,90,0.2)", padding: "5px 12px", fontSize: "12px", fontWeight: "600" }}>
+                          Open →
+                        </Btn>
+                        {deletingConvId === conv.id ? (
+                          <>
+                            <Btn onClick={async () => {
+                              await db.from('conversations').delete().eq('id', conv.id);
+                              setConversations(prev => prev.filter(c => c.id !== conv.id));
+                              setDeletingConvId(null);
+                            }} style={{ background: "rgba(220,60,60,0.12)", color: "#c0392b", border: "1.5px solid rgba(220,60,60,0.25)", padding: "5px 10px", fontSize: "12px", fontWeight: "700" }}>
+                              Delete
+                            </Btn>
+                            <Btn onClick={() => setDeletingConvId(null)} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "5px 10px", fontSize: "12px" }}>
+                              Cancel
+                            </Btn>
+                          </>
+                        ) : (
+                          <Btn onClick={() => setDeletingConvId(conv.id)} style={{ background: "transparent", color: "#c9a090", border: "1.5px solid rgba(200,120,90,0.15)", padding: "5px 10px", fontSize: "12px" }}>
+                            🗑
+                          </Btn>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
