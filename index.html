@@ -716,7 +716,7 @@ function ConsentScreen({ user, onConsented }) {
 }
 
 // ── Auth Screen ────────────────────────────────────────────────────────────────
-function AuthScreen({ onLogin, onNeedsConsent }) {
+function AuthScreen({ onLogin, onNeedsConsent, onDemo }) {
   const [mode, setMode] = useState("login"); // "login" | "register" | "recover"
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -831,6 +831,14 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
                   Forgot your username or password?
                 </button>
               </p>
+            )}
+            {mode === "login" && (
+              <div style={{ marginTop: "18px", paddingTop: "16px", borderTop: "1px solid rgba(200,120,90,0.12)", textAlign: "center" }}>
+                <p style={{ color: "#9a7060", fontSize: "12px", margin: "0 0 10px", lineHeight: 1.5 }}>Not sure if this is right for you?</p>
+                <button onClick={onDemo} style={{ background: "rgba(232,147,122,0.1)", border: "1.5px solid rgba(200,120,90,0.25)", borderRadius: "12px", padding: "10px 20px", color: "#7c4a3a", fontSize: "13px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", width: "100%", transition: "background 0.2s" }}>
+                  👋 Explore a demo account
+                </button>
+              </div>
             )}
           </>
         )}
@@ -1774,6 +1782,34 @@ const LearnTab = () => {
 };
 
 // ── Client Chat ────────────────────────────────────────────────────────────────
+// ── Demo Mode Mock Data ────────────────────────────────────────────────────────
+const DEMO_USER = { id: 'demo', name: 'Sarah Mitchell', username: 'demo', email: '', role: 'client', isDemo: true };
+
+const DEMO_CONV = { id: 'demo-conv-1', user_id: 'demo', preview: "He completely melted down over homework again", created_at: '2026-03-20T18:30:00Z', last_message_at: '2026-03-20T18:45:00Z' };
+
+const DEMO_MESSAGES = [
+  { role: 'user', content: "He completely melted down over homework again tonight. I ended up sitting with him for two hours just to get through one worksheet. I know I'm not supposed to but I don't know what else to do when he's crying." },
+  { role: 'assistant', content: "Two hours is exhausting, and that pull to just fix it for him when he's crying is one of the hardest things to sit with. It makes complete sense that you stayed — it felt like the only way through in the moment.\n\nHere's what I want you to notice though: the two hours *became* possible because you were there. His nervous system has learned that when homework gets hard, Mom will come in and regulate it with him. That's not a character flaw — it's just the pattern that formed.\n\nWhat would it look like to set a limit before it escalates to that point? Not abandoning him, but something like: \"I'll check in with you in 15 minutes. This one's yours to start.\" The goal isn't to make homework easy — it's to let him discover he can tolerate some frustration without you managing it." },
+  { role: 'user', content: "That makes sense but when he starts crying I feel so guilty. Like I'm being cruel." },
+  { role: 'assistant', content: "That guilt is real and worth taking seriously — it means you're paying attention. But I want to gently offer a reframe: staying for two hours *feels* kind in the moment, and *is* kind in the moment. But over time, it teaches him that he can't handle hard things alone. The cruelty, if we can call it that, is actually in that longer message.\n\nHolding a limit while he cries isn't you being cruel. It's you saying: *I believe you can do hard things.* That's one of the most loving things a parent can communicate.\n\nThe guilt usually softens as you see him actually get through things on his own. Would it help to think through exactly what you'd say — and what you'd do with yourself — during those first 15 minutes you step back?" },
+];
+
+const DEMO_PROFILE = {
+  child_gender: 'male', child_age: '5-13', focus_areas: 'Anxiety, ADHD',
+  working_on: 'Reducing accommodation patterns around homework and transitions',
+  triggers: 'Homework time, morning routine, transitions between activities',
+  accommodations: 'Sitting with him through all homework, giving in when he cries or escalates',
+  notes: 'My husband travels frequently — I handle most daily parenting solo',
+  weekly_goal: 'Set a firm homework boundary at least twice this week',
+  weekly_goal_set_at: '2026-03-23T10:00:00Z',
+};
+
+const DEMO_PROGRESS_LOGS = [
+  { id: 1, moment_type: 'held_firm', chat_summary: 'Homework boundary', note: 'He cried for 10 min but I held the limit. He finished it himself.', created_at: '2026-03-23T20:15:00Z' },
+  { id: 2, moment_type: 'gave_in_caught_myself', chat_summary: 'Morning routine', note: 'Started to give in on screen time but stopped myself', created_at: '2026-03-22T08:30:00Z' },
+  { id: 3, moment_type: 'kid_win', chat_summary: 'After school transition', note: 'He handled the transition from school without a meltdown — first time in weeks', created_at: '2026-03-21T16:00:00Z' },
+];
+
 function ClientChat({ user, onLogout }) {
   const [conversations, setConversations] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
@@ -1872,6 +1908,13 @@ function ClientChat({ user, onLogout }) {
 
   useEffect(() => {
     async function init() {
+      if (user.isDemo) {
+        setKb(''); setProfile(DEMO_PROFILE); setProgressLogs(DEMO_PROGRESS_LOGS);
+        setConversations([DEMO_CONV]);
+        setActiveConvId(DEMO_CONV.id);
+        setInitializing(false);
+        return;
+      }
       const [convs, k, p, logs] = await Promise.all([getConversations(user.id), getKB(), getProfile(user.id), getProgress(user.id)]);
       setKb(k); setProfile(p); setProgressLogs(logs);
       if (convs.length === 0) {
@@ -1898,14 +1941,14 @@ function ClientChat({ user, onLogout }) {
     setShowLogCard(false);
     setSelectedMoment(null);
     setFreeWriteNote("");
+    if (user.isDemo) { setMessages(DEMO_MESSAGES); setLoadingMessages(false); return; }
     getMessages(user.id, activeConvId).then(msgs => { setMessages(msgs); setLoadingMessages(false); });
   }, [activeConvId]);
 
   // Reload profile when drawer closes so system prompt stays fresh
   async function handleProfileClose() {
     setShowProfile(false);
-    const p = await getProfile(user.id);
-    setProfile(p);
+    if (!user.isDemo) { const p = await getProfile(user.id); setProfile(p); }
   }
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
@@ -1933,7 +1976,7 @@ function ClientChat({ user, onLogout }) {
   }
 
   async function startNewConversation() {
-    const convId = await createConversation(user.id);
+    const convId = user.isDemo ? ('demo-conv-' + Date.now()) : await createConversation(user.id);
     const newConv = { id: convId, user_id: user.id, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
     setConversations(prev => [newConv, ...prev]);
     setMessages([]);
@@ -1949,9 +1992,14 @@ function ClientChat({ user, onLogout }) {
     try {
       const chatSummary = messages.find(m => m.role === 'user')?.content?.slice(0, 120) || '';
       const note = selectedMoment === 'free_write' ? freeWriteNote : '';
-      await logProgress(user.id, user.username, chatSummary, selectedMoment, note);
-      const logs = await getProgress(user.id);
-      setProgressLogs(logs);
+      if (!user.isDemo) {
+        await logProgress(user.id, user.username, chatSummary, selectedMoment, note);
+        const logs = await getProgress(user.id);
+        setProgressLogs(logs);
+      } else {
+        const newLog = { id: Date.now(), moment_type: selectedMoment, chat_summary: chatSummary, note, created_at: new Date().toISOString() };
+        setProgressLogs(prev => [newLog, ...prev]);
+      }
       setLogSaving(false);
       setLogSaved(true);
       setShowLogCard(false);
@@ -1981,12 +2029,14 @@ function ClientChat({ user, onLogout }) {
       const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
       const updated = [...newMsgs, { role: "assistant", content: reply }];
       setMessages(updated);
-      await saveMessages(user.id, activeConvId, updated);
       const preview = newMsgs[0]?.content?.slice(0, 80) || '';
       const lastMessageAt = new Date().toISOString();
-      updateConversation(activeConvId, { preview, last_message_at: lastMessageAt });
       setConversations(prev => prev.map(c => c.id === activeConvId ? { ...c, preview, last_message_at: lastMessageAt } : c));
-      logUsage(user.id, user.username, text, reply);
+      if (!user.isDemo) {
+        await saveMessages(user.id, activeConvId, updated);
+        updateConversation(activeConvId, { preview, last_message_at: lastMessageAt });
+        logUsage(user.id, user.username, text, reply);
+      }
       setExchangeCount(prev => {
         const next = prev + 1;
         if (next === 3 && !logPromptDismissed) setShowLogPrompt(true);
@@ -2007,20 +2057,22 @@ function ClientChat({ user, onLogout }) {
     setFeedbackSubmitting(true);
     const m = messages[messageIndex];
     const excerpt = messages.slice(Math.max(0, messageIndex - 2), messageIndex + 1).map(msg => `${msg.role === "user" ? user.name : "Coach"}: ${msg.content}`).join("\n\n");
-    try {
-      await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user.id,
-          message_id: m.id ?? null,
-          rating: feedbackRating,
-          report_category: feedbackCategory || null,
-          free_text: feedbackText || null,
-          conversation_excerpt: excerpt,
-        }),
-      });
-    } catch (e) { console.error("Feedback error:", e); }
+    if (!user.isDemo) {
+      try {
+        await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: user.id,
+            message_id: m.id ?? null,
+            rating: feedbackRating,
+            report_category: feedbackCategory || null,
+            free_text: feedbackText || null,
+            conversation_excerpt: excerpt,
+          }),
+        });
+      } catch (e) { console.error("Feedback error:", e); }
+    }
     setFeedbackSubmitted(prev => ({ ...prev, [messageIndex]: true }));
     setFeedbackOpen(null);
     setFeedbackRating(null);
@@ -2073,8 +2125,19 @@ function ClientChat({ user, onLogout }) {
             <div style={{ fontSize: "12px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
           </div>
         </div>
-        <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
+        <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>{user.isDemo ? "← Exit Demo" : "Sign Out"}</Btn>
       </div>
+
+      {user.isDemo && (
+        <div style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", padding: "9px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+          <span style={{ color: "#fff", fontSize: "13px", fontWeight: "600", lineHeight: 1.45 }}>
+            👋 <strong>Demo mode</strong> — exploring as Sarah. Nothing is saved.
+          </span>
+          <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.22)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: "8px", padding: "5px 12px", color: "#fff", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+            Create a free account →
+          </button>
+        </div>
+      )}
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "28px 16px" }}>
         <Btn onClick={startNewConversation} style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "15px", fontWeight: "700", boxShadow: "0 4px 16px rgba(200,100,100,0.25)", borderRadius: "14px", marginBottom: "24px" }}>
@@ -2245,7 +2308,7 @@ function ClientChat({ user, onLogout }) {
             <div style={{ fontSize: "13px", color: "#7c4a3a", marginBottom: "10px", fontWeight: "600" }}>How are you doing with this goal?</div>
             <textarea value={goalReflectText} onChange={e => setGoalReflectText(e.target.value)} placeholder="Reflect on your progress, what's working, what's been hard…" rows={4}
               style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "16px" }} />
-            <Btn onClick={async () => { if (!goalReflectText.trim() || goalSaving) return; setGoalSaving(true); try { await logProgress(user.id, user.username, `Goal: ${profile.weekly_goal}`, 'goal_check_in', goalReflectText.trim()); const logs = await getProgress(user.id); setProgressLogs(logs); setShowGoalReflect(false); setGoalReflectText(""); } catch(e) { console.error(e); } setGoalSaving(false); }} disabled={!goalReflectText.trim() || goalSaving}
+            <Btn onClick={async () => { if (!goalReflectText.trim() || goalSaving) return; setGoalSaving(true); try { if (!user.isDemo) { await logProgress(user.id, user.username, `Goal: ${profile.weekly_goal}`, 'goal_check_in', goalReflectText.trim()); const logs = await getProgress(user.id); setProgressLogs(logs); } else { const newLog = { id: Date.now(), moment_type: 'goal_check_in', chat_summary: `Goal: ${profile.weekly_goal}`, note: goalReflectText.trim(), created_at: new Date().toISOString() }; setProgressLogs(prev => [newLog, ...prev]); } setShowGoalReflect(false); setGoalReflectText(""); } catch(e) { console.error(e); } setGoalSaving(false); }} disabled={!goalReflectText.trim() || goalSaving}
               style={{ width: "100%", padding: "13px", background: goalReflectText.trim() && !goalSaving ? "linear-gradient(135deg,#8a6aaa,#6a4a8a)" : "rgba(200,120,90,0.2)", color: goalReflectText.trim() && !goalSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: goalReflectText.trim() ? "0 4px 14px rgba(120,80,180,0.25)" : "none", transition: "all 0.2s" }}>
               {goalSaving ? "Saving…" : "Save Reflection"}
             </Btn>
@@ -2298,7 +2361,7 @@ function ClientChat({ user, onLogout }) {
               <button onClick={() => { setChatView(v => v === "learn" ? "chat" : "learn"); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: chatView === "learn" ? "rgba(232,147,122,0.12)" : "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
                 📖 Learn
               </button>
-              {hasMessages && chatView === "chat" && <>
+              {hasMessages && chatView === "chat" && !user.isDemo && <>
                 <button onClick={() => { exportChat(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
                   💾 Export
                 </button>
@@ -2306,16 +2369,27 @@ function ClientChat({ user, onLogout }) {
                   {nateSending ? "⏳ Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
                 </button>
               </>}
-              <button onClick={() => { onLogout(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#9a7060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
-                Sign Out
+              <button onClick={() => { onLogout(); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", borderBottom: user.isDemo ? "none" : "1px solid rgba(200,120,90,0.1)", padding: "12px 16px", fontSize: "14px", color: "#9a7060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+                {user.isDemo ? "← Exit Demo" : "Sign Out"}
               </button>
-              <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", padding: "12px 16px", fontSize: "14px", color: "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
+              {!user.isDemo && <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }} style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", background: "none", border: "none", padding: "12px 16px", fontSize: "14px", color: "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600" }}>
                 🗑 Delete Account
-              </button>
+              </button>}
             </div>
           )}
         </div>
       </div>
+
+      {user.isDemo && (
+        <div style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", padding: "9px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+          <span style={{ color: "#fff", fontSize: "13px", fontWeight: "600", lineHeight: 1.45 }}>
+            👋 <strong>Demo mode</strong> — exploring as Sarah. Nothing is saved.
+          </span>
+          <button onClick={onLogout} style={{ background: "rgba(255,255,255,0.22)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: "8px", padding: "5px 12px", color: "#fff", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+            Create a free account →
+          </button>
+        </div>
+      )}
 
       {chatView === "progress" && (() => {
         const MOMENT_LABELS = {
@@ -2549,7 +2623,7 @@ function App() {
   if (pendingConsent) {
     return <ConsentScreen user={pendingConsent} onConsented={() => { setUser(pendingConsent); setPendingConsent(null); }} />;
   }
-  if (!user) return <AuthScreen onLogin={setUser} onNeedsConsent={setPendingConsent} />;
+  if (!user) return <AuthScreen onLogin={setUser} onNeedsConsent={setPendingConsent} onDemo={() => setUser(DEMO_USER)} />;
   if (user.role === "admin") return <AdminDashboard onLogout={() => setUser(null)} />;
   return <ClientChat user={user} onLogout={() => setUser(null)} />;
 }
