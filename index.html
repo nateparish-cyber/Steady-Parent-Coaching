@@ -1396,17 +1396,19 @@ function AdminDashboard({ onLogout }) {
     </div>
   );
 }
-function ProfileDrawer({ user, onClose }) {
+function ProfileDrawer({ user, onClose, isDemo, onDemoGate, demoProfile }) {
   const EMPTY = { working_on: "", triggers: "", accommodations: "", notes: "", child_gender: "", child_age: "", focus_areas: "" };
   const [draft, setDraft] = useState(EMPTY);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isDemo) { setDraft({ ...EMPTY, ...(demoProfile || {}) }); setLoading(false); return; }
     getProfile(user.id).then(p => { setDraft({ ...EMPTY, ...p }); setLoading(false); });
   }, [user.id]);
 
   async function save() {
+    if (isDemo) { onDemoGate && onDemoGate(); onClose(); return; }
     await saveProfile(user.id, draft);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -1850,6 +1852,7 @@ function ClientChat({ user, onLogout }) {
   const [showGoalReflect, setShowGoalReflect] = useState(false);
   const [goalReflectText, setGoalReflectText] = useState("");
   const [goalSaving, setGoalSaving] = useState(false);
+  const [showDemoGate, setShowDemoGate] = useState(false);
   const menuRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -1975,7 +1978,8 @@ function ClientChat({ user, onLogout }) {
   }
 
   async function startNewConversation() {
-    const convId = user.isDemo ? ('demo-conv-' + Date.now()) : await createConversation(user.id);
+    if (user.isDemo) { setShowDemoGate(true); return; }
+    const convId = await createConversation(user.id);
     const newConv = { id: convId, user_id: user.id, preview: '', created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
     setConversations(prev => [newConv, ...prev]);
     setMessages([]);
@@ -1986,6 +1990,7 @@ function ClientChat({ user, onLogout }) {
 
   async function saveProgressLog() {
     if (!selectedMoment) return;
+    if (user.isDemo) { setShowDemoGate(true); return; }
     setLogSaving(true);
     setLogSaveError("");
     try {
@@ -2016,6 +2021,7 @@ function ClientChat({ user, onLogout }) {
 
   async function sendMessage(text) {
     if (!text.trim() || loading) return;
+    if (user.isDemo) { setShowDemoGate(true); return; }
     const newMsgs = [...messages, { role: "user", content: text }];
     setMessages(newMsgs); setInput(""); setLoading(true);
     try {
@@ -2199,7 +2205,7 @@ function ClientChat({ user, onLogout }) {
   // ── Chat View ───────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
-      {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
+      {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} isDemo={user.isDemo} onDemoGate={() => { setShowDemoGate(true); }} demoProfile={profile} />}
 
       {showTutorial && (() => {
         const step = TUTORIAL_STEPS[tutorialStep];
@@ -2286,7 +2292,7 @@ function ClientChat({ user, onLogout }) {
             <div style={{ fontSize: "13px", color: "#7c4a3a", marginBottom: "12px", lineHeight: 1.55 }}>What's one parenting goal you want to focus on this week?</div>
             <textarea value={goalInput} onChange={e => setGoalInput(e.target.value)} placeholder="e.g. Stay calm during bedtime even when my child pushes back…" rows={3}
               style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "16px" }} />
-            <Btn onClick={async () => { if (!goalInput.trim() || goalSaving) return; setGoalSaving(true); await saveWeeklyGoal(user.id, goalInput.trim()); const p = await getProfile(user.id); setProfile(p); setGoalSaving(false); setShowGoalModal(false); }} disabled={!goalInput.trim() || goalSaving}
+            <Btn onClick={async () => { if (!goalInput.trim() || goalSaving) return; if (user.isDemo) { setShowGoalModal(false); setShowDemoGate(true); return; } setGoalSaving(true); await saveWeeklyGoal(user.id, goalInput.trim()); const p = await getProfile(user.id); setProfile(p); setGoalSaving(false); setShowGoalModal(false); }} disabled={!goalInput.trim() || goalSaving}
               style={{ width: "100%", padding: "13px", background: goalInput.trim() && !goalSaving ? "linear-gradient(135deg,#8a6aaa,#6a4a8a)" : "rgba(200,120,90,0.2)", color: goalInput.trim() && !goalSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: goalInput.trim() ? "0 4px 14px rgba(120,80,180,0.25)" : "none", transition: "all 0.2s" }}>
               {goalSaving ? "Saving…" : "Set Goal"}
             </Btn>
@@ -2307,10 +2313,28 @@ function ClientChat({ user, onLogout }) {
             <div style={{ fontSize: "13px", color: "#7c4a3a", marginBottom: "10px", fontWeight: "600" }}>How are you doing with this goal?</div>
             <textarea value={goalReflectText} onChange={e => setGoalReflectText(e.target.value)} placeholder="Reflect on your progress, what's working, what's been hard…" rows={4}
               style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", background: "rgba(255,255,255,0.92)", marginBottom: "16px" }} />
-            <Btn onClick={async () => { if (!goalReflectText.trim() || goalSaving) return; setGoalSaving(true); try { if (!user.isDemo) { await logProgress(user.id, user.username, `Goal: ${profile.weekly_goal}`, 'goal_check_in', goalReflectText.trim()); const logs = await getProgress(user.id); setProgressLogs(logs); } else { const newLog = { id: Date.now(), moment_type: 'goal_check_in', chat_summary: `Goal: ${profile.weekly_goal}`, note: goalReflectText.trim(), created_at: new Date().toISOString() }; setProgressLogs(prev => [newLog, ...prev]); } setShowGoalReflect(false); setGoalReflectText(""); } catch(e) { console.error(e); } setGoalSaving(false); }} disabled={!goalReflectText.trim() || goalSaving}
+            <Btn onClick={async () => { if (!goalReflectText.trim() || goalSaving) return; if (user.isDemo) { setShowGoalReflect(false); setShowDemoGate(true); return; } setGoalSaving(true); try { await logProgress(user.id, user.username, `Goal: ${profile.weekly_goal}`, 'goal_check_in', goalReflectText.trim()); const logs = await getProgress(user.id); setProgressLogs(logs); setShowGoalReflect(false); setGoalReflectText(""); } catch(e) { console.error(e); } setGoalSaving(false); }} disabled={!goalReflectText.trim() || goalSaving}
               style={{ width: "100%", padding: "13px", background: goalReflectText.trim() && !goalSaving ? "linear-gradient(135deg,#8a6aaa,#6a4a8a)" : "rgba(200,120,90,0.2)", color: goalReflectText.trim() && !goalSaving ? "#fff" : "#b89080", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: goalReflectText.trim() ? "0 4px 14px rgba(120,80,180,0.25)" : "none", transition: "all 0.2s" }}>
               {goalSaving ? "Saving…" : "Save Reflection"}
             </Btn>
+          </div>
+        </div>
+      )}
+
+      {showDemoGate && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }} onClick={() => setShowDemoGate(false)}>
+          <div style={{ background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", borderRadius: "24px", padding: "36px 32px", maxWidth: 380, width: "92%", boxShadow: "0 20px 60px rgba(150,80,60,0.25)", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: "38px", marginBottom: "12px" }}>🔒</div>
+            <h3 style={{ color: "#4a2820", margin: "0 0 12px", fontSize: "19px", fontWeight: "700" }}>You're exploring a demo</h3>
+            <p style={{ color: "#7c4a3a", fontSize: "14px", lineHeight: 1.7, margin: "0 0 24px" }}>
+              This feature is available in a real account. Create a free account to start your own coaching conversations, set goals, and track your progress.
+            </p>
+            <Btn onClick={onLogout} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "15px", fontWeight: "700", boxShadow: "0 4px 16px rgba(200,100,100,0.3)", marginBottom: "10px" }}>
+              Create a Free Account →
+            </Btn>
+            <button onClick={() => setShowDemoGate(false)} style={{ background: "none", border: "none", color: "#b89080", fontSize: "13px", cursor: "pointer", fontFamily: "inherit", padding: "4px" }}>
+              Keep exploring demo
+            </button>
           </div>
         </div>
       )}
@@ -2596,7 +2620,7 @@ function ClientChat({ user, onLogout }) {
 
       {chatView === "chat" && <div style={{ position: "sticky", bottom: 0, background: "rgba(253,246,240,0.93)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(180,120,90,0.11)", padding: "13px 15px" }}>
         <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", gap: "9px", alignItems: "flex-end" }}>
-          <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }} placeholder="Describe what's happening right now…" rows={1}
+          <textarea value={input} onChange={e => { if (user.isDemo) { setShowDemoGate(true); return; } setInput(e.target.value); }} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }} placeholder="Describe what's happening right now…" rows={1}
             style={{ flex: 1, padding: "11px 15px", borderRadius: "18px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.92)", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: "110px", overflow: "auto", transition: "border-color 0.15s" }}
             onFocus={e => e.target.style.borderColor = "#e8937a"} onBlur={e => e.target.style.borderColor = "rgba(200,120,90,0.2)"} />
           <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading} style={{ width: 42, height: 42, borderRadius: "50%", background: input.trim() && !loading ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.17)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>➤</button>
