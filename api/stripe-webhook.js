@@ -1,12 +1,11 @@
-const Stripe = require('stripe');
-const { createClient } = require('@supabase/supabase-js');
+import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-
 
 async function getRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -17,7 +16,7 @@ async function getRawBody(req) {
   });
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const sig = req.headers['stripe-signature'];
@@ -33,10 +32,9 @@ module.exports = async (req, res) => {
 
   const subscription = event.data.object;
 
-  // Map Stripe subscription status to our status
   async function updateStatus(subscription) {
     const customerId = subscription.customer;
-    const status = subscription.status; // active, trialing, past_due, canceled, incomplete
+    const status = subscription.status;
     const trialEnd = subscription.trial_end
       ? new Date(subscription.trial_end * 1000).toISOString()
       : null;
@@ -51,7 +49,6 @@ module.exports = async (req, res) => {
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
-        // Trial started — subscription object not yet on session, fetch it
         const session = subscription;
         if (session.subscription) {
           const sub = await stripe.subscriptions.retrieve(session.subscription);
@@ -76,7 +73,6 @@ module.exports = async (req, res) => {
           .eq('stripe_customer_id', subscription.customer);
         break;
       default:
-        // Ignore other events
         break;
     }
     res.status(200).json({ received: true });
@@ -84,4 +80,4 @@ module.exports = async (req, res) => {
     console.error('Webhook handler error:', err);
     res.status(500).json({ error: err.message });
   }
-};
+}

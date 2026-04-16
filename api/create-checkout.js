@@ -1,5 +1,5 @@
-const Stripe = require('stripe');
-const { createClient } = require('@supabase/supabase-js');
+import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
@@ -10,7 +10,7 @@ const supabase = createClient(
 const PRICE_ID = 'price_1TMKc2HZwOOLEsb2l9bqAWM5';
 const TRIAL_DAYS = 7;
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -21,7 +21,6 @@ module.exports = async (req, res) => {
     const { userId, email, name } = req.body;
     if (!userId || !email) return res.status(400).json({ error: 'Missing userId or email' });
 
-    // Check if user already has a Stripe customer ID
     const { data: user } = await supabase
       .from('users')
       .select('stripe_customer_id, grandfathered, subscription_status')
@@ -30,15 +29,12 @@ module.exports = async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Grandfathered users don't need checkout
     if (user.grandfathered) return res.status(200).json({ grandfathered: true });
 
-    // Already active — no need to checkout again
     if (['active', 'trialing'].includes(user.subscription_status)) {
       return res.status(200).json({ alreadyActive: true });
     }
 
-    // Create or reuse Stripe customer
     let customerId = user.stripe_customer_id;
     if (!customerId) {
       const customer = await stripe.customers.create({ email, name });
@@ -46,7 +42,6 @@ module.exports = async (req, res) => {
       await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', userId);
     }
 
-    // Create Checkout session with 7-day trial
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
@@ -63,4 +58,4 @@ module.exports = async (req, res) => {
     console.error('create-checkout error:', err);
     res.status(500).json({ error: err.message });
   }
-};
+}
