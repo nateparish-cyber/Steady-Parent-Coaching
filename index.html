@@ -488,7 +488,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
         `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${key}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
         name.trim()
       );
-      onNeedsConsent({ id, name: name.trim(), username: key, role: "client" });
+      onNeedsConsent({ id, name: name.trim(), username: key, email: email.trim().toLowerCase(), role: "client" });
     }
     setBusy(false);
   }
