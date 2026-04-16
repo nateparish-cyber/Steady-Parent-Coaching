@@ -463,7 +463,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       const users = await getUsers();
       const u = users[username.trim().toLowerCase()];
       if (!u || u.passwordHash !== hashPassword(password)) { setError("Incorrect username or password."); setBusy(false); return; }
-      const userObj = { id: u.id, name: u.name, username: u.username, role: "client" };
+      const userObj = { id: u.id, name: u.name, username: u.username, email: u.email || "", role: "client" };
       if (!u.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
       onLogin(userObj);
     } else {
@@ -1046,16 +1046,105 @@ function ClientChat({ user, onLogout }) {
 }
 
 // ── Root ───────────────────────────────────────────────────────────────────────
+function SubscriptionGate({ user, onActivated, onLogout }) {
+  const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function check() {
+      try {
+        const res = await fetch("/api/subscription-status", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id }),
+        });
+        const data = await res.json();
+        if (data.active) { onActivated(); return; }
+        setLoading(false);
+      } catch (e) {
+        setError("Couldn’t check subscription status. Please try again.");
+        setLoading(false);
+      }
+    }
+    check();
+  }, [user.id]);
+
+  async function startCheckout() {
+    setRedirecting(true);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, email: user.email, name: user.name }),
+      });
+      const data = await res.json();
+      if (data.grandfathered || data.alreadyActive) { onActivated(); return; }
+      if (data.url) { window.location.href = data.url; return; }
+      setError("Couldn’t start checkout. Please try again.");
+    } catch (e) {
+      setError("Couldn’t reach the server. Please try again.");
+    }
+    setRedirecting(false);
+  }
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif" }}>
+      <div style={{ color: "#c9697a", fontSize: "14px" }}>Checking your account…</div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: "20px" }}>
+      <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: "28px", padding: "40px 36px", maxWidth: 440, width: "100%", boxShadow: "0 20px 60px rgba(150,80,60,0.13)", textAlign: "center" }}>
+        <div style={{ width: 58, height: 58, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 18px", boxShadow: "0 4px 16px rgba(200,100,100,0.3)" }}>🌿</div>
+        <h2 style={{ color: "#4a2820", fontSize: "22px", margin: "0 0 10px", fontWeight: "700" }}>Start Your Free Trial</h2>
+        <p style={{ color: "#7c4a3a", fontSize: "14px", lineHeight: 1.7, margin: "0 0 8px" }}>
+          Get <strong>7 days free</strong>, then $19.99/month. Cancel anytime.
+        </p>
+        <p style={{ color: "#9a7060", fontSize: "13px", lineHeight: 1.6, margin: "0 0 28px" }}>
+          Unlimited coaching conversations · Progress tracking · Interactive learning · Evidence-based parenting support
+        </p>
+        {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
+        <Btn onClick={startCheckout} disabled={redirecting} style={{ width: "100%", padding: "15px", background: redirecting ? "rgba(200,120,90,0.3)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", fontSize: "15px", fontWeight: "700", boxShadow: redirecting ? "none" : "0 4px 16px rgba(200,100,100,0.3)", borderRadius: "14px", marginBottom: "12px" }}>
+          {redirecting ? "Opening checkout…" : "Start 7-Day Free Trial →"}
+        </Btn>
+        <p style={{ color: "#b89080", fontSize: "11px", margin: "0 0 16px", lineHeight: 1.5 }}>
+          No charge during trial · Secure payment via Stripe · Cancel anytime in account settings
+        </p>
+        <button onClick={onLogout} style={{ background: "none", border: "none", cursor: "pointer", color: "#b89080", fontSize: "12px", fontFamily: "inherit" }}>Sign out</button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [pendingConsent, setPendingConsent] = useState(null);
+  const [needsSubscription, setNeedsSubscription] = useState(false);
+
+  // Handle Stripe checkout return
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   if (pendingConsent) {
-    return <ConsentScreen user={pendingConsent} onConsented={() => { setUser(pendingConsent); setPendingConsent(null); }} />;
+    return <ConsentScreen user={pendingConsent} onConsented={() => {
+      setPendingConsent(null);
+      setNeedsSubscription(true);
+      setUser(pendingConsent);
+    }} />;
   }
-  if (!user) return <AuthScreen onLogin={setUser} onNeedsConsent={setPendingConsent} />;
+  if (!user) return <AuthScreen onLogin={(u) => {
+    setUser(u);
+    if (u.role !== "admin") setNeedsSubscription(true);
+  }} onNeedsConsent={setPendingConsent} />;
+  if (needsSubscription && user.role !== "admin") {
+    return <SubscriptionGate user={user} onActivated={() => setNeedsSubscription(false)} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
+  }
   if (user.role === "admin") return <AdminDashboard onLogout={() => setUser(null)} />;
-  return <ClientChat user={user} onLogout={() => setUser(null)} />;
+  return <ClientChat user={user} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
 }
 
 // Mount the app
