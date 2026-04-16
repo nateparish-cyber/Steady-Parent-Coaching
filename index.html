@@ -1079,7 +1079,7 @@ function SubscriptionGate({ user, onActivated, onLogout }) {
       const data = await res.json();
       if (data.grandfathered || data.alreadyActive) { onActivated(); return; }
       if (data.url) { window.location.href = data.url; return; }
-      setError("Couldn’t start checkout. Please try again.");
+      setError(data.error || "Couldn’t start checkout. Please try again.");
     } catch (e) {
       setError("Couldn’t reach the server. Please try again.");
     }
