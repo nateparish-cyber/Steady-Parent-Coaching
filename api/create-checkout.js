@@ -34,8 +34,17 @@ export default async function handler(req, res) {
     const { userId, email, name } = req.body;
     if (!userId || !email) return res.status(400).json({ error: 'Missing userId or email' });
 
-    const user = await supabaseGet(`/users?id=eq.${encodeURIComponent(userId)}&select=stripe_customer_id,grandfathered,subscription_status`, sbKey);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    let user = await supabaseGet(`/users?id=eq.${encodeURIComponent(userId)}&select=stripe_customer_id,grandfathered,subscription_status`, sbKey);
+
+    // User exists only in localStorage — create their Supabase record now
+    if (!user) {
+      await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+        method: 'POST',
+        headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ id: userId, name: name || '', email: email.toLowerCase(), created_at: new Date().toISOString(), consent_signed: false }),
+      });
+      user = { stripe_customer_id: null, grandfathered: false, subscription_status: null };
+    }
 
     if (user.grandfathered) return res.status(200).json({ grandfathered: true });
     if (['active', 'trialing'].includes(user.subscription_status)) return res.status(200).json({ alreadyActive: true });
