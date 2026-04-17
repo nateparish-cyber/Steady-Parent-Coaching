@@ -15,8 +15,7 @@
 <script type="text/babel">
 const { useState, useRef, useEffect } = React;
 
-const NATE_PASSWORD = "nate2025";
-const NATE_USERNAME = "nate";
+// Admin credentials managed via Vercel env vars (ADMIN_USERNAME / ADMIN_PASSWORD)
 
 const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching companion built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
 
@@ -124,11 +123,6 @@ const SCENARIOS = [
   { label: "🌅 Morning chaos", prompt: "Every morning is a war. My child refuses to get ready and we're always late. I'm exhausted." },
 ];
 
-function hashPassword(pw) {
-  let hash = 0;
-  for (let i = 0; i < pw.length; i++) { hash = ((hash << 5) - hash) + pw.charCodeAt(i); hash |= 0; }
-  return "h" + Math.abs(hash).toString(36);
-}
 
 function formatMessage(text) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -182,14 +176,46 @@ async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
   }
 }
 
-async function getUsers() { try { const v = localStorage.getItem("spc-users"); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveUsers(u) { localStorage.setItem("spc-users", JSON.stringify(u)); }
-async function getMessages(uid) { try { const v = localStorage.getItem(`spc-chat-${uid}`); return v ? JSON.parse(v) : []; } catch { return []; } }
-async function saveMessages(uid, msgs) { localStorage.setItem(`spc-chat-${uid}`, JSON.stringify(msgs)); }
-async function getKB() { try { return localStorage.getItem("spc-kb") || ""; } catch { return ""; } }
-async function saveKB(kb) { localStorage.setItem("spc-kb", kb); }
-async function getProfile(uid) { try { const v = localStorage.getItem(`spc-profile-${uid}`); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveProfile(uid, p) { localStorage.setItem(`spc-profile-${uid}`, JSON.stringify(p)); }
+// ── Supabase API wrappers (replace localStorage) ─────────────────────────────
+async function apiGet(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+async function apiPost(path, body) {
+  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `API ${res.status}`); }
+  return res.json();
+}
+
+async function getUsers(adminKey) {
+  try {
+    const data = await apiGet(`/api/users?adminKey=${encodeURIComponent(adminKey)}`);
+    const dict = {};
+    for (const u of data.users || []) {
+      dict[u.username] = { id: u.id, name: u.name, username: u.username, email: u.email, createdAt: u.created_at, consentSigned: u.consent_signed };
+    }
+    return dict;
+  } catch { return {}; }
+}
+async function getMessages(uid) {
+  try { const d = await apiGet(`/api/messages?userId=${encodeURIComponent(uid)}`); return d.messages || []; } catch { return []; }
+}
+async function appendMessages(uid, msgs) {
+  try { await apiPost("/api/messages", { userId: uid, messages: msgs }); } catch {}
+}
+async function getKB() {
+  try { const d = await apiGet("/api/kb"); return d.content || ""; } catch { return ""; }
+}
+async function saveKB(kb, adminKey) {
+  await apiPost("/api/kb", { content: kb, adminKey });
+}
+async function getProfile(uid) {
+  try { const d = await apiGet(`/api/profile?userId=${encodeURIComponent(uid)}`); return d.profile || {}; } catch { return {}; }
+}
+async function saveProfile(uid, p) {
+  try { await apiPost("/api/profile", { userId: uid, ...p }); } catch {}
+}
 
 // ── Consent Screen ─────────────────────────────────────────────────────────────
 const TERMS_SECTIONS = [
@@ -265,13 +291,7 @@ function ConsentScreen({ user, onConsented }) {
     setSubmitting(true);
 
     try {
-      const users = await getUsers();
-      if (users[user.username]) {
-        users[user.username].consentSigned = true;
-        users[user.username].consentSignedAt = new Date().toISOString();
-        users[user.username].consentTypedName = typedName.trim();
-        await saveUsers(users);
-      }
+      await apiPost("/api/consent", { userId: user.id });
     } catch {}
 
     setEmailStatus("sending");
@@ -437,60 +457,74 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
     if (mode === "recover") {
       const normalizedEmail = email.trim().toLowerCase();
       if (!normalizedEmail) { setError("Please enter your email address."); setBusy(false); return; }
-      const users = await getUsers();
-      const match = Object.values(users).find(u => u.email?.toLowerCase() === normalizedEmail);
-      if (!match) { setError("No account found with that email address."); setBusy(false); return; }
-      // Generate a temp password
-      const tempPw = "temp-" + Math.random().toString(36).slice(2, 8);
-      const updated = { ...users };
-      updated[match.username].passwordHash = hashPassword(tempPw);
-      await saveUsers(updated);
-      await sendEmail(
-        "Steady Parent Coach — Account Recovery",
-        `Hi ${match.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${match.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and consider using a memorable password going forward.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
-        match.name,
-        normalizedEmail
-      );
-      setRecoverSent(true);
+      try {
+        await apiPost("/api/recover-account", { email: normalizedEmail });
+        setRecoverSent(true);
+      } catch (e) {
+        setError(e.message || "No account found with that email address.");
+      }
       setBusy(false);
       return;
     }
 
     if (mode === "login") {
-      if (username.trim().toLowerCase() === NATE_USERNAME && password === NATE_PASSWORD) {
-        onLogin({ id: "nate", name: "Nate", role: "admin" }); return;
-      }
-      const users = await getUsers();
-      const u = users[username.trim().toLowerCase()];
-      if (!u || u.passwordHash !== hashPassword(password)) { setError("Incorrect username or password."); setBusy(false); return; }
-      const userObj = { id: u.id, name: u.name, username: u.username, email: u.email || "", role: "client" };
-      if (!u.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
-      onLogin(userObj);
+      // Try regular user login first
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const u = data.user;
+          if (!u.consentSigned) { onNeedsConsent({ ...u, role: "client" }); setBusy(false); return; }
+          onLogin({ ...u, role: "client" });
+          setBusy(false);
+          return;
+        }
+      } catch {}
+      // Fall through to admin login
+      try {
+        const res = await fetch("/api/admin-login", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            onLogin({ id: "nate", name: "Nate", role: "admin", adminKey: password });
+            setBusy(false);
+            return;
+          }
+        }
+      } catch {}
+      setError("Incorrect username or password.");
+      setBusy(false);
     } else {
+      // Register
       if (!name.trim()) { setError("Please enter your name."); setBusy(false); return; }
       if (!email.trim() || !email.includes("@")) { setError("Please enter a valid email address."); setBusy(false); return; }
       if (username.trim().length < 3) { setError("Username must be at least 3 characters."); setBusy(false); return; }
       if (password.length < 6) { setError("Password must be at least 6 characters."); setBusy(false); return; }
       if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
-      if (username.trim().toLowerCase() === NATE_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
-      const users = await getUsers();
-      const key = username.trim().toLowerCase();
-      if (users[key]) { setError("Username already taken."); setBusy(false); return; }
-      // Check for duplicate email
-      if (Object.values(users).some(u => u.email?.toLowerCase() === email.trim().toLowerCase())) {
-        setError("An account with that email already exists."); setBusy(false); return;
+      try {
+        const data = await apiPost("/api/register", {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          username: username.trim().toLowerCase(),
+          password,
+        });
+        sendEmail(
+          `New Client Registration — ${name.trim()}`,
+          `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${username.trim().toLowerCase()}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
+          name.trim()
+        );
+        onNeedsConsent({ ...data.user, role: "client" });
+      } catch (e) {
+        setError(e.message || "Failed to create account. Please try again.");
       }
-      const id = "u_" + Date.now().toString(36);
-      users[key] = { id, name: name.trim(), username: key, email: email.trim().toLowerCase(), passwordHash: hashPassword(password), createdAt: new Date().toISOString(), consentSigned: false };
-      await saveUsers(users);
-      sendEmail(
-        `New Client Registration — ${name.trim()}`,
-        `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${key}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
-        name.trim()
-      );
-      onNeedsConsent({ id, name: name.trim(), username: key, email: email.trim().toLowerCase(), role: "client" });
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   function onKey(e) { if (e.key === "Enter") submit(); }
@@ -562,7 +596,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
 }
 
 // ── Admin Dashboard ────────────────────────────────────────────────────────────
-function AdminDashboard({ onLogout }) {
+function AdminDashboard({ user, onLogout }) {
   const [users, setUsers] = useState({});
   const [kb, setKb] = useState("");
   const [kbDraft, setKbDraft] = useState("");
@@ -572,7 +606,7 @@ function AdminDashboard({ onLogout }) {
 
   useEffect(() => {
     async function load() {
-      const [u, k] = await Promise.all([getUsers(), getKB()]);
+      const [u, k] = await Promise.all([getUsers(user.adminKey), getKB()]);
       setUsers(u); setKb(k); setKbDraft(k); setLoading(false);
     }
     load();
@@ -581,13 +615,14 @@ function AdminDashboard({ onLogout }) {
   async function deleteClient(key) {
     if (!confirm(`Delete ${users[key].name} and all their data?`)) return;
     const uid = users[key].id;
+    try {
+      await fetch("/api/users", {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: uid, adminKey: user.adminKey }),
+      });
+    } catch { alert("Failed to delete user."); return; }
     const updated = { ...users };
     delete updated[key];
-    await saveUsers(updated);
-    try {
-      localStorage.removeItem(`spc-chat-${uid}`);
-      localStorage.removeItem(`spc-profile-${uid}`);
-    } catch {}
     setUsers(updated);
   }
 
@@ -606,18 +641,19 @@ function AdminDashboard({ onLogout }) {
 
   async function doReset() {
     if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
-    const updated = { ...users };
-    updated[resetTarget.username].passwordHash = hashPassword(newPassword);
-    await saveUsers(updated);
-    setUsers(updated);
+    try {
+      await apiPost("/api/reset-password", { userId: resetTarget.id, newPassword });
+    } catch { setResetError("Failed to reset password."); return; }
     setResetDone(true);
     setTimeout(() => setResetTarget(null), 1800);
   }
 
   async function doSaveKB() {
-    await saveKB(kbDraft);
-    setKb(kbDraft); setKbSaved(true);
-    setTimeout(() => setKbSaved(false), 2000);
+    try {
+      await saveKB(kbDraft, user.adminKey);
+      setKb(kbDraft); setKbSaved(true);
+      setTimeout(() => setKbSaved(false), 2000);
+    } catch { alert("Failed to save knowledge base."); }
   }
 
   const clientList = Object.values(users);
@@ -765,6 +801,7 @@ function ProfileDrawer({ user, onClose }) {
     setTimeout(() => setSaved(false), 2000);
   }
 
+
   const fields = [
     { key: "working_on", label: "🎯 What we're working on in therapy", placeholder: "e.g. reducing bedtime check-ins, getting to school independently, tolerating uncertainty without reassurance…" },
     { key: "triggers", label: "⚡ Specific triggers or patterns", placeholder: "e.g. transitions, separation at school drop-off, asking 'what if' questions repeatedly, stomach aches before events…" },
@@ -895,7 +932,8 @@ function ClientChat({ user, onLogout }) {
 
   async function sendMessage(text) {
     if (!text.trim() || loading) return;
-    const newMsgs = [...messages, { role: "user", content: text }];
+    const userMsg = { role: "user", content: text };
+    const newMsgs = [...messages, userMsg];
     setMessages(newMsgs); setInput(""); setLoading(true);
     try {
       const res = await fetch("/api/chat", {
@@ -904,9 +942,9 @@ function ClientChat({ user, onLogout }) {
       });
       const data = await res.json();
       const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
-      const updated = [...newMsgs, { role: "assistant", content: reply }];
-      setMessages(updated);
-      await saveMessages(user.id, updated);
+      const assistantMsg = { role: "assistant", content: reply };
+      setMessages([...newMsgs, assistantMsg]);
+      await appendMessages(user.id, [userMsg, assistantMsg]);
     } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
     setLoading(false);
   }
@@ -1143,7 +1181,7 @@ function App() {
   if (needsSubscription && user.role !== "admin") {
     return <SubscriptionGate user={user} onActivated={() => setNeedsSubscription(false)} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
   }
-  if (user.role === "admin") return <AdminDashboard onLogout={() => setUser(null)} />;
+  if (user.role === "admin") return <AdminDashboard user={user} onLogout={() => setUser(null)} />;
   return <ClientChat user={user} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
 }
 

@@ -15,20 +15,22 @@ export default async function handler(req, res) {
   const passwordHash = await hashPassword(tempPw);
   await supabase("PATCH", `/users?id=eq.${user.id}`, { password_hash: passwordHash });
 
-  // Send recovery email via Resend
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: "Steady Parent Coach <onboarding@resend.dev>",
-      to: [email.toLowerCase()],
-      subject: "Steady Parent Coach — Account Recovery",
-      text: `Hi ${user.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${user.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and update your password.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
-    }),
-  });
+  // Send recovery email via Resend (best-effort)
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "Steady Parent Coach <onboarding@resend.dev>",
+        to: [email.toLowerCase()],
+        subject: "Steady Parent Coach — Account Recovery",
+        text: `Hi ${user.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${user.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and update your password.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
+      }),
+    });
+  } catch {}
 
   return res.status(200).json({ success: true });
 }
