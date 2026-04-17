@@ -53,8 +53,8 @@ module.exports = async (req, res) => {
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: 'subscription',
       subscription_data: { trial_period_days: TRIAL_DAYS },
-      success_url: `${req.headers.origin || 'https://www.steadyparentingcoach.com'}/?checkout=success`,
-      cancel_url: `${req.headers.origin || 'https://www.steadyparentingcoach.com'}/?checkout=cancelled`,
+      success_url: `${req.headers.origin || 'https://www.steadyparentingcoach.com'}/app?checkout=success`,
+      cancel_url: `${req.headers.origin || 'https://www.steadyparentingcoach.com'}/app?checkout=cancelled`,
       metadata: { userId },
     });
 
