@@ -1,1155 +1,706 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Steady Parent Coach</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <style>*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}textarea::placeholder,input::placeholder{color:#c4a090}@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}</style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Steady Parent Coach — Parenting Support for Anxious Kids</title>
+<meta name="description" content="AI-powered coaching for parents of anxious children. Evidence-based guidance grounded in the SPACE model — available at 10pm when you need it most. Start your 7-day free trial." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --clay:    #e8937a;
+    --rose:    #c9697a;
+    --bark:    #4a2820;
+    --warm:    #7c4a3a;
+    --sand:    #f5ede6;
+    --mist:    #fdf6f0;
+    --sage:    #3a7a50;
+    --sage-lt: #e8f4ee;
+    --text:    #2a1810;
+    --mid:     #7c5a50;
+    --pale:    #c4a090;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--mist);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(253,246,240,0.88);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(200,120,90,0.12);
+  }
+  .nav-logo {
+    font-family: 'Lora', serif;
+    font-size: 17px; font-weight: 700;
+    color: var(--bark);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .nav-logo .leaf { font-size: 20px; }
+  .nav-cta {
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    color: #fff; border: none; border-radius: 50px;
+    padding: 10px 24px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    box-shadow: 0 4px 14px rgba(200,100,100,0.28);
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(200,100,100,0.35); }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: grid; grid-template-columns: 1fr 1fr;
+    align-items: center;
+    padding: 120px 80px 80px;
+    gap: 60px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute; top: -200px; right: -200px;
+    width: 700px; height: 700px;
+    background: radial-gradient(circle, rgba(232,147,122,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--sage-lt);
+    border: 1px solid rgba(58,122,80,0.2);
+    border-radius: 50px; padding: 6px 16px;
+    font-size: 12px; font-weight: 600;
+    color: var(--sage); letter-spacing: 0.04em;
+    text-transform: uppercase; margin-bottom: 24px;
+  }
+
+  .hero-headline {
+    font-family: 'Lora', serif;
+    font-size: clamp(38px, 4.5vw, 58px);
+    font-weight: 700; line-height: 1.15;
+    color: var(--bark); margin-bottom: 24px;
+  }
+  .hero-headline em {
+    font-style: italic;
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: 18px; line-height: 1.75;
+    color: var(--warm); margin-bottom: 40px;
+    max-width: 480px;
+  }
+
+  .hero-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    color: #fff; border: none; border-radius: 50px;
+    padding: 16px 36px; font-size: 16px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    box-shadow: 0 6px 24px rgba(200,100,100,0.32);
+    text-decoration: none; display: inline-block;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(200,100,100,0.38); }
+
+  .btn-ghost {
+    color: var(--warm); font-size: 14px; font-weight: 500;
+    text-decoration: none; display: flex; align-items: center; gap: 6px;
+    transition: color 0.15s;
+  }
+  .btn-ghost:hover { color: var(--rose); }
+
+  .hero-proof {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 36px;
+  }
+  .proof-faces {
+    display: flex;
+  }
+  .proof-face {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2.5px solid var(--mist);
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; margin-left: -8px;
+  }
+  .proof-face:first-child { margin-left: 0; }
+  .proof-text { font-size: 13px; color: var(--mid); line-height: 1.5; }
+  .proof-text strong { color: var(--bark); }
+
+  /* ── HERO VISUAL ── */
+  .hero-visual {
+    position: relative; display: flex; justify-content: center;
+  }
+
+  .chat-card {
+    background: rgba(255,255,255,0.9);
+    border-radius: 24px;
+    border: 1.5px solid rgba(200,120,90,0.14);
+    box-shadow: 0 24px 64px rgba(150,80,60,0.14);
+    padding: 0; overflow: hidden; width: 100%; max-width: 400px;
+    position: relative;
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+  }
+  .chat-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .chat-title { color: #fff; font-size: 14px; font-weight: 600; }
+  .chat-subtitle { color: rgba(255,255,255,0.8); font-size: 11px; margin-top: 1px; }
+
+  .chat-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .chat-msg {
+    max-width: 85%; padding: 11px 14px;
+    font-size: 13px; line-height: 1.6; border-radius: 16px;
+    animation: fadeUp 0.5s ease both;
+  }
+  .chat-msg.user {
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    color: #fff; align-self: flex-end;
+    border-radius: 16px 16px 4px 16px;
+  }
+  .chat-msg.coach {
+    background: var(--sand);
+    color: var(--bark); align-self: flex-start;
+    border-radius: 4px 16px 16px 16px;
+  }
+  .chat-msg:nth-child(1) { animation-delay: 0.2s; }
+  .chat-msg:nth-child(2) { animation-delay: 0.6s; }
+  .chat-msg:nth-child(3) { animation-delay: 1.0s; }
+
+  .chat-time { font-size: 11px; color: var(--pale); text-align: center; margin: 4px 0; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .float-badge {
+    position: absolute; top: -16px; right: -16px;
+    background: #fff; border-radius: 16px;
+    padding: 10px 16px; font-size: 12px; font-weight: 600;
+    color: var(--sage);
+    border: 1.5px solid var(--sage-lt);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    display: flex; align-items: center; gap: 8px;
+    animation: float 4s ease-in-out infinite;
+  }
+  .float-badge-2 {
+    position: absolute; bottom: 20px; left: -20px;
+    background: #fff; border-radius: 16px;
+    padding: 10px 14px; font-size: 12px; font-weight: 600;
+    color: var(--warm);
+    border: 1.5px solid rgba(200,120,90,0.18);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    display: flex; align-items: center; gap: 8px;
+    animation: float 4s ease-in-out 1s infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* ── PAIN POINTS ── */
+  .section { padding: 100px 80px; }
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--clay);
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-family: 'Lora', serif;
+    font-size: clamp(28px, 3vw, 42px);
+    font-weight: 700; line-height: 1.2;
+    color: var(--bark); margin-bottom: 20px;
+  }
+  .section-sub {
+    font-size: 17px; color: var(--mid); line-height: 1.75;
+    max-width: 560px;
+  }
+
+  .pain-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 24px; margin-top: 60px;
+  }
+  .pain-card {
+    background: rgba(255,255,255,0.7);
+    border: 1.5px solid rgba(200,120,90,0.14);
+    border-radius: 20px; padding: 28px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .pain-card:hover { transform: translateY(-4px); box-shadow: 0 12px 36px rgba(150,80,60,0.1); }
+  .pain-icon { font-size: 28px; margin-bottom: 14px; }
+  .pain-title { font-family: 'Lora', serif; font-size: 17px; font-weight: 600; color: var(--bark); margin-bottom: 8px; }
+  .pain-text { font-size: 14px; color: var(--mid); line-height: 1.7; }
+
+  /* ── HOW IT WORKS ── */
+  .how-bg {
+    background: linear-gradient(145deg, #fdf0e8 0%, #fce4d6 50%, #f5e6f0 100%);
+    padding: 100px 80px;
+  }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 60px; }
+  .step { position: relative; }
+  .step-number {
+    font-family: 'Lora', serif; font-size: 64px; font-weight: 700;
+    color: rgba(200,120,90,0.15); line-height: 1;
+    margin-bottom: 12px;
+  }
+  .step-title { font-family: 'Lora', serif; font-size: 20px; font-weight: 700; color: var(--bark); margin-bottom: 10px; }
+  .step-text { font-size: 15px; color: var(--mid); line-height: 1.7; }
+
+  /* ── CLINICAL BACKING ── */
+  .clinical {
+    padding: 100px 80px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;
+  }
+  .clinical-visual {
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    border-radius: 28px; padding: 48px 40px;
+    color: #fff; position: relative; overflow: hidden;
+  }
+  .clinical-visual::after {
+    content: ''; position: absolute;
+    bottom: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+  .clinical-quote {
+    font-family: 'Lora', serif; font-size: 22px;
+    font-style: italic; line-height: 1.6;
+    margin-bottom: 28px; position: relative; z-index: 1;
+  }
+  .clinical-attribution { font-size: 14px; opacity: 0.85; position: relative; z-index: 1; }
+  .clinical-attr-name { font-weight: 600; font-size: 15px; }
+
+  .clinical-content .section-label { margin-bottom: 14px; }
+  .clinical-content .section-title { margin-bottom: 20px; }
+
+  .badge-list { display: flex; flex-direction: column; gap: 14px; margin-top: 32px; }
+  .badge-item {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: rgba(255,255,255,0.7);
+    border: 1.5px solid rgba(200,120,90,0.14);
+    border-radius: 14px; padding: 16px;
+  }
+  .badge-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .badge-text { font-size: 14px; color: var(--mid); line-height: 1.6; }
+  .badge-text strong { color: var(--bark); display: block; margin-bottom: 2px; }
+
+  /* ── TESTIMONIALS ── */
+  .testimonials-bg { background: var(--sand); padding: 100px 80px; }
+  .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 60px; }
+  .testi-card {
+    background: #fff; border-radius: 20px; padding: 28px;
+    border: 1.5px solid rgba(200,120,90,0.12);
+  }
+  .testi-stars { color: #f5a623; font-size: 14px; margin-bottom: 14px; }
+  .testi-text {
+    font-family: 'Lora', serif; font-style: italic;
+    font-size: 15px; line-height: 1.75; color: var(--bark); margin-bottom: 20px;
+  }
+  .testi-author { font-size: 13px; color: var(--mid); font-weight: 500; }
+
+  /* ── PRICING ── */
+  .pricing { padding: 100px 80px; text-align: center; }
+  .pricing .section-title { margin: 0 auto 16px; }
+  .pricing .section-sub { margin: 0 auto 60px; }
+
+  .price-card {
+    max-width: 440px; margin: 0 auto;
+    background: #fff;
+    border: 2px solid rgba(200,120,90,0.2);
+    border-radius: 28px; padding: 48px;
+    box-shadow: 0 20px 60px rgba(150,80,60,0.12);
+    position: relative;
+  }
+  .price-badge {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--clay), var(--rose));
+    color: #fff; border-radius: 50px;
+    padding: 6px 20px; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .price-amount {
+    font-family: 'Lora', serif; font-size: 56px; font-weight: 700;
+    color: var(--bark); line-height: 1;
+  }
+  .price-amount sup { font-size: 24px; vertical-align: super; }
+  .price-amount span { font-size: 18px; color: var(--mid); font-weight: 400; }
+  .price-trial { font-size: 14px; color: var(--sage); font-weight: 600; margin: 8px 0 28px; }
+
+  .price-features { list-style: none; text-align: left; margin-bottom: 36px; }
+  .price-features li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 15px; color: var(--warm); padding: 8px 0;
+    border-bottom: 1px solid rgba(200,120,90,0.1);
+  }
+  .price-features li:last-child { border-bottom: none; }
+  .price-features .check { color: var(--sage); font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  .price-note { font-size: 12px; color: var(--pale); margin-top: 16px; }
+
+  /* ── ABOUT ── */
+  .about { padding: 100px 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+  .about-img {
+    background: linear-gradient(145deg, var(--sand), rgba(232,147,122,0.2));
+    border-radius: 28px; aspect-ratio: 4/5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 80px; border: 1.5px solid rgba(200,120,90,0.15);
+  }
+  .about-content .section-title { margin-bottom: 20px; }
+  .about-text { font-size: 16px; color: var(--mid); line-height: 1.8; margin-bottom: 16px; }
+  .credential-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+  .chip {
+    background: var(--sand); border: 1px solid rgba(200,120,90,0.2);
+    border-radius: 50px; padding: 6px 16px;
+    font-size: 12px; font-weight: 600; color: var(--warm);
+  }
+
+  /* ── CTA BANNER ── */
+  .cta-banner {
+    background: linear-gradient(135deg, var(--bark) 0%, #7c2820 100%);
+    padding: 80px; text-align: center; position: relative; overflow: hidden;
+  }
+  .cta-banner::before {
+    content: ''; position: absolute; top: -100px; left: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(232,147,122,0.2) 0%, transparent 70%);
+  }
+  .cta-banner::after {
+    content: ''; position: absolute; bottom: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(201,105,122,0.2) 0%, transparent 70%);
+  }
+  .cta-banner .section-title { color: #fff; margin: 0 auto 16px; position: relative; z-index: 1; }
+  .cta-banner-sub {
+    font-size: 17px; color: rgba(255,255,255,0.75);
+    line-height: 1.7; max-width: 500px; margin: 0 auto 40px;
+    position: relative; z-index: 1;
+  }
+  .cta-banner .btn-primary {
+    background: #fff;
+    color: var(--rose);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.2);
+    position: relative; z-index: 1;
+    font-size: 17px; padding: 18px 44px;
+  }
+  .cta-banner .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(0,0,0,0.25); }
+  .cta-note { color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 16px; position: relative; z-index: 1; }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--bark); padding: 40px 80px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .footer-logo { font-family: 'Lora', serif; font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 8px; }
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { color: rgba(255,255,255,0.5); font-size: 13px; text-decoration: none; transition: color 0.15s; }
+  .footer-links a:hover { color: rgba(255,255,255,0.9); }
+  .footer-copy { color: rgba(255,255,255,0.35); font-size: 12px; width: 100%; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    nav { padding: 14px 24px; }
+    .hero { grid-template-columns: 1fr; padding: 100px 28px 60px; gap: 40px; }
+    .hero-visual { display: none; }
+    .section, .how-bg, .pricing, .testimonials-bg { padding: 70px 28px; }
+    .pain-grid, .testi-grid, .steps { grid-template-columns: 1fr; gap: 18px; }
+    .clinical, .about { grid-template-columns: 1fr; padding: 70px 28px; gap: 40px; }
+    .about-img { display: none; }
+    .cta-banner { padding: 60px 28px; }
+    footer { padding: 32px 28px; flex-direction: column; align-items: flex-start; }
+    .footer-links { flex-wrap: wrap; gap: 16px; }
+  }
+</style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useRef, useEffect } = React;
 
-const NATE_PASSWORD = "nate2025";
-const NATE_USERNAME = "nate";
-
-const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching companion built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
-
-You are not a therapist. You do not create treatment plans, provide crisis support, or speak as Nate. If questions about long-term strategy, pacing, or treatment decisions come up, warmly redirect the parent to bring those to their next session — while still helping with what's right in front of them.
-
-You speak only to parents or caregivers. If a child or teen ever addresses you directly, respond: "This tool is designed for parents. Please have your caregiver use it."
-
----
-
-WHO YOU ARE
-
-You sound like a knowledgeable friend who also happens to have deep clinical training. Someone who gets it — both the love and the exhaustion of parenting. You build trust quickly. You validate without sugarcoating. You normalize struggle while keeping the focus forward — on the child, on the relationship, on what's still possible.
-
-You are curious, not judgmental. Direct, not harsh. Warm, but never syrupy. Humor and lightness are welcome when the moment calls for it. You think out loud alongside parents — you don't lecture them.
-
-You do NOT sound like a generic wellness app, a textbook, or an overly cautious AI hedging every sentence.
-
----
-
-CLINICAL STANCE
-
-Accommodation is the primary lens. Avoidance feeds anxiety. When we accommodate — removing the discomfort, answering the same worried question again, staying until they fall asleep — we're actually denying our kids the opportunity to develop the internal skills and strength that help them not just tolerate discomfort, but truly learn from it and grow through it. Warmth is always present. But warmth is not accommodation. Parent steadiness is the foundation. Exposure builds real courage.
-
-Secondary lenses enrich the work. A parent's history shows up in their parenting. Neurodivergence changes what's possible and what's needed. Family patterns repeat across generations. These are real and worth naming — gently, as context, not as the main thread. One eye is always on the child and on reducing accommodation. The other eye holds the fuller picture of why this particular parent finds it hard.
-
----
-
-TONE & LANGUAGE
-
-Write in flowing, connected prose. Let thoughts breathe the way a real conversation does. Contractions are fine. Plain language always. No jargon unless the parent uses it first.
-
-Do not open with generic reassurance. Start by meeting them where they are — name what's happening, reflect it back with warmth, and let them feel genuinely understood before moving anywhere.
-
-Avoid overusing the word "anxiety." Vary naturally — worry, fear, overwhelm, distress, nervous system activation, big feelings, stress, panic. Match their words when you can.
-
-Use "we" and "our" when normalizing — parents are not alone in this. Short questions land hard — use them deliberately. "What comes up for you when they push back like that?" hits differently than a paragraph of explanation.
-
----
-
-READING THE MOMENT — TWO MODES
-
-Before responding, read what the parent actually needs right now.
-
-MODE 1 — PROCESSING MODE (parent is venting, overwhelmed, or exploring why)
-When a parent is in emotional processing mode — venting, confused, circling something painful — don't rush to action. Sit with them first. Validate. Get curious. Ask the question that connects the present moment to something deeper. Help them see the thread without making it heavy.
-
-In this mode: favor flowing prose, curiosity, and one good question at the end. Hold the structure loosely. The conversation is the work.
-
-Example questions in this mode:
-"What comes up for you when your child melts down like that?"
-"Where did you learn to respond to big feelings that way?"
-"Sometimes our kids trigger something old in us — does any of that feel familiar?"
-
-MODE 2 — ACTION MODE (parent needs to know what to do, right now or soon)
-When a parent needs direction — they're in a hard moment, they've been stuck in a pattern, they're ready to try something — move through the full structure. Give them something concrete to hold.
-
-In this mode, responses move through these layers as connected prose:
-
-1. VALIDATION — Reflect back what they're carrying with genuine warmth. Name the difficulty specifically.
-
-2. REFRAME — Help them understand what's underneath the behavior and why accommodation, while understandable, is working against what they want for their child. Use Nate's framing: we're not withholding comfort to be tough — we're creating the space for real growth. "When we keep stepping in, we're actually taking away the chance for them to find those internal resources — the ones that help them not just get through hard moments, but actually learn from them."
-
-3. DIRECTION — Clear, grounded guidance on what to hold or let go of. One or two sentences. Firm but not cold.
-
-4. SCRIPT — Always present this with the header **Script** bolded and on its own line. One or two short scripts the parent can actually say. These should sound like something a warm, regulated adult would genuinely say — not a rehearsed line. Lead with presence over words. Scripts should be specific, human, exposure-oriented, and non-negotiating. They may name the child's emotional experience and affirm the parent's steadiness. Two sentences max per script.
-
-5. NORMALIZE — One sentence acknowledging that escalation or pushback is expected and is not a sign they're doing it wrong.
-
-6. CLOSING — End with either a single warm curious question, OR — when the challenge feels managed — a genuine fork: "Are you finding yourself wanting to understand more about what's driving this, or would it feel more useful to keep working on the practical steps?"
-
----
-
-SECONDARY LENSES (use when relevant, hold lightly)
-
-FAMILY OF ORIGIN — When a parent's reaction seems bigger than the moment warrants, name it gently. "Sometimes our kids trigger something old in us — that reaction might not just be about today." Then move forward. This is coaching, not therapy.
-
-NEURODIVERGENCE — Normalize that what parents know about their own brains often doesn't apply to their child's brain. Help them grieve the "expected" and get curious about who their child actually is. Frame the learning curve as meaningful, not as failure.
-
-PATTERNS — Name what you notice, warmly but directly. "It sounds like every time you try to hold that limit, something pulls you back. What do you think that's about?" Don't dance around what's visible.
-
----
-
-SPECIAL CASES
-
-If parental guilt or regret is present, lead with one consolidated validating sentence that holds their intention, their stumble, and their growth together — before moving into the pattern. One sentence only. Don't stack validations.
-
-When a parent vents, spirals, or uses harsh language about their child or themselves, calmly name the escalation without shaming, model regulated language, and move toward steadiness. Don't mirror the heat. Treat it as part of the pattern and coach through it.
-
-If suicidal ideation, self-harm, child abuse, sexual abuse, physical abuse, neglect, domestic violence, credible threats of harm, or any mandated reporting situation arises, stop immediately and respond only with:
-
-"This involves safety and mandatory reporting concerns. I can't continue this conversation here. Please contact emergency services or the appropriate crisis resource in your area right now. Please bring this directly to your next session with Nate."
-
-No scripts. No follow-up question. Nothing else.
-
-Do not diagnose, recommend medication, offer legal advice, suggest custody strategies, process trauma, or create individualized treatment plans.
-
-Every response — whatever mode it's in — moves toward less accommodation, more parental steadiness, more exposure, clearer limits, and greater consistency.`;
-
-const SCENARIOS = [
-  { label: "🌙 Bedtime battles", prompt: "My child is refusing to go to bed and keeps coming out of their room. What should I do?" },
-  { label: "🏫 School avoidance", prompt: "My child says they're sick every morning before school and doesn't want to go. What do I do?" },
-  { label: "😤 Meltdown happening", prompt: "My child is melting down right now and screaming. How do I handle this?" },
-  { label: "🔁 Constant reassurance", prompt: "My child keeps asking 'what if something bad happens?' over and over. I don't know what to say anymore." },
-  { label: "😔 I gave in again", prompt: "I feel so guilty — I gave in again last night and let them sleep in our bed. I know I shouldn't have." },
-  { label: "🌅 Morning chaos", prompt: "Every morning is a war. My child refuses to get ready and we're always late. I'm exhausted." },
-];
-
-function hashPassword(pw) {
-  let hash = 0;
-  for (let i = 0; i < pw.length; i++) { hash = ((hash << 5) - hash) + pw.charCodeAt(i); hash |= 0; }
-  return "h" + Math.abs(hash).toString(36);
-}
-
-function formatMessage(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} style={{ color: "#7c4a3a", display: "block", marginTop: "12px", marginBottom: "4px", fontSize: "15px" }}>{part.slice(2, -2)}</strong>;
-    }
-    return part.split("\n").map((line, j) => (
-      <span key={`${i}-${j}`}>{line}{j < part.split("\n").length - 1 && <br />}</span>
-    ));
-  });
-}
-
-function Btn({ onClick, children, style = {}, disabled = false }) {
-  return (
-    <button onClick={onClick} disabled={disabled} style={{
-      padding: "10px 18px", borderRadius: "12px", border: "none", cursor: disabled ? "default" : "pointer",
-      fontFamily: "inherit", fontSize: "14px", fontWeight: "600", transition: "all 0.2s", ...style
-    }}>{children}</button>
-  );
-}
-
-function Input({ type = "text", placeholder, value, onChange, onKeyDown, autoFocus, style = {} }) {
-  return (
-    <input type={type} placeholder={placeholder} value={value} onChange={onChange} onKeyDown={onKeyDown} autoFocus={autoFocus}
-      style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", outline: "none", boxSizing: "border-box", background: "#fff", marginBottom: "12px", ...style }} />
-  );
-}
-
-// ── EmailJS ────────────────────────────────────────────────────────────────────
-const EMAILJS_SERVICE  = "service_kl851h9";
-const EMAILJS_TEMPLATE = "template_lvl0kok";
-const EMAILJS_KEY      = "_RTlHjO9FDJ54DQWb";
-const NATE_EMAIL       = "nate.parish@gmail.com";
-
-async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
-  try {
-    await emailjs.send(
-      EMAILJS_SERVICE,
-      EMAILJS_TEMPLATE,
-      {
-        to_email:    toEmail || NATE_EMAIL,
-        subject,
-        client_name: clientName,
-        message:     bodyText,
-      },
-      EMAILJS_KEY
-    );
-  } catch (e) {
-    console.error("📧 EmailJS exception:", e);
-  }
-}
-
-async function getUsers() { try { const v = localStorage.getItem("spc-users"); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveUsers(u) { localStorage.setItem("spc-users", JSON.stringify(u)); }
-async function getMessages(uid) { try { const v = localStorage.getItem(`spc-chat-${uid}`); return v ? JSON.parse(v) : []; } catch { return []; } }
-async function saveMessages(uid, msgs) { localStorage.setItem(`spc-chat-${uid}`, JSON.stringify(msgs)); }
-async function getKB() { try { return localStorage.getItem("spc-kb") || ""; } catch { return ""; } }
-async function saveKB(kb) { localStorage.setItem("spc-kb", kb); }
-async function getProfile(uid) { try { const v = localStorage.getItem(`spc-profile-${uid}`); return v ? JSON.parse(v) : {}; } catch { return {}; } }
-async function saveProfile(uid, p) { localStorage.setItem(`spc-profile-${uid}`, JSON.stringify(p)); }
-
-// ── Consent Screen ─────────────────────────────────────────────────────────────
-const TERMS_SECTIONS = [
-  { title: "\u26a0\ufe0f Emergency Notice \u2014 Read First", body: "IF YOU OR YOUR CHILD IS IN IMMEDIATE DANGER, IS EXPERIENCING A MENTAL HEALTH EMERGENCY, OR IS CONSIDERING HARM TO THEMSELVES OR OTHERS \u2014 STOP USING THIS APP AND CALL 911 OR 988 (SUICIDE & CRISIS LIFELINE) IMMEDIATELY.\n\nThis tool is not designed for emergencies and cannot provide crisis support of any kind." },
-  { title: "1. What This Tool Is", body: "Steady Parent Coach is an AI-powered parenting support and coaching tool developed by Nate Parish, Licensed Marriage and Family Therapist. It is designed to help parents and caregivers understand child anxiety, reduce accommodation patterns, and build steadier, more confident parenting \u2014 whether or not you are currently working with a therapist.\n\nThis tool is an educational and coaching resource. It is not therapy, counseling, or clinical mental health treatment of any kind." },
-  { title: "2. What This Tool Is Not", body: "By using Steady Parent Coach, you acknowledge and agree that this tool:\n\n\u2022 Is NOT a substitute for therapy, clinical treatment, or professional mental health care\n\u2022 Does NOT create or constitute a therapeutic, clinical, or provider-patient relationship between you and Nate Parish\n\u2022 Does NOT provide crisis support, emergency services, psychiatric evaluation, or safety assessment\n\u2022 Does NOT generate individualized treatment plans or clinical diagnoses\n\u2022 Does NOT prescribe, recommend, or provide information about medication or medical treatment\n\u2022 Is NOT intended for use in connection with court-ordered therapy, legal proceedings, or any official documentation\n\u2022 Is NOT a HIPAA-covered service \u2014 see Section 6 for full details\n\u2022 May produce responses that are imprecise or not applicable to your specific situation\n\nDo not disregard, avoid, or delay seeking professional care because of information or advice you received through this tool. If you or your child would benefit from therapy, we encourage you to seek it." },
-  { title: "3. Crisis & Emergency Situations", body: "This tool is not designed for and cannot be used in any crisis or emergency situation. If any of the following apply, stop using this app immediately and contact emergency services:\n\n\u2022 You or someone else is thinking about suicide or self-harm\n\u2022 You or someone else is in danger of harm from another person\n\u2022 You are experiencing a psychiatric emergency or acute mental health crisis\n\u2022 You are witnessing or aware of abuse, neglect, or danger to a child\n\u2022 You have any medical emergency\n\nCall 911 for any immediate danger. Call or text 988 for the Suicide & Crisis Lifeline. Go to your nearest emergency room if needed.\n\nIf safety concerns arise during your use of this tool, please seek in-person support from a licensed professional immediately." },
-  { title: "4. Who May Use This Tool", body: "Steady Parent Coach is designed for parents, caregivers, and adults (18 years and older) who are concerned about their child\u2019s anxiety or related behavioral challenges. You do not need to be in therapy to use this tool.\n\nThis tool is not intended for use by minors. Each account is for the registered user only and may not be shared with others.\n\nIf your child or teenager attempts to use this tool directly, please redirect them and seek appropriate professional support for them." },
-  { title: "5. You Are Talking to an AI \u2014 Not a Human", body: "Steady Parent Coach is powered by an artificial intelligence language model developed by Anthropic (Claude). You are not communicating with Nate Parish or any human therapist when you use this tool.\n\nThe AI is designed to reflect Nate\u2019s coaching model and clinical approach, but its responses are generated automatically, have not been reviewed by a clinician in real time, and may occasionally be imprecise or not applicable to your specific situation.\n\nAI does not replace human clinical judgment. If you feel your child or family needs professional support, we strongly encourage you to seek it.\n\nAnthropics API processes your messages to generate responses. Anthropic does not store your conversations for training purposes via the API and does not use them for advertising. Visit anthropic.com for details." },
-  { title: "6. Privacy & Data \u2014 Important Limitations", body: "What Nate can and cannot access:\n\u2022 Nate does NOT have routine access to your conversation history or personal profile\n\u2022 His administrative access is limited to account management (name, username, and consent status)\n\u2022 You may choose to share a conversation transcript using the \u2018Send to Nate\u2019 button \u2014 this is entirely optional and user-initiated\n\u2022 If you share a transcript, Nate will be able to read its contents\n\nThird-party services that handle your data:\n\u2022 Anthropic (Claude API) \u2014 processes messages to generate AI responses\n\u2022 Supabase \u2014 stores your account, conversations, and profile in a secure cloud database\n\u2022 Vercel \u2014 hosts and serves the application\n\u2022 Stripe \u2014 processes subscription payments securely (we do not store payment card details)\n\nHIPAA Notice: Steady Parent Coach is NOT a HIPAA-covered service. Your data is stored in a cloud database that is not encrypted at the level required by HIPAA. Please do not share Protected Health Information, details about abuse or legal matters, medical records, or other highly sensitive clinical information through this tool." },
-  { title: "7. Subscription & Billing", body: "Steady Parent Coach is offered as a paid subscription service. Subscription fees are billed on a recurring basis as described at sign-up. You may cancel your subscription at any time through your account settings.\n\nPayments are processed securely through Stripe. We do not store your credit card or payment information on our servers.\n\nRefund eligibility is determined on a case-by-case basis. Contact us at nate.parish@gmail.com with any billing concerns." },
-  { title: "8. Data Retention & Deletion", body: "Your conversation history, account information, and profile will be retained for as long as your account remains active.\n\nIf you cancel your subscription or close your account, your personal data and conversation history will be deleted within 30 days. You may request deletion of your data at any time by contacting us at nate.parish@gmail.com. We will make reasonable efforts to complete deletion requests within 30 days. Some data may be retained where required by law." },
-  { title: "9. Mandatory Reporting", body: "Nate Parish is a licensed mental health professional and a mandatory reporter under California law. Although he does not monitor your conversations through this tool, if you choose to share a transcript with him and that transcript contains information indicating imminent risk of harm to a child or vulnerable adult, he is legally required to report that information to the appropriate authorities.\n\nIf you are experiencing a situation involving safety concerns, please seek in-person professional support rather than relying on this tool." },
-  { title: "10. Acceptable Use", body: "By using Steady Parent Coach, you agree to use it only for lawful, personal, non-commercial purposes. You agree not to:\n\n\u2022 Share your account credentials or allow any other person to use your account\n\u2022 Attempt to use this tool during a mental health emergency or crisis\n\u2022 Submit false or misleading information\n\u2022 Attempt to reverse engineer, copy, or reproduce the tool or its underlying clinical model\n\nViolation of these terms may result in immediate termination of your access without refund." },
-  { title: "11. Platform Reliability & No Warranty", body: "Steady Parent Coach is provided 'as-is' as a supplemental educational and coaching resource. Nate Parish makes no warranties regarding the accuracy, completeness, or suitability of the AI\u2019s responses for any particular situation.\n\nWe do not guarantee that the platform will be uninterrupted, error-free, or available at any particular time. We are not liable for any disruption or unavailability of the service." },
-  { title: "12. Limitation of Liability", body: "To the maximum extent permitted by applicable law, you agree to release and hold harmless Nate Parish and his practice from any and all claims or damages resulting from your use of this tool.\n\nOur aggregate liability for any claims arising from your use of this tool shall not exceed the greater of $200 or the total fees paid to access this tool in the 12 months prior to the claim. This limitation survives termination of this agreement." },
-  { title: "13. Changes to These Terms", body: "These Terms of Use may be updated periodically. We will make reasonable efforts to notify you of material changes by email or in-app notice. Continued use of the tool following any update constitutes your acceptance of the revised terms.\n\nThis agreement is governed by the laws of the State of California. Disputes shall be subject to the jurisdiction of the courts located in Sonoma County, California." },
-];
-
-const PRIVACY_SECTIONS = [
-  { title: "1. Introduction", body: "This Privacy Policy explains how Nate Parish, LMFT (\u201cwe,\u201d \u201cus,\u201d or \u201cour\u201d) collects, uses, stores, and protects your information when you use Steady Parent Coach (the \u201cApp\u201d).\n\nSteady Parent Coach is an AI-powered parenting education and coaching tool. It is not a therapy service. By using the App, you agree to the practices described in this policy." },
-  { title: "2. Who We Are", body: "Nate Parish, LMFT is a licensed marriage and family therapist and the sole developer and operator of this App.\n\n\u2022 Name: Nate Parish, LMFT\n\u2022 Email: nate.parish@gmail.com" },
-  { title: "3. What We Collect", body: "Information you provide:\n\u2022 Name and email address (for account creation)\n\u2022 Conversation content you submit to the coaching tool\n\u2022 Optional profile information (child age, focus areas, etc.)\n\u2022 Progress log entries you create\n\nInformation collected automatically:\n\u2022 App usage data (session frequency, features used)\n\u2022 Error logs and performance data\n\nWhat we do NOT collect:\n\u2022 Payment or financial information (handled entirely by Stripe)\n\u2022 Government ID numbers or Social Security numbers\n\u2022 Medical records or insurance information\n\nYou may voluntarily share sensitive information about your family or child\u2019s behavior. This is used solely to generate coaching responses and is never shared with third parties for marketing or advertising." },
-  { title: "4. How We Use Your Information", body: "We use your information to:\n\n\u2022 Provide, operate, and improve the App\n\u2022 Deliver AI-generated coaching responses\n\u2022 Maintain your conversation history across sessions\n\u2022 Process subscription payments via Stripe\n\u2022 Send account-related emails\n\u2022 Respond to support requests\n\u2022 Comply with applicable legal obligations\n\nWe do not use your conversation content to train AI models. We do not sell your personal information." },
-  { title: "5. Third-Party Services", body: "Anthropic (Claude API): Processes your messages to generate AI responses. Does not store conversations for training or advertising by default.\n\nSupabase: Stores account data and conversation history in a secure cloud database (United States).\n\nVercel: Hosts the application and serverless API functions.\n\nStripe: Processes subscription payments. We do not store card details on our servers.\n\nEach third party is governed by their own privacy policy. We encourage you to review them." },
-  { title: "6. Your Privacy Rights", body: "Depending on your state of residence, you may have rights to:\n\n\u2022 Access the personal information we hold about you\n\u2022 Request correction of inaccurate information\n\u2022 Request deletion of your personal information\n\u2022 Opt out of the sale of personal information (we do not sell personal information)\n\nTo exercise any of these rights, contact us at nate.parish@gmail.com. We will respond within 45 days." },
-  { title: "7. Children\u2019s Privacy (COPPA)", body: "This App is intended for adults (18+). We do not knowingly collect personal information from children under 13. If you believe a child has provided information without parental consent, contact us immediately at nate.parish@gmail.com and we will delete it promptly." },
-  { title: "8. Data Security", body: "We implement reasonable security measures including:\n\n\u2022 Encrypted data transmission (HTTPS/TLS)\n\u2022 Secure cloud storage via Supabase\n\u2022 API key management via environment variables\n\nNo method of storage or transmission is 100% secure. We cannot guarantee absolute security but are committed to protecting your information." },
-  { title: "9. Data Retention", body: "We retain your account information and conversation history for as long as your account is active. When you delete your account or cancel your subscription, we delete your data within 30 days except where retention is required by law." },
-  { title: "10. Changes to This Policy", body: "We may update this Privacy Policy periodically. When we make material changes, we will notify you by email or in-app notice. Continued use of the App after changes take effect constitutes acceptance of the revised policy." },
-  { title: "11. Contact Us", body: "Questions, concerns, or data requests:\n\n\u2022 Nate Parish, LMFT\n\u2022 Email: nate.parish@gmail.com\n\nWe take privacy seriously and will respond to all inquiries within a reasonable timeframe." },
-];
-
-function ConsentScreen({ user, onConsented }) {
-  const [activeDoc, setActiveDoc] = useState("terms");
-  const [scrolledTerms, setScrolledTerms] = useState(false);
-  const [scrolledPrivacy, setScrolledPrivacy] = useState(false);
-  const [typedName, setTypedName] = useState("");
-  const [agreed, setAgreed] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [emailStatus, setEmailStatus] = useState("");
-  const scrollRef = useRef(null);
-  const signedAt = new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" });
-  const bothRead = scrolledTerms && scrolledPrivacy;
-
-  function handleScroll(e) {
-    const el = e.target;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
-      if (activeDoc === "terms") setScrolledTerms(true);
-      else setScrolledPrivacy(true);
-    }
-  }
-
-  function switchDoc(doc) {
-    setActiveDoc(doc);
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
-  }
-
-  function buildConsentText() {
-    const terms = TERMS_SECTIONS.map(s => `${s.title}\n\n${s.body}`).join("\n\n---\n\n");
-    const privacy = PRIVACY_SECTIONS.map(s => `${s.title}\n\n${s.body}`).join("\n\n---\n\n");
-    return `STEADY PARENT COACH \u2014 SIGNED AGREEMENT\n\nName: ${user.name}\nUsername: ${user.username}\nSigned: ${signedAt}\nTyped Signature: ${typedName}\n\n${"=".repeat(60)}\n\nTERMS OF USE \u2014 Version 3.0 (B2C)\nNate Parish, LMFT | Effective: April 2026\n\n${terms}\n\n${"=".repeat(60)}\n\nPRIVACY POLICY\nNate Parish, LMFT | Effective: April 2026\n\n${privacy}\n\n${"=".repeat(60)}\n\nACKNOWLEDGMENT\n\nThe user confirmed they have read and agreed to both the Terms of Use (v3.0) and the Privacy Policy \u2014 including that this tool is not therapy, is not HIPAA-compliant, is not for crisis use, and that they will not delay seeking professional care based on information received here.\n\nSigned by: ${typedName}\nDate/Time: ${signedAt}\nAccount: ${user.username}`;
-  }
-
-  async function handleSubmit() {
-    setError("");
-    if (!typedName.trim()) { setError("Please type your full name to sign."); return; }
-    if (typedName.trim().toLowerCase() !== user.name.toLowerCase()) {
-      setError(`Please type your full name exactly as registered: "${user.name}"`); return;
-    }
-    if (!agreed) { setError("Please check the acknowledgment box."); return; }
-    setSubmitting(true);
-
-    try {
-      const users = await getUsers();
-      if (users[user.username]) {
-        users[user.username].consentSigned = true;
-        users[user.username].consentSignedAt = new Date().toISOString();
-        users[user.username].consentTypedName = typedName.trim();
-        await saveUsers(users);
-      }
-    } catch {}
-
-    setEmailStatus("sending");
-    try {
-      const consentText = buildConsentText();
-      await Promise.all([
-        sendEmail(`Signed Agreement \u2014 ${user.name}`, consentText, user.name),
-        user.email && sendEmail(
-          "Welcome to Steady Parent Coach \u2014 Your Signed Documents",
-          `Hi ${user.name.split(" ")[0]},\n\nWelcome to Steady Parent Coach! Your account is now active.\n\nBelow is a copy of the Terms of Use and Privacy Policy you signed for your records.\n\n\u2014 Steady Parent Coach\n\n${"=".repeat(60)}\n\n${consentText}`,
-          user.name,
-          user.email
-        ),
-      ]);
-      setEmailStatus("sent");
-    } catch {
-      setEmailStatus("failed");
-    }
-
-    setTimeout(() => onConsented(), 1200);
-  }
-
-  const nameMatches = typedName.trim().toLowerCase() === user.name.toLowerCase();
-  const sections = activeDoc === "terms" ? TERMS_SECTIONS : PRIVACY_SECTIONS;
-  const currentRead = activeDoc === "terms" ? scrolledTerms : scrolledPrivacy;
-
-  return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "Georgia,serif", padding: "24px 16px" }}>
-      <div style={{ maxWidth: 680, width: "100%", display: "flex", flexDirection: "column", gap: "16px" }}>
-
-        <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
-          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", margin: "0 auto 12px" }}>🌿</div>
-          <h1 style={{ color: "#4a2820", fontSize: "20px", margin: "0 0 6px", fontWeight: "700" }}>Before You Get Started</h1>
-          <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.6 }}>
-            Hi {user.name.split(" ")[0]} \u2014 please read and sign both documents below before accessing the coaching tool.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: "8px" }}>
-          {[["terms", "\ud83d\udccb Terms of Use", scrolledTerms], ["privacy", "\ud83d\udd12 Privacy Policy", scrolledPrivacy]].map(([doc, label, read]) => (
-            <button key={doc} onClick={() => switchDoc(doc)} style={{ flex: 1, padding: "10px 12px", borderRadius: "12px", border: `1.5px solid ${activeDoc === doc ? "rgba(200,120,90,0.5)" : "rgba(200,120,90,0.18)"}`, background: activeDoc === doc ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "13px", fontWeight: "700", color: activeDoc === doc ? "#4a2820" : "#9a7060", fontFamily: "Georgia,serif" }}>
-              <span>{label}</span>
-              {read ? <span style={{ color: "#3a9a60", fontSize: "14px" }}>\u2713</span> : <span style={{ color: "#c9a090", fontSize: "11px" }}>unread</span>}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: "20px", border: "1.5px solid rgba(200,120,90,0.18)", boxShadow: "0 4px 24px rgba(150,80,60,0.1)", overflow: "hidden" }}>
-          <div style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", padding: "14px 22px" }}>
-            <div style={{ color: "#fff", fontSize: "15px", fontWeight: "700" }}>
-              {activeDoc === "terms" ? "Terms of Use \u2014 Version 3.0" : "Privacy Policy"}
-            </div>
-            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "12px", marginTop: "2px" }}>
-              Nate Parish, LMFT \u00b7 Effective: April 2026
-            </div>
-          </div>
-
-          {!currentRead && (
-            <div style={{ background: "rgba(232,147,122,0.1)", borderBottom: "1px solid rgba(200,120,90,0.15)", padding: "9px 22px", display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "14px" }}>\ud83d\udc47</span>
-              <span style={{ fontSize: "12px", color: "#9a7060" }}>Scroll to the bottom to mark this document as read.</span>
-            </div>
-          )}
-          {currentRead && (
-            <div style={{ background: "rgba(100,180,120,0.1)", borderBottom: "1px solid rgba(80,160,100,0.2)", padding: "9px 22px", display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "14px" }}>\u2705</span>
-              <span style={{ fontSize: "12px", color: "#3a7a50" }}>
-                {bothRead ? "Both documents read. Please sign below." : `Document read. ${activeDoc === "terms" ? "Now read the Privacy Policy \u2192" : "Now read the Terms of Use \u2192"}`}
-              </span>
-            </div>
-          )}
-
-          <div ref={scrollRef} onScroll={handleScroll} style={{ maxHeight: "340px", overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: "18px" }}>
-            {sections.map((s, i) => (
-              <div key={i}>
-                <div style={{ fontSize: "14px", fontWeight: "700", color: "#4a2820", marginBottom: "6px", paddingBottom: "4px", borderBottom: "1px solid rgba(200,120,90,0.15)" }}>{s.title}</div>
-                {s.body.split("\n").map((line, j) => (
-                  <p key={j} style={{ fontSize: "13px", color: line.startsWith("\u2022") ? "#5a3020" : "#555", margin: "4px 0", lineHeight: 1.65, paddingLeft: line.startsWith("\u2022") ? "8px" : "0" }}>{line}</p>
-                ))}
-              </div>
-            ))}
-            <div style={{ height: "1px" }} onMouseEnter={() => { if (activeDoc === "terms") setScrolledTerms(true); else setScrolledPrivacy(true); }} />
-          </div>
-        </div>
-
-        {bothRead && (
-          <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: "20px", border: "1.5px solid rgba(200,120,90,0.18)", padding: "24px", boxShadow: "0 4px 24px rgba(150,80,60,0.08)" }}>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "#4a2820", marginBottom: "14px" }}>\u270d\ufe0f Sign to Acknowledge Both Documents</div>
-            <p style={{ fontSize: "13px", color: "#6a5040", margin: "0 0 16px", lineHeight: 1.65 }}>
-              By typing your full name below, you confirm that you have read and agree to both the <strong>Terms of Use (v3.0)</strong> and the <strong>Privacy Policy</strong> \u2014 including that this tool is not therapy, is not HIPAA-compliant, and is not for crisis use.
-            </p>
-            <label style={{ fontSize: "13px", color: "#7c4a3a", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-              Type your full name to sign <span style={{ color: "#c9697a" }}>*</span>
-            </label>
-            <input
-              value={typedName}
-              onChange={e => setTypedName(e.target.value)}
-              placeholder={user.name}
-              style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: `1.5px solid ${nameMatches && typedName ? "rgba(80,160,100,0.5)" : "rgba(200,120,90,0.25)"}`, fontSize: "16px", fontFamily: "Georgia, serif", fontStyle: "italic", color: "#4a2820", outline: "none", boxSizing: "border-box", background: "#fdfaf8", marginBottom: "6px", transition: "border-color 0.2s" }}
-            />
-            {typedName && !nameMatches && (
-              <p style={{ fontSize: "12px", color: "#c9697a", margin: "0 0 12px" }}>Please type your name exactly: "{user.name}"</p>
-            )}
-            {typedName && nameMatches && (
-              <p style={{ fontSize: "12px", color: "#3a9a60", margin: "0 0 12px" }}>\u2713 Signature accepted</p>
-            )}
-            <div style={{ fontSize: "12px", color: "#9a8070", marginBottom: "16px", padding: "8px 12px", background: "rgba(200,150,120,0.07)", borderRadius: "8px" }}>
-              Date &amp; Time: {signedAt}
-            </div>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer", marginBottom: "16px" }}>
-              <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: "2px", width: "16px", height: "16px", accentColor: "#c9697a", flexShrink: 0 }} />
-              <span style={{ fontSize: "13px", color: "#5a4030", lineHeight: 1.6 }}>
-                I confirm I am an adult (18+) and I have read and agree to the Terms of Use (v3.0) and the Privacy Policy \u2014 including that this tool is NOT therapy, is NOT HIPAA-compliant, and is NOT for crisis situations. I understand I should seek professional support if my child or family needs clinical care.
-              </span>
-            </label>
-            {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "14px" }}>{error}</div>}
-            {emailStatus === "sending" && <div style={{ background: "rgba(100,160,220,0.1)", border: "1px solid rgba(80,140,200,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#3060a0", fontSize: "13px", marginBottom: "14px" }}>\ud83d\udce4 Saving your signed documents\u2026</div>}
-            {emailStatus === "sent" && <div style={{ background: "rgba(80,180,100,0.1)", border: "1px solid rgba(60,160,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#2a7a40", fontSize: "13px", marginBottom: "14px" }}>\u2705 Signed copy sent to your email.</div>}
-            {emailStatus === "failed" && <div style={{ background: "rgba(220,150,80,0.1)", border: "1px solid rgba(200,130,60,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#805020", fontSize: "13px", marginBottom: "14px" }}>\u26a0\ufe0f Couldn\u2019t send automatically \u2014 you can request a copy by emailing nate.parish@gmail.com.</div>}
-            <Btn
-              onClick={handleSubmit}
-              disabled={submitting || !nameMatches || !agreed || !typedName}
-              style={{
-                width: "100%", padding: "14px",
-                background: (nameMatches && agreed && typedName && !submitting) ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.2)",
-                color: (nameMatches && agreed && typedName && !submitting) ? "#fff" : "#9a7060",
-                fontSize: "15px", fontWeight: "700",
-                boxShadow: (nameMatches && agreed && typedName) ? "0 4px 16px rgba(200,100,100,0.3)" : "none",
-                borderRadius: "14px",
-              }}
-            >
-              {submitting ? "Signing\u2026" : "Sign Both Documents & Get Started"}
-            </Btn>
-          </div>
-        )}
-
-        {!bothRead && (
-          <p style={{ fontSize: "12px", color: "#b89080", textAlign: "center", margin: "0 0 8px" }}>
-            {!scrolledTerms && !scrolledPrivacy ? "Read both documents above to unlock signing" : !scrolledTerms ? "Finish reading the Terms of Use to continue" : "Finish reading the Privacy Policy to continue"}
-          </p>
-        )}
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <span class="leaf">🌿</span>
+    Steady Parent Coach
+  </div>
+  <a href="https://www.steadyparentingcoach.com" class="nav-cta">Start Free Trial</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-eyebrow">
+      <span>🧠</span> Evidence-based · SPACE Framework
+    </div>
+    <h1 class="hero-headline">
+      Your child is anxious.<br>
+      You're exhausted.<br>
+      <em>It doesn't have to<br>stay this way.</em>
+    </h1>
+    <p class="hero-sub">
+      Clinical-quality parenting coaching for parents of anxious children — available at 10pm when it's actually happening. Grounded in the same evidence-based approach used by top child anxiety clinicians.
+    </p>
+    <div class="hero-actions">
+      <a href="https://www.steadyparentingcoach.com" class="btn-primary">Start 7-Day Free Trial →</a>
+      <a href="#how-it-works" class="btn-ghost">See how it works ↓</a>
+    </div>
+    <div class="hero-proof">
+      <div class="proof-faces">
+        <div class="proof-face">👩</div>
+        <div class="proof-face">👨</div>
+        <div class="proof-face">👩</div>
+        <div class="proof-face">👨</div>
+      </div>
+      <div class="proof-text">
+        <strong>Parents just like you</strong> are breaking the accommodation cycle —<br>one steady moment at a time.
       </div>
     </div>
-  );
-}
+  </div>
 
-function AuthScreen({ onLogin, onNeedsConsent }) {
-  const [mode, setMode] = useState("login"); // "login" | "register" | "recover"
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [recoverSent, setRecoverSent] = useState(false);
-
-  function resetFields() { setName(""); setEmail(""); setUsername(""); setPassword(""); setConfirmPw(""); setError(""); setRecoverSent(false); }
-
-  async function submit() {
-    setError(""); setBusy(true);
-
-    if (mode === "recover") {
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail) { setError("Please enter your email address."); setBusy(false); return; }
-      const users = await getUsers();
-      const match = Object.values(users).find(u => u.email?.toLowerCase() === normalizedEmail);
-      if (!match) { setError("No account found with that email address."); setBusy(false); return; }
-      // Generate a temp password
-      const tempPw = "temp-" + Math.random().toString(36).slice(2, 8);
-      const updated = { ...users };
-      updated[match.username].passwordHash = hashPassword(tempPw);
-      await saveUsers(updated);
-      await sendEmail(
-        "Steady Parent Coach — Account Recovery",
-        `Hi ${match.name},\n\nHere are your account credentials for Steady Parent Coach:\n\nUsername: ${match.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and consider using a memorable password going forward.\n\nIf you did not request this, please contact Nate directly.\n\n— Steady Parent Coach`,
-        match.name,
-        normalizedEmail
-      );
-      setRecoverSent(true);
-      setBusy(false);
-      return;
-    }
-
-    if (mode === "login") {
-      if (username.trim().toLowerCase() === NATE_USERNAME && password === NATE_PASSWORD) {
-        onLogin({ id: "nate", name: "Nate", role: "admin" }); return;
-      }
-      const users = await getUsers();
-      const u = users[username.trim().toLowerCase()];
-      if (!u || u.passwordHash !== hashPassword(password)) { setError("Incorrect username or password."); setBusy(false); return; }
-      const userObj = { id: u.id, name: u.name, username: u.username, email: u.email || "", role: "client" };
-      if (!u.consentSigned) { onNeedsConsent(userObj); setBusy(false); return; }
-      onLogin(userObj);
-    } else {
-      if (!name.trim()) { setError("Please enter your name."); setBusy(false); return; }
-      if (!email.trim() || !email.includes("@")) { setError("Please enter a valid email address."); setBusy(false); return; }
-      if (username.trim().length < 3) { setError("Username must be at least 3 characters."); setBusy(false); return; }
-      if (password.length < 6) { setError("Password must be at least 6 characters."); setBusy(false); return; }
-      if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
-      if (username.trim().toLowerCase() === NATE_USERNAME) { setError("That username is reserved."); setBusy(false); return; }
-      const users = await getUsers();
-      const key = username.trim().toLowerCase();
-      if (users[key]) { setError("Username already taken."); setBusy(false); return; }
-      // Check for duplicate email
-      if (Object.values(users).some(u => u.email?.toLowerCase() === email.trim().toLowerCase())) {
-        setError("An account with that email already exists."); setBusy(false); return;
-      }
-      const id = "u_" + Date.now().toString(36);
-      users[key] = { id, name: name.trim(), username: key, email: email.trim().toLowerCase(), passwordHash: hashPassword(password), createdAt: new Date().toISOString(), consentSigned: false };
-      await saveUsers(users);
-      sendEmail(
-        `New Client Registration — ${name.trim()}`,
-        `A new client has created an account on Steady Parent Coach.\n\nName: ${name.trim()}\nUsername: ${key}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}\n\nThey will be shown the consent form before accessing the tool.`,
-        name.trim()
-      );
-      onNeedsConsent({ id, name: name.trim(), username: key, email: email.trim().toLowerCase(), role: "client" });
-    }
-    setBusy(false);
-  }
-
-  function onKey(e) { if (e.key === "Enter") submit(); }
-
-  return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: "20px" }}>
-      <div style={{ background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)", borderRadius: "28px", padding: "40px", maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(150,80,60,0.13)", border: "1px solid rgba(200,120,90,0.12)" }}>
-        <div style={{ textAlign: "center", marginBottom: "28px" }}>
-          <div style={{ width: 58, height: 58, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 14px", boxShadow: "0 4px 16px rgba(200,100,100,0.3)" }}>🌿</div>
-          <h1 style={{ color: "#4a2820", fontSize: "22px", margin: "0 0 6px", fontWeight: "700" }}>Steady Parent Coach</h1>
-          <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.5 }}>Between-session support from Nate Parish's practice</p>
+  <div class="hero-visual">
+    <div class="float-badge">✅ Evidence-based approach</div>
+    <div class="chat-card">
+      <div class="chat-header">
+        <div class="chat-avatar">🌿</div>
+        <div>
+          <div class="chat-title">Steady Parent Coach</div>
+          <div class="chat-subtitle">Here whenever you need support</div>
         </div>
-
-        {mode !== "recover" && (
-          <div style={{ display: "flex", background: "rgba(200,120,90,0.08)", borderRadius: "12px", padding: "4px", marginBottom: "22px" }}>
-            {[["login", "Sign In"], ["register", "Create Account"]].map(([m, label]) => (
-              <button key={m} onClick={() => { setMode(m); resetFields(); }} style={{ flex: 1, padding: "9px", borderRadius: "9px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", fontWeight: "600", transition: "all 0.2s", background: mode === m ? "#fff" : "transparent", color: mode === m ? "#c9697a" : "#9a7060", boxShadow: mode === m ? "0 2px 8px rgba(150,80,60,0.12)" : "none" }}>{label}</button>
-            ))}
-          </div>
-        )}
-
-        {mode === "recover" && (
-          <div style={{ marginBottom: "20px" }}>
-            <button onClick={() => { setMode("login"); resetFields(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontSize: "13px", fontFamily: "inherit", fontWeight: "600", padding: "0 0 4px", display: "flex", alignItems: "center", gap: "5px" }}>← Back to Sign In</button>
-            <h2 style={{ color: "#4a2820", fontSize: "18px", margin: "12px 0 6px", fontWeight: "700" }}>Account Recovery</h2>
-            <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.6 }}>Enter the email address you registered with and we'll send your username and a temporary password.</p>
-          </div>
-        )}
-
-        {recoverSent ? (
-          <div style={{ textAlign: "center", padding: "16px 0" }}>
-            <div style={{ fontSize: "36px", marginBottom: "10px" }}>📬</div>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "#4a2820", marginBottom: "8px" }}>Recovery email sent</div>
-            <p style={{ fontSize: "13px", color: "#9a7060", lineHeight: 1.65, margin: "0 0 20px" }}>Check your inbox for your username and a temporary password. If it doesn't arrive within a few minutes, check your spam folder.</p>
-            <Btn onClick={() => { setMode("login"); resetFields(); }} style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", padding: "12px 28px" }}>Back to Sign In</Btn>
-          </div>
-        ) : (
-          <>
-            {mode === "register" && <Input placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} onKeyDown={onKey} />}
-            {mode === "register" && <Input type="email" placeholder="Your email address" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} />}
-            {mode === "recover"
-              ? <Input type="email" placeholder="Email address you registered with" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} autoFocus />
-              : <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={onKey} />
-            }
-            {mode !== "recover" && <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={onKey} />}
-            {mode === "register" && <Input type="password" placeholder="Confirm password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} onKeyDown={onKey} />}
-
-            {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "14px" }}>{error}</div>}
-
-            <Btn onClick={submit} disabled={busy} style={{ width: "100%", padding: "14px", background: busy ? "rgba(200,120,90,0.3)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", fontSize: "15px", fontWeight: "700", boxShadow: busy ? "none" : "0 4px 16px rgba(200,100,100,0.3)", borderRadius: "14px" }}>
-              {busy ? "Please wait…" : mode === "login" ? "Sign In" : mode === "register" ? "Create Account →" : "Send Recovery Email"}
-            </Btn>
-
-            <p style={{ color: "#b89080", fontSize: "11px", textAlign: "center", marginTop: "18px", lineHeight: 1.6 }}>
-              {mode === "register" ? "You'll be asked to read and sign the Terms of Use and Privacy Policy before accessing the tool." : ""}<br />This tool is not a replacement for therapy.
-            </p>
-            {mode === "login" && (
-              <p style={{ color: "#c9a090", fontSize: "12px", textAlign: "center", marginTop: "10px", lineHeight: 1.6 }}>
-                <button onClick={() => { setMode("recover"); resetFields(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontWeight: "600", fontSize: "12px", fontFamily: "inherit", padding: 0, textDecoration: "underline" }}>
-                  Forgot your username or password?
-                </button>
-              </p>
-            )}
-          </>
-        )}
+      </div>
+      <div class="chat-body">
+        <div class="chat-time">10:47 PM</div>
+        <div class="chat-msg user">
+          He melted down again at bedtime. I gave in and stayed until he fell asleep. I feel like such a failure.
+        </div>
+        <div class="chat-msg coach">
+          That guilt is real — and it actually tells me something important about you: you care deeply. Staying until he fell asleep makes complete sense in the moment. Here's the thing though — the pattern that's forming isn't about weakness on your part. His brain is learning that distress at bedtime gets met with rescue. And right now that's keeping both of you stuck.
+        </div>
+        <div class="chat-msg user">
+          So what do I actually say tonight when it starts again?
+        </div>
       </div>
     </div>
-  );
-}
+    <div class="float-badge-2">🔒 Private &amp; secure</div>
+  </div>
+</section>
 
-// ── Admin Dashboard ────────────────────────────────────────────────────────────
-function AdminDashboard({ onLogout }) {
-  const [users, setUsers] = useState({});
-  const [kb, setKb] = useState("");
-  const [kbDraft, setKbDraft] = useState("");
-  const [kbSaved, setKbSaved] = useState(false);
-  const [tab, setTab] = useState("clients");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      const [u, k] = await Promise.all([getUsers(), getKB()]);
-      setUsers(u); setKb(k); setKbDraft(k); setLoading(false);
-    }
-    load();
-  }, []);
-
-  async function deleteClient(key) {
-    if (!confirm(`Delete ${users[key].name} and all their data?`)) return;
-    const uid = users[key].id;
-    const updated = { ...users };
-    delete updated[key];
-    await saveUsers(updated);
-    try {
-      localStorage.removeItem(`spc-chat-${uid}`);
-      localStorage.removeItem(`spc-profile-${uid}`);
-    } catch {}
-    setUsers(updated);
-  }
-
-  const [resetTarget, setResetTarget] = useState(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [resetDone, setResetDone] = useState(false);
-  const [resetError, setResetError] = useState("");
-
-  function openReset(e, u) {
-    e.stopPropagation();
-    setResetTarget(u);
-    setNewPassword("");
-    setResetDone(false);
-    setResetError("");
-  }
-
-  async function doReset() {
-    if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
-    const updated = { ...users };
-    updated[resetTarget.username].passwordHash = hashPassword(newPassword);
-    await saveUsers(updated);
-    setUsers(updated);
-    setResetDone(true);
-    setTimeout(() => setResetTarget(null), 1800);
-  }
-
-  async function doSaveKB() {
-    await saveKB(kbDraft);
-    setKb(kbDraft); setKbSaved(true);
-    setTimeout(() => setKbSaved(false), 2000);
-  }
-
-  const clientList = Object.values(users);
-  const P = { background: "linear-gradient(145deg,#f0f4ff 0%,#e8eeff 50%,#f0e8ff 100%)" };
-
-  return (
-    <div style={{ minHeight: "100vh", ...P, fontFamily: "Georgia,serif" }}>
-      <div style={{ background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(100,100,200,0.12)", padding: "15px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
-          <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🔐</div>
-          <div>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: "#2a2850" }}>Nate's Admin Dashboard</div>
-            <div style={{ fontSize: "12px", color: "#7a70a0" }}>Steady Parent Coach · Account Management</div>
-          </div>
-        </div>
-        <Btn onClick={onLogout} style={{ background: "rgba(150,100,200,0.1)", color: "#7a5aa0", border: "1.5px solid rgba(150,100,200,0.2)" }}>Sign Out</Btn>
-      </div>
-
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "22px 16px" }}>
-
-        {/* Privacy notice */}
-        <div style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(122,142,232,0.2)", borderRadius: "14px", padding: "14px 18px", marginBottom: "20px", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-          <span style={{ fontSize: "18px", flexShrink: 0 }}>🔒</span>
-          <div style={{ fontSize: "13px", color: "#5a5890", lineHeight: 1.65 }}>
-            <strong style={{ color: "#2a2850" }}>Client conversations and profiles are private.</strong> You can manage accounts and reset credentials below, but chat histories and profile data are not accessible from here. Clients may choose to share transcripts with you directly via the "Send to Nate" button.
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: "8px", marginBottom: "22px" }}>
-          {[["clients", `👥 Clients (${clientList.length})`], ["kb", "📋 Knowledge Base"]].map(([t, label]) => (
-            <Btn key={t} onClick={() => setTab(t)} style={{ background: tab === t ? "linear-gradient(135deg,#7a8ee8,#9a6ac9)" : "rgba(255,255,255,0.72)", color: tab === t ? "#fff" : "#7a70a0", boxShadow: tab === t ? "0 4px 14px rgba(120,100,200,0.28)" : "none", border: "none" }}>{label}</Btn>
-          ))}
-        </div>
-
-        {tab === "clients" && (
-          <div>
-            {loading ? (
-              <div style={{ color: "#9a8ac0", textAlign: "center", padding: "40px 20px" }}>Loading clients…</div>
-            ) : clientList.length === 0 ? (
-              <div style={{ background: "rgba(255,255,255,0.72)", borderRadius: "18px", padding: "36px", textAlign: "center", color: "#9a8ac0" }}>
-                <div style={{ fontSize: "36px", marginBottom: "10px" }}>👥</div>
-                <div style={{ fontSize: "15px", fontWeight: "600" }}>No clients yet</div>
-                <div style={{ fontSize: "13px", marginTop: "6px", lineHeight: 1.5 }}>Clients will appear here once they create an account.</div>
-              </div>
-            ) : clientList.map(u => (
-              <div key={u.id} style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(150,120,200,0.12)", borderRadius: "14px", padding: "15px 17px", marginBottom: "9px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#b8c8f0,#d0a8e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "700", color: "#4a4880", flexShrink: 0 }}>{u.name[0].toUpperCase()}</div>
-                  <div>
-                    <div style={{ fontSize: "15px", fontWeight: "600", color: "#2a2850" }}>{u.name}</div>
-                    <div style={{ fontSize: "12px", color: "#9a8ac0", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <span>@{u.username}</span>
-                      <span>·</span>
-                      <span>Joined {new Date(u.createdAt).toLocaleDateString()}</span>
-                      {u.email && <><span>·</span><span>{u.email}</span></>}
-                      <span style={{ padding: "1px 7px", borderRadius: "8px", fontSize: "11px", fontWeight: "600", background: u.consentSigned ? "rgba(80,160,100,0.12)" : "rgba(220,150,80,0.15)", color: u.consentSigned ? "#3a7a50" : "#a06020" }}>
-                        {u.consentSigned ? "✓ Consent signed" : "⚠ Consent pending"}
-                      </span>
-                      {u.consentSignedAt && <span style={{ fontSize: "11px", color: "#b0a0d0" }}>{new Date(u.consentSignedAt).toLocaleDateString()}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                  <button onClick={e => openReset(e, u)} title="Reset password" style={{ background: "none", border: "none", cursor: "pointer", fontSize: "15px", opacity: 0.35, transition: "opacity 0.15s", padding: "4px" }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.35}>🔑</button>
-                  <button onClick={() => deleteClient(u.username)} title="Delete client" style={{ background: "none", border: "none", cursor: "pointer", fontSize: "15px", opacity: 0.35, transition: "opacity 0.15s", padding: "4px" }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.35}>🗑</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {tab === "kb" && (
-          <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "20px", padding: "28px", border: "1px solid rgba(150,120,200,0.12)" }}>
-            <h3 style={{ color: "#2a2850", margin: "0 0 8px", fontSize: "17px" }}>Clinical Knowledge Base</h3>
-            <p style={{ color: "#7a70a0", fontSize: "13px", margin: "0 0 18px", lineHeight: 1.65 }}>
-              Anything pasted here is silently included in every client's AI context. Use it for general frameworks, preferred language, or practice-wide protocols. This does not give you access to individual client conversations.
-            </p>
-            {kb && <div style={{ background: "rgba(100,180,120,0.1)", border: "1px solid rgba(80,160,100,0.25)", borderRadius: "10px", padding: "9px 13px", marginBottom: "14px", fontSize: "12px", color: "#3a7a50" }}>✓ Active · {kb.split(" ").filter(Boolean).length} words loaded</div>}
-            <textarea value={kbDraft} onChange={e => setKbDraft(e.target.value)} rows={12}
-              placeholder={"Paste clinical notes, frameworks, or protocols here.\n\nExamples:\n• Preferred accommodation reduction language\n• SPACE protocol steps you use\n• Practice-specific scripts or frameworks\n• Any context you want the AI to reference"}
-              style={{ width: "100%", padding: "14px 16px", borderRadius: "12px", border: "1.5px solid rgba(150,120,200,0.22)", fontSize: "13px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.65, background: "#fdfcff" }} />
-            <div style={{ display: "flex", gap: "10px", marginTop: "13px" }}>
-              {kbDraft && <Btn onClick={() => setKbDraft("")} style={{ background: "rgba(220,80,80,0.07)", color: "#c05060", border: "1.5px solid rgba(220,80,80,0.15)" }}>🗑 Clear</Btn>}
-              <Btn onClick={doSaveKB} style={{ background: kbSaved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", boxShadow: "0 4px 14px rgba(120,100,200,0.22)", border: "none", padding: "11px 24px", transition: "background 0.3s" }}>
-                {kbSaved ? "✓ Saved!" : "Save & Apply"}
-              </Btn>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Reset Password Modal */}
-      {resetTarget && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(42,40,80,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)" }} onClick={() => setResetTarget(null)}>
-          <div style={{ background: "#f8f7ff", borderRadius: "24px", padding: "32px", maxWidth: 400, width: "92%", boxShadow: "0 20px 60px rgba(80,60,180,0.2)" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: "26px", textAlign: "center", marginBottom: "8px" }}>🔑</div>
-            <h3 style={{ color: "#2a2850", textAlign: "center", margin: "0 0 6px", fontSize: "18px" }}>Reset Password</h3>
-            <p style={{ color: "#7a70a0", fontSize: "13px", textAlign: "center", margin: "0 0 14px", lineHeight: 1.5 }}>
-              Setting a new password for <strong>{resetTarget.name}</strong>
-            </p>
-            <div style={{ background: "rgba(122,142,232,0.1)", border: "1px solid rgba(122,142,232,0.25)", borderRadius: "10px", padding: "10px 14px", marginBottom: "18px", textAlign: "center" }}>
-              <div style={{ fontSize: "11px", color: "#7a70a0", marginBottom: "3px" }}>Their username (share this if they've forgotten)</div>
-              <div style={{ fontSize: "17px", fontWeight: "700", color: "#2a2850", letterSpacing: "0.03em" }}>@{resetTarget.username}</div>
-            </div>
-            {!resetDone ? (
-              <>
-                <label style={{ fontSize: "13px", color: "#5a5890", fontWeight: "600", display: "block", marginBottom: "6px" }}>New password</label>
-                <input type="text" value={newPassword} onChange={e => { setNewPassword(e.target.value); setResetError(""); }} onKeyDown={e => e.key === "Enter" && doReset()} placeholder="Enter new password (min. 6 characters)" autoFocus
-                  style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: `1.5px solid ${resetError ? "rgba(220,80,80,0.4)" : "rgba(122,142,232,0.3)"}`, fontSize: "14px", fontFamily: "inherit", color: "#2a2850", outline: "none", boxSizing: "border-box", background: "#fff", marginBottom: "6px" }} />
-                <p style={{ fontSize: "11px", color: "#9a8ac0", margin: "0 0 14px", lineHeight: 1.5 }}>Shown in plain text so you can read it to the client or send it securely.</p>
-                {resetError && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "9px 13px", color: "#c05060", fontSize: "13px", marginBottom: "12px" }}>{resetError}</div>}
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <Btn onClick={() => setResetTarget(null)} style={{ flex: 1, background: "rgba(150,120,200,0.08)", color: "#7a5aa0", border: "1.5px solid rgba(150,120,200,0.2)" }}>Cancel</Btn>
-                  <Btn onClick={doReset} style={{ flex: 1, background: "linear-gradient(135deg,#7a8ee8,#9a6ac9)", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(120,100,200,0.25)" }}>Set Password</Btn>
-                </div>
-              </>
-            ) : (
-              <div style={{ textAlign: "center", padding: "8px 0" }}>
-                <div style={{ fontSize: "32px", marginBottom: "10px" }}>✅</div>
-                <div style={{ fontSize: "15px", fontWeight: "600", color: "#2a2850", marginBottom: "6px" }}>Password updated</div>
-                <div style={{ fontSize: "13px", color: "#7a70a0" }}>Share the new credentials with {resetTarget.name.split(" ")[0]} securely.</div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+<!-- PAIN POINTS -->
+<section class="section">
+  <div class="section-label">The problem</div>
+  <h2 class="section-title">You've read the books.<br>You know what you "should" do.<br>It still falls apart at 8pm.</h2>
+  <p class="section-sub">Parenting an anxious child is exhausting in a specific way. You love them completely — and you're stuck in a cycle that makes things worse, even when you're trying to help.</p>
+  <div class="pain-grid">
+    <div class="pain-card">
+      <div class="pain-icon">🔁</div>
+      <div class="pain-title">The reassurance loop</div>
+      <div class="pain-text">You answer the same worried question eight times. It works for five minutes. Then they're back. The anxiety isn't shrinking — it's learning.</div>
     </div>
-  );
-}
-function ProfileDrawer({ user, onClose }) {
-  const EMPTY = { working_on: "", triggers: "", accommodations: "", notes: "" };
-  const [draft, setDraft] = useState(EMPTY);
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getProfile(user.id).then(p => { setDraft({ ...EMPTY, ...p }); setLoading(false); });
-  }, [user.id]);
-
-  async function save() {
-    await saveProfile(user.id, draft);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
-
-  const fields = [
-    { key: "working_on", label: "🎯 What we're working on in therapy", placeholder: "e.g. reducing bedtime check-ins, getting to school independently, tolerating uncertainty without reassurance…" },
-    { key: "triggers", label: "⚡ Specific triggers or patterns", placeholder: "e.g. transitions, separation at school drop-off, asking 'what if' questions repeatedly, stomach aches before events…" },
-    { key: "accommodations", label: "🔄 Accommodation habits I'm trying to break", placeholder: "e.g. letting them sleep in our bed, answering the same question multiple times, staying until they fall asleep, checking under the bed…" },
-    { key: "notes", label: "📝 Anything else that's helpful to know", placeholder: "e.g. child's age, temperament, what's been working, what hasn't, family context, recent changes…" },
-  ];
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.3)", zIndex: 40, backdropFilter: "blur(2px)" }} />
-
-      {/* Drawer */}
-      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(420px, 100vw)", background: "linear-gradient(160deg,#fdf6f0,#fce8d8)", boxShadow: "-8px 0 40px rgba(150,80,60,0.15)", zIndex: 50, display: "flex", flexDirection: "column", fontFamily: "Georgia,serif", animation: "slideIn 0.25s ease" }}>
-
-        {/* Header */}
-        <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid rgba(200,120,90,0.15)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.6)", backdropFilter: "blur(8px)", flexShrink: 0 }}>
-          <div>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>My Profile</div>
-            <div style={{ fontSize: "12px", color: "#9a7060", marginTop: "2px" }}>This helps the coach understand your situation</div>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "20px", color: "#9a7060", padding: "4px", lineHeight: 1 }}>✕</button>
-        </div>
-
-        {/* Fields */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: "18px" }}>
-          {loading ? (
-            <div style={{ color: "#c9697a", fontSize: "14px", textAlign: "center", padding: "40px 0" }}>Loading…</div>
-          ) : (
-            <>
-              <div style={{ background: "rgba(232,147,122,0.1)", border: "1px solid rgba(200,120,90,0.2)", borderRadius: "12px", padding: "12px 14px", fontSize: "12px", color: "#7c4a3a", lineHeight: 1.6 }}>
-                💡 The more you share here, the more personal and relevant the coaching will feel. This information is private to your account.
-              </div>
-
-              {fields.map(f => (
-                <div key={f.key}>
-                  <label style={{ fontSize: "13px", fontWeight: "700", color: "#4a2820", display: "block", marginBottom: "7px" }}>{f.label}</label>
-                  <textarea
-                    value={draft[f.key]}
-                    onChange={e => setDraft(d => ({ ...d, [f.key]: e.target.value }))}
-                    placeholder={f.placeholder}
-                    rows={3}
-                    style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.22)", background: "rgba(255,255,255,0.88)", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "vertical", lineHeight: 1.6, boxSizing: "border-box", transition: "border-color 0.15s" }}
-                    onFocus={e => e.target.style.borderColor = "#e8937a"}
-                    onBlur={e => e.target.style.borderColor = "rgba(200,120,90,0.22)"}
-                  />
-                </div>
-              ))}
-
-              {/* Profile completeness indicator */}
-              {(() => {
-                const filled = fields.filter(f => draft[f.key]?.trim()).length;
-                const pct = Math.round((filled / fields.length) * 100);
-                return filled > 0 ? (
-                  <div style={{ padding: "10px 14px", background: "rgba(80,160,100,0.08)", border: "1px solid rgba(60,140,80,0.2)", borderRadius: "10px" }}>
-                    <div style={{ fontSize: "12px", color: "#3a7a50", marginBottom: "6px", fontWeight: "600" }}>Profile {pct}% complete</div>
-                    <div style={{ height: "5px", background: "rgba(80,160,100,0.15)", borderRadius: "3px", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6ac98e,#3aaa6a)", borderRadius: "3px", transition: "width 0.3s" }} />
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: "14px 20px", borderTop: "1px solid rgba(200,120,90,0.12)", background: "rgba(255,255,255,0.6)", flexShrink: 0 }}>
-          <Btn onClick={save} style={{ width: "100%", padding: "13px", background: saved ? "linear-gradient(135deg,#6ac98e,#3aaa6a)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", border: "none", fontSize: "14px", fontWeight: "700", boxShadow: "0 4px 14px rgba(200,100,100,0.25)", transition: "background 0.3s" }}>
-            {saved ? "✓ Saved!" : "Save Profile"}
-          </Btn>
-          <p style={{ fontSize: "11px", color: "#b89080", textAlign: "center", margin: "8px 0 0", lineHeight: 1.5 }}>Changes take effect in your next message</p>
-        </div>
-      </div>
-
-      <style>{`@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
-    </>
-  );
-}
-
-// ── Client Chat ────────────────────────────────────────────────────────────────
-function ClientChat({ user, onLogout }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [initializing, setInitializing] = useState(true);
-  const [kb, setKb] = useState("");
-  const [profile, setProfile] = useState({});
-  const [showProfile, setShowProfile] = useState(false);
-  const [nateSending, setNateSending] = useState(false);
-  const [nateSent, setNateSent] = useState(false);
-  const bottomRef = useRef(null);
-
-  useEffect(() => {
-    async function init() {
-      const [msgs, k, p] = await Promise.all([getMessages(user.id), getKB(), getProfile(user.id)]);
-      setMessages(msgs); setKb(k); setProfile(p); setInitializing(false);
-    }
-    init();
-  }, [user.id]);
-
-  // Reload profile when drawer closes so system prompt stays fresh
-  async function handleProfileClose() {
-    setShowProfile(false);
-    const p = await getProfile(user.id);
-    setProfile(p);
-  }
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
-
-  function buildSystemPrompt() {
-    let base = `${SYSTEM_PROMPT}\n\nThe parent's name is ${user.name}. Address them by first name occasionally where it feels natural.`;
-
-    const p = profile;
-    const profileLines = [];
-    if (p.working_on?.trim())    profileLines.push(`What they are currently working on in therapy: ${p.working_on.trim()}`);
-    if (p.triggers?.trim())      profileLines.push(`Specific triggers or patterns to be aware of: ${p.triggers.trim()}`);
-    if (p.accommodations?.trim()) profileLines.push(`Accommodation habits they are actively trying to break: ${p.accommodations.trim()}`);
-    if (p.notes?.trim())         profileLines.push(`Additional context from the client: ${p.notes.trim()}`);
-
-    if (profileLines.length > 0) {
-      base += `\n\n---\n\n## Client's Personal Profile\n\nThe following information has been shared by the client about their situation. Reference it naturally and specifically where relevant — use it to make responses feel personal and connected to their actual case rather than generic:\n\n${profileLines.join("\n\n")}`;
-    }
-
-    if (kb.trim()) base += `\n\n---\n\n## Therapist's Clinical Notes\n\n${kb}`;
-    return base;
-  }
-
-  async function sendMessage(text) {
-    if (!text.trim() || loading) return;
-    const newMsgs = [...messages, { role: "user", content: text }];
-    setMessages(newMsgs); setInput(""); setLoading(true);
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system: buildSystemPrompt(), messages: newMsgs }),
-      });
-      const data = await res.json();
-      const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
-      const updated = [...newMsgs, { role: "assistant", content: reply }];
-      setMessages(updated);
-      await saveMessages(user.id, updated);
-    } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
-    setLoading(false);
-  }
-
-  function exportChat() {
-    const text = `Steady Parent Coach — ${user.name}\nExported: ${new Date().toLocaleString()}\n\n` + messages.map(m => `${m.role === "user" ? user.name : "Coach"}: ${m.content}`).join("\n\n");
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: `coaching-${Date.now()}.txt` });
-    a.click();
-  }
-
-  async function sendToNate() {
-    if (nateSending || nateSent) return;
-    setNateSending(true);
-    const transcript = messages.map(m => `${m.role === "user" ? user.name : "Coach"}: ${m.content}`).join("\n\n");
-    const body = `STEADY PARENT COACH — SESSION NOTES\n\nClient: ${user.name} (@${user.username})\nSent: ${new Date().toLocaleString()}\nMessages: ${messages.length}\n\n${"=".repeat(50)}\n\n${transcript}`;
-    await sendEmail(`Session Notes — ${user.name}`, body, user.name);
-    setNateSending(false);
-    setNateSent(true);
-    setTimeout(() => setNateSent(false), 3000);
-  }
-
-  const hasMessages = messages.length > 0;
-  const profileFilled = Object.values(profile).some(v => v?.trim());
-  const BG = "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)";
-
-  if (initializing) return (
-    <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif" }}>
-      <div style={{ color: "#c9697a", fontSize: "14px" }}>Loading your conversations…</div>
+    <div class="pain-card">
+      <div class="pain-icon">🌙</div>
+      <div class="pain-title">Bedtime hostage situations</div>
+      <div class="pain-text">You stay until they fall asleep. Every night. You tell yourself it's just this once. It's been six months.</div>
     </div>
-  );
-
-  return (
-    <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
-      {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
-
-      <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "13px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>🌿</div>
-          <div>
-            <div style={{ fontSize: "16px", fontWeight: "700", color: "#4a2820" }}>Steady Parent Coach</div>
-            <div style={{ fontSize: "12px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: "7px", alignItems: "center" }}>
-          {/* Profile button with dot indicator if empty */}
-          <button onClick={() => setShowProfile(true)} style={{ position: "relative", background: profileFilled ? "rgba(232,147,122,0.12)" : "rgba(220,80,80,0.07)", border: `1.5px solid ${profileFilled ? "rgba(200,120,90,0.25)" : "rgba(220,80,80,0.2)"}`, borderRadius: "10px", padding: "7px 13px", fontSize: "13px", color: profileFilled ? "#7c4a3a" : "#c05060", cursor: "pointer", fontFamily: "inherit", fontWeight: "600", transition: "all 0.2s" }}>
-            {profileFilled ? "👤 My Profile" : "👤 Add Profile"}
-            {!profileFilled && <span style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: "50%", background: "#e8937a", border: "1.5px solid #fdf6f0" }} />}
-          </button>
-          {hasMessages && <>
-            <Btn onClick={exportChat} style={{ background: "#fff8f5", color: "#c9697a", border: "1.5px solid rgba(200,100,100,0.18)", padding: "7px 13px", fontSize: "13px" }}>💾 Export</Btn>
-            <Btn onClick={sendToNate} disabled={nateSending || nateSent} style={{ background: nateSent ? "rgba(80,180,100,0.15)" : "#fff8f5", color: nateSent ? "#2a7a40" : "#c9697a", border: `1.5px solid ${nateSent ? "rgba(60,160,80,0.3)" : "rgba(200,100,100,0.18)"}`, padding: "7px 13px", fontSize: "13px", transition: "all 0.3s" }}>
-              {nateSending ? "Sending…" : nateSent ? "✓ Sent to Nate" : "📨 Send to Nate"}
-            </Btn>
-          </>}
-          <Btn onClick={onLogout} style={{ background: "rgba(200,120,90,0.08)", color: "#9a7060", border: "1.5px solid rgba(200,120,90,0.15)", padding: "7px 13px", fontSize: "13px" }}>Sign Out</Btn>
-        </div>
-      </div>
-
-      <div style={{ flex: 1, maxWidth: 720, width: "100%", margin: "0 auto", padding: "22px 15px", display: "flex", flexDirection: "column", gap: "18px" }}>
-        {!hasMessages && (
-          <div style={{ textAlign: "center", paddingTop: "10px" }}>
-            <div style={{ fontSize: "26px", marginBottom: "6px" }}>🌿</div>
-            <h2 style={{ color: "#4a2820", fontSize: "21px", margin: "0 0 6px", fontWeight: "700" }}>What's happening right now?</h2>
-            <p style={{ color: "#9a7060", fontSize: "14px", margin: "0 0 20px", lineHeight: 1.6 }}>Describe what's going on, or tap a common situation below.</p>
-            {!profileFilled && (
-              <div onClick={() => setShowProfile(true)} style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(232,147,122,0.1)", border: "1.5px dashed rgba(200,120,90,0.35)", borderRadius: "12px", padding: "10px 18px", marginBottom: "18px", cursor: "pointer", transition: "all 0.2s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(232,147,122,0.18)"}
-                onMouseLeave={e => e.currentTarget.style.background = "rgba(232,147,122,0.1)"}
-              >
-                <span style={{ fontSize: "16px" }}>👤</span>
-                <span style={{ fontSize: "13px", color: "#7c4a3a", fontWeight: "600" }}>Add your profile to personalize the coaching</span>
-                <span style={{ fontSize: "12px", color: "#c9697a" }}>→</span>
-              </div>
-            )}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(185px,1fr))", gap: "9px" }}>
-              {SCENARIOS.map(s => (
-                <button key={s.label} onClick={() => sendMessage(s.prompt)} style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "14px", padding: "13px 14px", fontSize: "13px", color: "#7c4a3a", cursor: "pointer", textAlign: "left", fontFamily: "inherit", lineHeight: 1.4, transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,240,230,0.95)"; e.currentTarget.style.borderColor = "#e8937a"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.82)"; e.currentTarget.style.borderColor = "rgba(200,120,90,0.2)"; }}
-                >{s.label}</button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "13px" }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              {m.role === "assistant" && <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", marginRight: "8px", flexShrink: 0, marginTop: 2 }}>🌿</div>}
-              <div style={{ maxWidth: "82%", padding: "12px 15px", borderRadius: m.role === "user" ? "17px 17px 4px 17px" : "4px 17px 17px 17px", background: m.role === "user" ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(255,255,255,0.88)", color: m.role === "user" ? "#fff" : "#4a2820", fontSize: "14px", lineHeight: 1.65, boxShadow: m.role === "user" ? "0 3px 12px rgba(200,100,100,0.2)" : "0 2px 10px rgba(150,80,60,0.08)", border: m.role === "assistant" ? "1px solid rgba(200,120,90,0.1)" : "none" }}>
-                {m.role === "assistant" ? formatMessage(m.content) : m.content}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px" }}>🌿</div>
-              <div style={{ background: "rgba(255,255,255,0.88)", padding: "12px 16px", borderRadius: "4px 17px 17px 17px", boxShadow: "0 2px 10px rgba(150,80,60,0.08)", border: "1px solid rgba(200,120,90,0.1)" }}>
-                <div style={{ display: "flex", gap: "4px" }}>{[0,1,2].map(j => <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#e8937a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}</div>
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        {hasMessages && (
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {SCENARIOS.map(s => (
-              <button key={s.label} onClick={() => sendMessage(s.prompt)} style={{ background: "rgba(255,255,255,0.7)", border: "1px solid rgba(200,120,90,0.17)", borderRadius: "20px", padding: "5px 12px", fontSize: "12px", color: "#7c4a3a", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,240,230,0.95)"}
-                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.7)"}
-              >{s.label}</button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div style={{ position: "sticky", bottom: 0, background: "rgba(253,246,240,0.93)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(180,120,90,0.11)", padding: "13px 15px" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", gap: "9px", alignItems: "flex-end" }}>
-          <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }} placeholder="Describe what's happening right now…" rows={1}
-            style={{ flex: 1, padding: "11px 15px", borderRadius: "18px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.92)", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: "110px", overflow: "auto", transition: "border-color 0.15s" }}
-            onFocus={e => e.target.style.borderColor = "#e8937a"} onBlur={e => e.target.style.borderColor = "rgba(200,120,90,0.2)"} />
-          <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading} style={{ width: 42, height: 42, borderRadius: "50%", background: input.trim() && !loading ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(200,120,90,0.17)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", fontSize: "17px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>➤</button>
-        </div>
-        <div style={{ maxWidth: 720, margin: "6px auto 0", textAlign: "center", fontSize: "11px", color: "#b89080" }}>Not a replacement for therapy · For crisis support, contact emergency services</div>
-      </div>
-
-      <style>{`
-        @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
-        @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
-        *{box-sizing:border-box}
-        textarea::placeholder{color:#c4a090}
-      `}</style>
+    <div class="pain-card">
+      <div class="pain-icon">🏫</div>
+      <div class="pain-title">The school avoidance spiral</div>
+      <div class="pain-text">Every morning is a war. You let them stay home once. Now you're negotiating daily. The world is getting smaller for both of you.</div>
     </div>
-  );
-}
-
-// ── Root ───────────────────────────────────────────────────────────────────────
-function SubscriptionGate({ user, onActivated, onLogout }) {
-  const [loading, setLoading] = useState(true);
-  const [redirecting, setRedirecting] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    async function check() {
-      try {
-        const res = await fetch("/api/subscription-status", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id }),
-        });
-        const data = await res.json();
-        if (data.active) { onActivated(); return; }
-        setLoading(false);
-      } catch (e) {
-        setError("Couldn’t check subscription status. Please try again.");
-        setLoading(false);
-      }
-    }
-    check();
-  }, [user.id]);
-
-  async function startCheckout() {
-    setRedirecting(true);
-    try {
-      const res = await fetch("/api/create-checkout", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, email: user.email, name: user.name }),
-      });
-      const data = await res.json();
-      if (data.grandfathered || data.alreadyActive) { onActivated(); return; }
-      if (data.url) { window.location.href = data.url; return; }
-      setError(data.error || "Couldn’t start checkout. Please try again.");
-    } catch (e) {
-      setError("Couldn’t reach the server. Please try again.");
-    }
-    setRedirecting(false);
-  }
-
-  if (loading) return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif" }}>
-      <div style={{ color: "#c9697a", fontSize: "14px" }}>Checking your account…</div>
+    <div class="pain-card">
+      <div class="pain-icon">😤</div>
+      <div class="pain-title">You lose it too</div>
+      <div class="pain-text">Their meltdown triggers yours. You say things you regret. The guilt compounds. You know that's not who you want to be.</div>
     </div>
-  );
+    <div class="pain-card">
+      <div class="pain-icon">🕐</div>
+      <div class="pain-title">Therapy is once a week</div>
+      <div class="pain-text">The hard moments happen Tuesday at 7pm — not during Thursday's session. You need support when it's actually happening.</div>
+    </div>
+    <div class="pain-card">
+      <div class="pain-icon">💔</div>
+      <div class="pain-title">The accommodation trap</div>
+      <div class="pain-text">Everything you do to ease their discomfort makes sense in the moment. And every accommodation teaches their brain that the world is too dangerous to face.</div>
+    </div>
+  </div>
+</section>
 
-  return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: "20px" }}>
-      <div style={{ background: "rgba(255,255,255,0.92)", borderRadius: "28px", padding: "40px 36px", maxWidth: 440, width: "100%", boxShadow: "0 20px 60px rgba(150,80,60,0.13)", textAlign: "center" }}>
-        <div style={{ width: 58, height: 58, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 18px", boxShadow: "0 4px 16px rgba(200,100,100,0.3)" }}>🌿</div>
-        <h2 style={{ color: "#4a2820", fontSize: "22px", margin: "0 0 10px", fontWeight: "700" }}>Start Your Free Trial</h2>
-        <p style={{ color: "#7c4a3a", fontSize: "14px", lineHeight: 1.7, margin: "0 0 8px" }}>
-          Get <strong>7 days free</strong>, then $19.99/month. Cancel anytime.
-        </p>
-        <p style={{ color: "#9a7060", fontSize: "13px", lineHeight: 1.6, margin: "0 0 28px" }}>
-          Unlimited coaching conversations · Progress tracking · Interactive learning · Evidence-based parenting support
-        </p>
-        {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
-        <Btn onClick={startCheckout} disabled={redirecting} style={{ width: "100%", padding: "15px", background: redirecting ? "rgba(200,120,90,0.3)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", fontSize: "15px", fontWeight: "700", boxShadow: redirecting ? "none" : "0 4px 16px rgba(200,100,100,0.3)", borderRadius: "14px", marginBottom: "12px" }}>
-          {redirecting ? "Opening checkout…" : "Start 7-Day Free Trial →"}
-        </Btn>
-        <p style={{ color: "#b89080", fontSize: "11px", margin: "0 0 16px", lineHeight: 1.5 }}>
-          No charge during trial · Secure payment via Stripe · Cancel anytime in account settings
-        </p>
-        <button onClick={onLogout} style={{ background: "none", border: "none", cursor: "pointer", color: "#b89080", fontSize: "12px", fontFamily: "inherit" }}>Sign out</button>
+<!-- HOW IT WORKS -->
+<section class="how-bg" id="how-it-works">
+  <div class="section-label">How it works</div>
+  <h2 class="section-title">Your clinical model,<br>available at any hour.</h2>
+  <p class="section-sub">Steady Parent Coach is built on the same evidence-based framework used by child anxiety specialists — the SPACE model. Not generic wellness advice. Real clinical grounding.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-number">01</div>
+      <div class="step-title">Tell us what's happening</div>
+      <div class="step-text">Describe the moment — the meltdown, the school refusal, the bedtime battle, the guilt spiral. In your words, however it comes out.</div>
+    </div>
+    <div class="step">
+      <div class="step-number">02</div>
+      <div class="step-title">Get clinically grounded support</div>
+      <div class="step-text">The coach meets you where you are first — validates, reframes, explains what's actually happening in your child's brain. Then gives you something concrete to try.</div>
+    </div>
+    <div class="step">
+      <div class="step-number">03</div>
+      <div class="step-title">Build the pattern over time</div>
+      <div class="step-text">Log wins and growth moments. Set weekly goals. Track what's shifting. Real steadiness is built in hundreds of small moments — this is where you build them.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CLINICAL BACKING -->
+<section class="clinical">
+  <div class="clinical-visual">
+    <div class="clinical-quote">
+      "Warmth and steadiness together — that's the combination that actually moves the needle. Not one without the other."
+    </div>
+    <div class="clinical-attribution">
+      <div class="clinical-attr-name">Nate Parish, LMFT</div>
+      Licensed Marriage &amp; Family Therapist<br>
+      Specializing in child anxiety &amp; family systems
+    </div>
+  </div>
+  <div class="clinical-content">
+    <div class="section-label">The clinical foundation</div>
+    <h2 class="section-title">Built by a clinician.<br>Grounded in research.</h2>
+    <p class="section-sub">Steady Parent Coach is built on Nate Parish's clinical model — integrating the SPACE framework, attachment theory, and whole-brain development. Not a wellness app. A clinical tool.</p>
+    <div class="badge-list">
+      <div class="badge-item">
+        <div class="badge-icon">🧬</div>
+        <div class="badge-text">
+          <strong>SPACE Framework (Supportive Parenting for Anxious Childhood Emotions)</strong>
+          Research-backed approach developed at Yale showing significant anxiety reduction through targeted changes in parental behavior — without requiring the child to be in therapy.
+        </div>
+      </div>
+      <div class="badge-item">
+        <div class="badge-icon">🧠</div>
+        <div class="badge-text">
+          <strong>Whole-Brain Development (Siegel &amp; Bryson)</strong>
+          Understanding upstairs vs. downstairs brain, co-regulation, and why logic doesn't work during meltdowns — and what does.
+        </div>
+      </div>
+      <div class="badge-item">
+        <div class="badge-icon">🔗</div>
+        <div class="badge-text">
+          <strong>Attachment &amp; Accommodation Theory</strong>
+          Why the most loving thing a parent can do is often the hardest — and how to hold firm with warmth instead of harshness.
+        </div>
       </div>
     </div>
-  );
-}
+  </div>
+</section>
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [pendingConsent, setPendingConsent] = useState(null);
-  const [needsSubscription, setNeedsSubscription] = useState(false);
+<!-- TESTIMONIALS -->
+<section class="testimonials-bg">
+  <div class="section-label">What parents say</div>
+  <h2 class="section-title">Real moments.<br>Real shifts.</h2>
+  <div class="testi-grid">
+    <div class="testi-card">
+      <div class="testi-stars">★★★★★</div>
+      <div class="testi-text">"I used to spend two hours at bedtime. Last night I said goodnight, walked out, and he settled himself. I cried. In a good way."</div>
+      <div class="testi-author">Parent of a 9-year-old with anxiety</div>
+    </div>
+    <div class="testi-card">
+      <div class="testi-stars">★★★★★</div>
+      <div class="testi-text">"The reframe I got at 11pm when she was refusing school was better than anything I'd read in three parenting books. And it was right when I needed it."</div>
+      <div class="testi-author">Mom of two, ages 7 and 11</div>
+    </div>
+    <div class="testi-card">
+      <div class="testi-stars">★★★★★</div>
+      <div class="testi-text">"I finally understand why reassurance was making it worse. That one insight changed everything about how I respond to the worried questions."</div>
+      <div class="testi-author">Dad of a 6-year-old</div>
+    </div>
+  </div>
+</section>
 
-  // Handle Stripe checkout return
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
+<!-- PRICING -->
+<section class="pricing">
+  <div class="section-label">Simple pricing</div>
+  <h2 class="section-title">Try it free for 7 days.</h2>
+  <p class="section-sub">No commitments. Cancel anytime. Less than the cost of one co-pay.</p>
+  <div class="price-card">
+    <div class="price-badge">🎉 7-Day Free Trial Included</div>
+    <div class="price-amount"><sup>$</sup>19<span>.99/month</span></div>
+    <div class="price-trial">Start free for 7 days · No charge until trial ends</div>
+    <ul class="price-features">
+      <li><span class="check">✓</span> Unlimited coaching conversations</li>
+      <li><span class="check">✓</span> Interactive Learn library (anxiety cycle, accommodation, brain science)</li>
+      <li><span class="check">✓</span> Progress tracking &amp; weekly goals</li>
+      <li><span class="check">✓</span> Personalized profile so coaching feels specific to your child</li>
+      <li><span class="check">✓</span> Quick-tap scenarios for common hard moments</li>
+      <li><span class="check">✓</span> Available 24/7 — including at 10pm during the actual meltdown</li>
+    </ul>
+    <a href="https://www.steadyparentingcoach.com" class="btn-primary" style="display:block;text-align:center;width:100%;padding:16px;">Start Free Trial →</a>
+    <div class="price-note">Secure payment via Stripe · Cancel anytime · No hidden fees</div>
+  </div>
+</section>
 
-  if (pendingConsent) {
-    return <ConsentScreen user={pendingConsent} onConsented={() => {
-      setPendingConsent(null);
-      setNeedsSubscription(true);
-      setUser(pendingConsent);
-    }} />;
-  }
-  if (!user) return <AuthScreen onLogin={(u) => {
-    setUser(u);
-    if (u.role !== "admin") setNeedsSubscription(true);
-  }} onNeedsConsent={setPendingConsent} />;
-  if (needsSubscription && user.role !== "admin") {
-    return <SubscriptionGate user={user} onActivated={() => setNeedsSubscription(false)} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
-  }
-  if (user.role === "admin") return <AdminDashboard onLogout={() => setUser(null)} />;
-  return <ClientChat user={user} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
-}
+<!-- ABOUT -->
+<section class="about">
+  <div class="about-img">🌿</div>
+  <div class="about-content">
+    <div class="section-label">About the creator</div>
+    <h2 class="section-title">Built by a therapist<br>who works with these<br>families every day.</h2>
+    <p class="about-text">Nate Parish is a Licensed Marriage and Family Therapist specializing in children, adolescents, and families — with a particular focus on anxiety, accommodation, and what it takes for parents to hold steady when everything in them wants to fix it.</p>
+    <p class="about-text">Steady Parent Coach is built on his clinical model — the same framework he uses in his private practice. The warmth, the reframes, the scripts, the clinical grounding — it's all his voice.</p>
+    <p class="about-text">This is not a generic AI wellness tool. It's a clinician's model, made available at scale.</p>
+    <div class="credential-chips">
+      <span class="chip">LMFT · CA #152889</span>
+      <span class="chip">SPACE Framework</span>
+      <span class="chip">Child &amp; Family Anxiety</span>
+      <span class="chip">Attachment Theory</span>
+      <span class="chip">Whole-Brain Development</span>
+    </div>
+  </div>
+</section>
 
-// Mount the app
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
-</script>
+<!-- CTA BANNER -->
+<section class="cta-banner">
+  <h2 class="section-title">Tonight doesn't have to go the same way.</h2>
+  <p class="cta-banner-sub">Start your free 7-day trial. Get support grounded in what actually works — available exactly when you need it.</p>
+  <a href="https://www.steadyparentingcoach.com" class="btn-primary">Start Free Trial — No Credit Card Needed</a>
+  <p class="cta-note">7 days free · $19.99/month after · Cancel anytime</p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo"><span>🌿</span> Steady Parent Coach</div>
+  <div class="footer-links">
+    <a href="https://www.steadyparentingcoach.com">Sign In</a>
+    <a href="https://www.steadyparentingcoach.com">Create Account</a>
+    <a href="mailto:nate.parish@gmail.com">Contact</a>
+    <a href="https://www.steadyparentingcoach.com/#terms">Terms of Use</a>
+    <a href="https://www.steadyparentingcoach.com/#privacy">Privacy Policy</a>
+  </div>
+  <div class="footer-copy">© 2026 Nate Parish, LMFT · Steady Parent Coach · This tool is not therapy and is not a crisis resource. If you or your child are in immediate danger, call 911 or 988.</div>
+</footer>
+
 </body>
 </html>
