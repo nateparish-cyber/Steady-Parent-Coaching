@@ -190,7 +190,7 @@ async function apiPost(path, body) {
 
 async function getUsers(adminKey) {
   try {
-    const data = await apiGet(`/api/users?adminKey=${encodeURIComponent(adminKey)}`);
+    const data = await apiGet(`/api/admin?action=users&adminKey=${encodeURIComponent(adminKey)}`);
     const dict = {};
     for (const u of data.users || []) {
       dict[u.username] = { id: u.id, name: u.name, username: u.username, email: u.email, createdAt: u.created_at, consentSigned: u.consent_signed };
@@ -199,22 +199,22 @@ async function getUsers(adminKey) {
   } catch { return {}; }
 }
 async function getMessages(uid) {
-  try { const d = await apiGet(`/api/messages?userId=${encodeURIComponent(uid)}`); return d.messages || []; } catch { return []; }
+  try { const d = await apiGet(`/api/data?action=messages&userId=${encodeURIComponent(uid)}`); return d.messages || []; } catch { return []; }
 }
 async function appendMessages(uid, msgs) {
-  try { await apiPost("/api/messages", { userId: uid, messages: msgs }); } catch {}
+  try { await apiPost("/api/data", { action: "messages", userId: uid, messages: msgs }); } catch {}
 }
 async function getKB() {
-  try { const d = await apiGet("/api/kb"); return d.content || ""; } catch { return ""; }
+  try { const d = await apiGet("/api/admin?action=kb"); return d.content || ""; } catch { return ""; }
 }
 async function saveKB(kb, adminKey) {
-  await apiPost("/api/kb", { content: kb, adminKey });
+  await apiPost("/api/admin", { action: "kb", content: kb, adminKey });
 }
 async function getProfile(uid) {
-  try { const d = await apiGet(`/api/profile?userId=${encodeURIComponent(uid)}`); return d.profile || {}; } catch { return {}; }
+  try { const d = await apiGet(`/api/data?action=profile&userId=${encodeURIComponent(uid)}`); return d.profile || {}; } catch { return {}; }
 }
 async function saveProfile(uid, p) {
-  try { await apiPost("/api/profile", { userId: uid, ...p }); } catch {}
+  try { await apiPost("/api/data", { action: "profile", userId: uid, ...p }); } catch {}
 }
 
 // ── Consent Screen ─────────────────────────────────────────────────────────────
@@ -291,7 +291,7 @@ function ConsentScreen({ user, onConsented }) {
     setSubmitting(true);
 
     try {
-      await apiPost("/api/consent", { userId: user.id });
+      await apiPost("/api/admin", { action: "consent", userId: user.id });
     } catch {}
 
     setEmailStatus("sending");
@@ -458,7 +458,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       const normalizedEmail = email.trim().toLowerCase();
       if (!normalizedEmail) { setError("Please enter your email address."); setBusy(false); return; }
       try {
-        await apiPost("/api/recover-account", { email: normalizedEmail });
+        await apiPost("/api/account", { action: "recover", email: normalizedEmail });
         setRecoverSent(true);
       } catch (e) {
         setError(e.message || "No account found with that email address.");
@@ -616,9 +616,9 @@ function AdminDashboard({ user, onLogout }) {
     if (!confirm(`Delete ${users[key].name} and all their data?`)) return;
     const uid = users[key].id;
     try {
-      await fetch("/api/users", {
+      await fetch("/api/admin", {
         method: "DELETE", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: uid, adminKey: user.adminKey }),
+        body: JSON.stringify({ action: "users", userId: uid, adminKey: user.adminKey }),
       });
     } catch { alert("Failed to delete user."); return; }
     const updated = { ...users };
@@ -642,7 +642,7 @@ function AdminDashboard({ user, onLogout }) {
   async function doReset() {
     if (newPassword.length < 6) { setResetError("Password must be at least 6 characters."); return; }
     try {
-      await apiPost("/api/reset-password", { userId: resetTarget.id, newPassword });
+      await apiPost("/api/account", { action: "reset", userId: resetTarget.id, newPassword });
     } catch { setResetError("Failed to reset password."); return; }
     setResetDone(true);
     setTimeout(() => setResetTarget(null), 1800);
