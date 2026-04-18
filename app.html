@@ -1006,6 +1006,10 @@ function ClientChat({ user, onLogout }) {
   const [showTutorial, setShowTutorial] = useState(false);
   const [logPromptExchanges, setLogPromptExchanges] = useState(0);
   const [showLogPrompt, setShowLogPrompt] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelState, setCancelState] = useState("idle"); // "idle"|"confirming"|"loading"|"done"|"error"
+  const [cancelAt, setCancelAt] = useState(null);
+  const [cancelError, setCancelError] = useState("");
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -1126,6 +1130,23 @@ function ClientChat({ user, onLogout }) {
     a.click();
   }
 
+  async function confirmCancelSubscription() {
+    setCancelState("loading");
+    try {
+      const res = await fetch("/api/cancel-subscription", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to cancel.");
+      setCancelAt(data.cancelAt);
+      setCancelState("done");
+    } catch(e) {
+      setCancelError(e.message || "Something went wrong. Please try again or email nate.parish@gmail.com.");
+      setCancelState("error");
+    }
+  }
+
   async function handleFeedbackUp(msgIndex) {
     setMsgFeedback(f => ({ ...f, [msgIndex]: "up" }));
     const excerpt = messages.slice(Math.max(0, msgIndex - 2), msgIndex + 1).map(m => `${m.role}: ${m.content.slice(0, 200)}`).join("\n");
@@ -1198,6 +1219,7 @@ function ClientChat({ user, onLogout }) {
         ["📈 Progress", () => { setShowProgress(true); setShowMenu(false); }],
         ["📚 Learn", () => { setShowLearn(true); setShowMenu(false); }],
         hasMessages ? ["💾 Export Chat", () => { exportChat(); setShowMenu(false); }] : null,
+        ["Cancel Subscription", () => { setShowCancelModal(true); setCancelState("confirming"); setCancelError(""); setShowMenu(false); }],
         ["Sign Out", () => { setShowMenu(false); onLogout(); }],
       ].filter(Boolean).map(([label, action]) => (
         <button key={label} onClick={action} style={{ padding: "12px 16px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#4a2820", background: "transparent", textAlign: "left", fontWeight: "500", transition: "background 0.15s" }}
@@ -1212,6 +1234,59 @@ function ClientChat({ user, onLogout }) {
       {showTutorial && <Tutorial userId={user.id} onComplete={() => setShowTutorial(false)} />}
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
       {feedbackModal && <FeedbackModal excerpt={feedbackModal.excerpt} onSubmit={submitFeedback} onClose={() => setFeedbackModal(null)} />}
+
+      {showCancelModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)", padding: "20px" }}>
+          <div style={{ background: "#fdf8f4", borderRadius: "24px", padding: "32px", maxWidth: 400, width: "100%", boxShadow: "0 24px 60px rgba(150,80,60,0.22)", fontFamily: "Georgia,serif" }}>
+            {cancelState === "confirming" && (
+              <>
+                <div style={{ fontSize: "28px", textAlign: "center", marginBottom: "12px" }}>⚠️</div>
+                <h3 style={{ color: "#4a2820", textAlign: "center", margin: "0 0 10px", fontSize: "18px", fontWeight: "700" }}>Cancel your subscription?</h3>
+                <p style={{ color: "#7c5040", fontSize: "13px", lineHeight: 1.7, margin: "0 0 10px", textAlign: "center" }}>
+                  Your access will continue until the end of your current billing period. You won't be charged again after that.
+                </p>
+                <p style={{ color: "#b89080", fontSize: "12px", lineHeight: 1.6, margin: "0 0 24px", textAlign: "center" }}>
+                  To reactivate later, you'll need to start a new subscription. Your conversation history will be kept for 30 days after cancellation.
+                </p>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button onClick={() => setShowCancelModal(false)} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", background: "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#7c5040", fontWeight: "600" }}>Keep my subscription</button>
+                  <button onClick={confirmCancelSubscription} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "none", background: "rgba(220,80,80,0.12)", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#c03040", fontWeight: "700" }}>Yes, cancel</button>
+                </div>
+              </>
+            )}
+            {cancelState === "loading" && (
+              <div style={{ textAlign: "center", padding: "16px 0" }}>
+                <div style={{ display: "flex", gap: "5px", justifyContent: "center", marginBottom: "14px" }}>{[0,1,2].map(j => <div key={j} style={{ width: 8, height: 8, borderRadius: "50%", background: "#e8937a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}</div>
+                <div style={{ color: "#9a7060", fontSize: "14px" }}>Cancelling subscription…</div>
+              </div>
+            )}
+            {cancelState === "done" && (
+              <>
+                <div style={{ fontSize: "32px", textAlign: "center", marginBottom: "12px" }}>✅</div>
+                <h3 style={{ color: "#4a2820", textAlign: "center", margin: "0 0 10px", fontSize: "18px", fontWeight: "700" }}>Subscription cancelled</h3>
+                <p style={{ color: "#7c5040", fontSize: "13px", lineHeight: 1.7, margin: "0 0 6px", textAlign: "center" }}>
+                  Your access continues until <strong>{cancelAt ? new Date(cancelAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "the end of your billing period"}</strong>.
+                </p>
+                <p style={{ color: "#b89080", fontSize: "12px", lineHeight: 1.6, margin: "0 0 22px", textAlign: "center" }}>
+                  Questions? Email nate.parish@gmail.com
+                </p>
+                <button onClick={() => setShowCancelModal(false)} style={{ width: "100%", padding: "12px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg,#e8937a,#c9697a)", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#fff", fontWeight: "700" }}>Close</button>
+              </>
+            )}
+            {cancelState === "error" && (
+              <>
+                <div style={{ fontSize: "28px", textAlign: "center", marginBottom: "12px" }}>⚠️</div>
+                <h3 style={{ color: "#4a2820", textAlign: "center", margin: "0 0 10px", fontSize: "18px" }}>Something went wrong</h3>
+                <p style={{ color: "#7c5040", fontSize: "13px", lineHeight: 1.7, margin: "0 0 20px", textAlign: "center" }}>{cancelError}</p>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button onClick={() => setShowCancelModal(false)} style={{ flex: 1, padding: "11px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.25)", background: "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: "13px", color: "#7c5040" }}>Close</button>
+                  <button onClick={() => { setCancelState("confirming"); setCancelError(""); }} style={{ flex: 1, padding: "11px", borderRadius: "12px", border: "none", background: "rgba(220,80,80,0.1)", cursor: "pointer", fontFamily: "inherit", fontSize: "13px", color: "#c03040", fontWeight: "600" }}>Try again</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Conversation sidebar */}
       {showSidebar && (
