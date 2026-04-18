@@ -999,7 +999,8 @@ function ClientChat({ user, onLogout }) {
   const [showLearn, setShowLearn] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [nateSent, setNateSent] = useState(false);
+  const [showConvPicker, setShowConvPicker] = useState(false);
+  const [responseLength, setResponseLength] = useState("long"); // "long" | "short"
   const [feedbackModal, setFeedbackModal] = useState(null); // { msgIndex, excerpt }
   const [msgFeedback, setMsgFeedback] = useState({}); // msgIndex → "up"|"down"
   const [showTutorial, setShowTutorial] = useState(false);
@@ -1025,10 +1026,8 @@ function ClientChat({ user, onLogout }) {
       }
       setConversations(convs);
       if (convs.length > 0) {
-        const firstConv = convs[0];
-        setActiveConvId(firstConv.id);
-        const msgs = await getMessages(user.id, firstConv.id);
-        setMessages(msgs);
+        // Show picker so user chooses to continue or start fresh
+        setShowConvPicker(true);
       }
       setInitializing(false);
     }
@@ -1044,7 +1043,7 @@ function ClientChat({ user, onLogout }) {
   }
 
   async function startNewConversation() {
-    setShowMenu(false); setShowSidebar(false);
+    setShowMenu(false); setShowSidebar(false); setShowConvPicker(false);
     const convId = await createConversation(user.id);
     const newConv = { id: convId, preview: "New conversation", created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
     setConversations(cs => [newConv, ...cs]);
@@ -1054,7 +1053,7 @@ function ClientChat({ user, onLogout }) {
   }
 
   async function switchConversation(convId) {
-    setShowSidebar(false); setShowMenu(false);
+    setShowSidebar(false); setShowMenu(false); setShowConvPicker(false);
     setActiveConvId(convId);
     const msgs = await getMessages(user.id, convId);
     setMessages(msgs);
@@ -1075,6 +1074,7 @@ function ClientChat({ user, onLogout }) {
     if (p.weekly_goal?.trim()) lines.push(`Their goal this week: ${p.weekly_goal.trim()}`);
     if (lines.length > 0) base += `\n\n---\n\n## Client Profile\n\n${lines.join("\n\n")}`;
     if (kb.trim()) base += `\n\n---\n\n## Therapist's Clinical Notes\n\n${kb}`;
+    if (responseLength === "short") base += `\n\n---\n\nRESPONSE LENGTH: The parent has requested short responses. Keep your reply concise — no more than 3–4 short paragraphs. Get to the heart of it quickly. You can still include a Script section if it's an action-mode response, but keep everything tight.`;
     return base;
   }
 
@@ -1126,13 +1126,6 @@ function ClientChat({ user, onLogout }) {
     a.click();
   }
 
-  async function sendToNate() {
-    const transcript = messages.map(m => `${m.role === "user" ? user.name : "Coach"}: ${m.content}`).join("\n\n");
-    const body = `STEADY PARENT COACH \u2014 SESSION NOTES\n\nClient: ${user.name} (@${user.username})\nSent: ${new Date().toLocaleString()}\nMessages: ${messages.length}\n\n${"=".repeat(50)}\n\n${transcript}`;
-    await sendEmail(`Session Notes \u2014 ${user.name}`, body, user.name);
-    setNateSent(true); setTimeout(() => setNateSent(false), 3000);
-  }
-
   async function handleFeedbackUp(msgIndex) {
     setMsgFeedback(f => ({ ...f, [msgIndex]: "up" }));
     const excerpt = messages.slice(Math.max(0, msgIndex - 2), msgIndex + 1).map(m => `${m.role}: ${m.content.slice(0, 200)}`).join("\n");
@@ -1158,6 +1151,40 @@ function ClientChat({ user, onLogout }) {
   if (showProgress) return <ProgressTab user={user} onClose={() => setShowProgress(false)} />;
   if (showLearn) return <LearnTab onClose={() => setShowLearn(false)} />;
 
+  // Conversation picker — shown on login when past conversations exist
+  if (showConvPicker) return (
+    <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: "20px" }}>
+      <div style={{ maxWidth: 480, width: "100%", display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ textAlign: "center", marginBottom: "8px" }}>
+          <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", margin: "0 auto 14px", boxShadow: "0 4px 16px rgba(200,100,100,0.25)" }}>🌿</div>
+          <h2 style={{ color: "#4a2820", fontSize: "20px", fontWeight: "700", margin: "0 0 6px" }}>Welcome back, {user.name.split(" ")[0]}</h2>
+          <p style={{ color: "#9a7060", fontSize: "14px", margin: 0, lineHeight: 1.6 }}>Pick up where you left off, or start fresh.</p>
+        </div>
+
+        <button onClick={startNewConversation} style={{ width: "100%", padding: "16px 18px", borderRadius: "16px", border: "1.5px dashed rgba(200,120,90,0.4)", background: "rgba(255,255,255,0.7)", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(255,240,230,0.95)"}
+          onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.7)"}>
+          <div style={{ fontSize: "15px", fontWeight: "700", color: "#c9697a", marginBottom: "3px" }}>+ Start a new conversation</div>
+          <div style={{ fontSize: "13px", color: "#9a7060" }}>Fresh start — blank slate</div>
+        </button>
+
+        {conversations.length > 0 && (
+          <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", border: "1.5px solid rgba(200,120,90,0.15)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px 8px", fontSize: "12px", fontWeight: "700", color: "#9a7060", letterSpacing: "0.05em" }}>RECENT CONVERSATIONS</div>
+            {conversations.slice(0, 6).map((conv, i) => (
+              <button key={conv.id} onClick={() => switchConversation(conv.id)} style={{ width: "100%", padding: "12px 16px", border: "none", borderTop: i > 0 ? "1px solid rgba(200,120,90,0.08)" : "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.12s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(232,147,122,0.08)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <div style={{ fontSize: "13px", color: "#4a2820", fontWeight: "500", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: "12px" }}>{conv.preview || "Conversation"}</div>
+                <div style={{ fontSize: "11px", color: "#b89080", flexShrink: 0 }}>{new Date(conv.last_message_at || conv.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if (initializing) return (
     <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif" }}>
       <div style={{ color: "#c9697a", fontSize: "14px" }}>Loading your conversations…</div>
@@ -1170,10 +1197,7 @@ function ClientChat({ user, onLogout }) {
         ["👤 My Profile", () => { setShowProfile(true); setShowMenu(false); }],
         ["📈 Progress", () => { setShowProgress(true); setShowMenu(false); }],
         ["📚 Learn", () => { setShowLearn(true); setShowMenu(false); }],
-        ["💬 Conversations", () => { setShowSidebar(true); setShowMenu(false); }],
-        ["+ New Conversation", startNewConversation],
         hasMessages ? ["💾 Export Chat", () => { exportChat(); setShowMenu(false); }] : null,
-        hasMessages ? [nateSent ? "✓ Sent to Nate" : "📨 Send to Nate", () => { sendToNate(); setShowMenu(false); }] : null,
         ["Sign Out", () => { setShowMenu(false); onLogout(); }],
       ].filter(Boolean).map(([label, action]) => (
         <button key={label} onClick={action} style={{ padding: "12px 16px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#4a2820", background: "transparent", textAlign: "left", fontWeight: "500", transition: "background 0.15s" }}
@@ -1216,30 +1240,36 @@ function ClientChat({ user, onLogout }) {
       )}
 
       {/* Header */}
-      <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px" }}>🌿</div>
-          <div>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "#4a2820" }}>Steady Parent Coach</div>
+      <div style={{ background: "rgba(255,255,255,0.72)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(180,120,90,0.15)", padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10, gap: "10px" }}>
+        {/* Left: conversation sidebar arrow */}
+        <button onClick={() => setShowSidebar(s => !s)} title="Conversations" style={{ width: 36, height: 36, borderRadius: "50%", border: "1.5px solid rgba(200,120,90,0.22)", background: showSidebar ? "rgba(232,147,122,0.15)" : "rgba(255,255,255,0.7)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "17px", color: "#c9697a", flexShrink: 0 }}>‹›</button>
+
+        {/* Center: logo + name */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>🌿</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: "14px", fontWeight: "700", color: "#4a2820", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Steady Parent Coach</div>
             <div style={{ fontSize: "11px", color: "#9a7060" }}>Welcome back, {user.name.split(" ")[0]}</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-          {/* Desktop nav */}
-          <div style={{ display: "none", gap: "6px" }} className="desktop-nav">
-            <button onClick={() => setShowProfile(true)} style={{ padding: "6px 12px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.7)", cursor: "pointer", fontFamily: "inherit", fontSize: "12px", color: "#7c4a3a", fontWeight: "600" }}>Profile</button>
-            <button onClick={() => setShowProgress(true)} style={{ padding: "6px 12px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.7)", cursor: "pointer", fontFamily: "inherit", fontSize: "12px", color: "#7c4a3a", fontWeight: "600" }}>Progress</button>
-            <button onClick={() => setShowLearn(true)} style={{ padding: "6px 12px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.7)", cursor: "pointer", fontFamily: "inherit", fontSize: "12px", color: "#7c4a3a", fontWeight: "600" }}>Learn</button>
+
+        {/* Right: response length toggle + hamburger */}
+        <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
+          {/* Response length toggle */}
+          <div style={{ display: "flex", background: "rgba(200,120,90,0.08)", borderRadius: "10px", padding: "3px" }}>
+            {[["short", "Short"], ["long", "Long"]].map(([val, label]) => (
+              <button key={val} onClick={() => setResponseLength(val)} style={{ padding: "5px 10px", borderRadius: "8px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "12px", fontWeight: "600", background: responseLength === val ? "#fff" : "transparent", color: responseLength === val ? "#c9697a" : "#b89080", boxShadow: responseLength === val ? "0 1px 4px rgba(150,80,60,0.12)" : "none", transition: "all 0.15s" }}>{label}</button>
+            ))}
           </div>
           {/* Hamburger */}
           <div style={{ position: "relative" }}>
-            <button onClick={() => setShowMenu(m => !m)} style={{ padding: "7px 10px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.2)", background: showMenu ? "rgba(232,147,122,0.15)" : "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: "16px", color: "#7c4a3a", display: "flex", flexDirection: "column", gap: "4px", alignItems: "center", justifyContent: "center", width: 38, height: 36 }}>
-              {[0,1,2].map(i => <div key={i} style={{ width: 16, height: 1.5, background: "#7c4a3a", borderRadius: 1 }} />)}
+            <button onClick={() => setShowMenu(m => !m)} style={{ padding: "6px 8px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.2)", background: showMenu ? "rgba(232,147,122,0.15)" : "rgba(255,255,255,0.7)", cursor: "pointer", color: "#7c4a3a", display: "flex", flexDirection: "column", gap: "4px", alignItems: "center", justifyContent: "center", width: 36, height: 34 }}>
+              {[0,1,2].map(i => <div key={i} style={{ width: 15, height: 1.5, background: "#7c4a3a", borderRadius: 1 }} />)}
             </button>
             {showMenu && (
               <>
                 <div onClick={() => setShowMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 29 }} />
-                <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", background: "#fdf8f4", borderRadius: "16px", boxShadow: "0 8px 30px rgba(150,80,60,0.18)", padding: "8px", minWidth: 210, zIndex: 30, border: "1px solid rgba(200,120,90,0.12)", animation: "fadeUp 0.15s ease" }}>
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", background: "#fdf8f4", borderRadius: "16px", boxShadow: "0 8px 30px rgba(150,80,60,0.18)", padding: "8px", minWidth: 200, zIndex: 30, border: "1px solid rgba(200,120,90,0.12)", animation: "fadeUp 0.15s ease" }}>
                   <MenuItems />
                 </div>
               </>
