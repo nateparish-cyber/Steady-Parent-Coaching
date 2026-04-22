@@ -59,6 +59,13 @@
     transition: transform 0.15s, box-shadow 0.15s;
   }
   .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(200,100,100,0.35); }
+  .nav-login {
+    color: var(--warm); font-size: 14px; font-weight: 500;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .nav-login:hover { color: var(--rose); }
+  .nav-actions { display: flex; align-items: center; gap: 20px; }
 
   /* ── HERO ── */
   .hero {
@@ -451,7 +458,10 @@
     <span class="leaf">🌿</span>
     Steady Parent Coach
   </div>
-  <a href="/app" class="nav-cta">Start Free Trial</a>
+  <div class="nav-actions">
+    <a href="/app" class="nav-login">Log In</a>
+    <a href="/app" class="nav-cta">Start Free Trial</a>
+  </div>
 </nav>
 
 <!-- HERO -->
