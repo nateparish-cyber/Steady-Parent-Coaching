@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const user = data?.[0];
     if (!user) return res.status(404).json({ error: "No account found with that email address." });
 
-    const tempPw = "temp-" + Math.random().toString(36).slice(2, 8);
+    const tempPw = "temp-" + require("crypto").randomBytes(6).toString("base64url").slice(0, 8);
     const passwordHash = await hashPassword(tempPw);
     await supabase("PATCH", `/users?id=eq.${user.id}`, { password_hash: passwordHash });
 

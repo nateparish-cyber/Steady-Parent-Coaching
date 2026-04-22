@@ -20,6 +20,8 @@ async function sbPatch(path, body, key) {
 
 const PRICE_ID = 'price_1TMKc2HZwOOLEsb2l9bqAWM5';
 const TRIAL_DAYS = 7;
+const ALLOWED_ORIGINS = ['https://www.steadyparentingcoach.com', 'https://steadyparentingcoach.com', 'http://localhost:3000'];
+function safeOrigin(origin) { return ALLOWED_ORIGINS.includes(origin) ? origin : 'https://www.steadyparentingcoach.com'; }
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -64,8 +66,8 @@ module.exports = async (req, res) => {
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: 'subscription',
       subscription_data: { trial_period_days: TRIAL_DAYS },
-      success_url: `${req.headers.origin || 'https://www.steadyparentingcoach.com'}/app?checkout=success`,
-      cancel_url: `${req.headers.origin || 'https://www.steadyparentingcoach.com'}/app?checkout=cancelled`,
+      success_url: `${safeOrigin(req.headers.origin)}/app?checkout=success`,
+      cancel_url: `${safeOrigin(req.headers.origin)}/app?checkout=cancelled`,
       metadata: { userId },
     });
 

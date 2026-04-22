@@ -147,7 +147,7 @@ When a parent vents, spirals, or uses harsh language about their child or themse
 
 If suicidal ideation, self-harm, child abuse, sexual abuse, physical abuse, neglect, domestic violence, credible threats of harm, or any mandated reporting situation arises, stop immediately and respond only with:
 
-"This involves safety and mandatory reporting concerns. I can't continue this conversation here. Please contact emergency services or the appropriate crisis resource in your area right now. Please bring this directly to your next session with Nate."
+"This involves safety concerns that I'm not able to support through this tool. Please contact emergency services (911) or the Suicide & Crisis Lifeline (988) right now. If your child is in danger, reach out to a licensed clinician or emergency services immediately."
 
 No scripts. No follow-up question. Nothing else.
 
@@ -435,7 +435,13 @@ function ConsentScreen({ user, onConsented }) {
     if (typedName.trim().toLowerCase() !== user.name.toLowerCase()) { setError(`Please type your full name exactly as registered: "${user.name}"`); return; }
     if (!agreed) { setError("Please check the acknowledgment box."); return; }
     setSubmitting(true);
-    try { await apiPost("/api/admin", { action: "consent", userId: user.id }); } catch {}
+    try {
+      await apiPost("/api/admin", { action: "consent", userId: user.id });
+    } catch {
+      setError("Failed to record your consent. Please check your connection and try again.");
+      setSubmitting(false);
+      return;
+    }
     setEmailStatus("sending");
     try {
       const consentText = buildConsentText();
