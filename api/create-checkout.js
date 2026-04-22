@@ -1,11 +1,22 @@
 const Stripe = require('stripe');
-const { createClient } = require('@supabase/supabase-js');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const SUPABASE_URL = 'https://hxljtpfdfdjocbcbuytq.supabase.co';
+
+async function sbGet(path, key) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+  });
+  return r.json();
+}
+
+async function sbPatch(path, body, key) {
+  return fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    method: 'PATCH',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+}
 
 const PRICE_ID = 'price_1TMKc2HZwOOLEsb2l9bqAWM5';
 const TRIAL_DAYS = 7;
@@ -17,16 +28,16 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!sbKey) return res.status(500).json({ error: 'Server configuration error' });
+
   try {
     const { userId, email, name } = req.body;
     if (!userId || !email) return res.status(400).json({ error: 'Missing userId or email' });
 
     // Check if user already has a Stripe customer ID
-    const { data: user } = await supabase
-      .from('users')
-      .select('stripe_customer_id, grandfathered, subscription_status')
-      .eq('id', userId)
-      .single();
+    const rows = await sbGet(`/users?id=eq.${encodeURIComponent(userId)}&select=stripe_customer_id,grandfathered,subscription_status`, sbKey);
+    const user = rows?.[0] ?? null;
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -43,7 +54,7 @@ module.exports = async (req, res) => {
     if (!customerId) {
       const customer = await stripe.customers.create({ email, name });
       customerId = customer.id;
-      await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', userId);
+      await sbPatch(`/users?id=eq.${encodeURIComponent(userId)}`, { stripe_customer_id: customerId }, sbKey);
     }
 
     // Create Checkout session with 7-day trial

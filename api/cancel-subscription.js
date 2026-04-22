@@ -1,11 +1,22 @@
 const Stripe = require('stripe');
-const { createClient } = require('@supabase/supabase-js');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const SUPABASE_URL = 'https://hxljtpfdfdjocbcbuytq.supabase.co';
+
+async function sbGet(path, key) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+  });
+  return r.json();
+}
+
+async function sbPatch(path, body, key) {
+  return fetch(`${SUPABASE_URL}/rest/v1${path}`, {
+    method: 'PATCH',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(body),
+  });
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -14,15 +25,15 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  const sbKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!sbKey) return res.status(500).json({ error: 'Server configuration error' });
+
   try {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'Missing userId' });
 
-    const { data: user } = await supabase
-      .from('users')
-      .select('stripe_customer_id, subscription_id, subscription_status, grandfathered')
-      .eq('id', userId)
-      .single();
+    const rows = await sbGet(`/users?id=eq.${encodeURIComponent(userId)}&select=stripe_customer_id,subscription_id,subscription_status,grandfathered`, sbKey);
+    const user = rows?.[0] ?? null;
 
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.grandfathered) return res.status(400).json({ error: 'Grandfathered accounts cannot be cancelled here. Contact nate.parish@gmail.com.' });
@@ -41,7 +52,7 @@ module.exports = async (req, res) => {
     const cancelled = await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
 
     // Update DB
-    await supabase.from('users').update({ subscription_status: 'canceling' }).eq('id', userId);
+    await sbPatch(`/users?id=eq.${encodeURIComponent(userId)}`, { subscription_status: 'canceling' }, sbKey);
 
     res.status(200).json({
       success: true,
