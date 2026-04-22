@@ -1226,7 +1226,7 @@ function ClientChat({ user, onLogout }) {
         ["📚 Learn", () => { setShowLearn(true); setShowMenu(false); }],
         hasMessages ? ["💾 Export Chat", () => { exportChat(); setShowMenu(false); }] : null,
         ["Cancel Subscription", () => { setShowCancelModal(true); setCancelState("confirming"); setCancelError(""); setShowMenu(false); }],
-        ["Sign Out", () => { setShowMenu(false); onLogout(); }],
+        ["Sign Out", () => { setShowMenu(false); localStorage.removeItem(`spc-tutorial-done-${user.id}`); onLogout(); }],
       ].filter(Boolean).map(([label, action]) => (
         <button key={label} onClick={action} style={{ padding: "12px 16px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#4a2820", background: "transparent", textAlign: "left", fontWeight: "500", transition: "background 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.background = "rgba(232,147,122,0.1)"}

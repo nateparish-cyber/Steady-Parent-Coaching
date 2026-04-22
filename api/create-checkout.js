@@ -1,4 +1,4 @@
-const Stripe = require('stripe');
+import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const SUPABASE_URL = 'https://hxljtpfdfdjocbcbuytq.supabase.co';
@@ -23,7 +23,7 @@ const TRIAL_DAYS = 7;
 const ALLOWED_ORIGINS = ['https://www.steadyparentingcoach.com', 'https://steadyparentingcoach.com', 'http://localhost:3000'];
 function safeOrigin(origin) { return ALLOWED_ORIGINS.includes(origin) ? origin : 'https://www.steadyparentingcoach.com'; }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -71,9 +71,9 @@ module.exports = async (req, res) => {
       metadata: { userId },
     });
 
-    res.status(200).json({ url: session.url });
+    return res.status(200).json({ url: session.url });
   } catch (err) {
     console.error('create-checkout error:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
-};
+}

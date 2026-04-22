@@ -36,7 +36,7 @@ async function verifyPassword(password, stored) {
 async function supabase(method, path, body) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
     method,
-    headers: { ...SUPA_HEADERS, "Prefer": method === "POST" ? "return=representation" : "return=representation" },
+    headers: { ...SUPA_HEADERS, ...(method === "GET" ? {} : { "Prefer": "return=representation" }) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json();
