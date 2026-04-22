@@ -13,11 +13,14 @@ export default async function handler(req, res) {
   const valid = await verifyPassword(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: "Incorrect username or password." });
 
-  // Upgrade old weak hash to PBKDF2 transparently
-  if (!user.password_hash.startsWith("pbkdf2:")) {
-    const newHash = await hashPassword(password);
-    await supabase("PATCH", `/users?id=eq.${user.id}`, { password_hash: newHash });
-  }
+  // Generate session token
+  const { randomBytes } = await import("crypto");
+  const sessionToken = randomBytes(32).toString("hex");
+
+  // Upgrade old weak hash to PBKDF2 + save session token
+  const patch = { session_token: sessionToken };
+  if (!user.password_hash.startsWith("pbkdf2:")) patch.password_hash = await hashPassword(password);
+  await supabase("PATCH", `/users?id=eq.${user.id}`, patch);
 
   return res.status(200).json({
     user: {
@@ -26,6 +29,7 @@ export default async function handler(req, res) {
       username: user.username,
       email: user.email,
       consentSigned: user.consent_signed,
+      sessionToken,
       role: "client",
     },
   });

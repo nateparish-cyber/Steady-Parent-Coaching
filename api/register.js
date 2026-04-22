@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { hashPassword, supabase } from "./_auth-helpers.js";
 
 export default async function handler(req, res) {
@@ -15,6 +16,7 @@ export default async function handler(req, res) {
 
   const id = "u_" + Date.now().toString(36);
   const passwordHash = await hashPassword(password);
+  const sessionToken = randomBytes(32).toString("hex");
 
   const { ok, data } = await supabase("POST", "/users", {
     id,
@@ -22,6 +24,7 @@ export default async function handler(req, res) {
     username,
     email: email.toLowerCase(),
     password_hash: passwordHash,
+    session_token: sessionToken,
     created_at: new Date().toISOString(),
     consent_signed: false,
   });
@@ -30,6 +33,6 @@ export default async function handler(req, res) {
 
   const user = data[0];
   return res.status(200).json({
-    user: { id: user.id, name: user.name, username: user.username, email: user.email, role: "client" },
+    user: { id: user.id, name: user.name, username: user.username, email: user.email, sessionToken, role: "client" },
   });
 }

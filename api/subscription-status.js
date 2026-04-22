@@ -1,3 +1,5 @@
+import { verifySession } from './_auth-helpers.js';
+
 const SUPABASE_URL = 'https://hxljtpfdfdjocbcbuytq.supabase.co';
 
 export default async function handler(req, res) {
@@ -11,8 +13,11 @@ export default async function handler(req, res) {
   if (!sbKey) return res.status(500).json({ error: 'Server configuration error' });
 
   try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    const { userId, sessionToken } = req.body;
+    if (!userId || !sessionToken) return res.status(400).json({ error: 'Missing userId or sessionToken' });
+
+    const valid = await verifySession(userId, sessionToken);
+    if (!valid) return res.status(403).json({ error: 'Unauthorized' });
 
     const r = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(userId)}&select=grandfathered,subscription_status,trial_end,stripe_customer_id`, {
       headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' },

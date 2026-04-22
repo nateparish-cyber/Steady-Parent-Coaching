@@ -1141,7 +1141,7 @@ function ClientChat({ user, onLogout }) {
     try {
       const res = await fetch("/api/cancel-subscription", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: user.id, sessionToken: user.sessionToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to cancel.");
@@ -1754,7 +1754,7 @@ function SubscriptionGate({ user, onActivated, onLogout }) {
   useEffect(() => {
     async function check() {
       try {
-        const res = await fetch("/api/subscription-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id }) });
+        const res = await fetch("/api/subscription-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, sessionToken: user.sessionToken }) });
         const data = await res.json();
         if (data.active) { onActivated(); return; }
         setLoading(false);

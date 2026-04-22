@@ -43,4 +43,16 @@ async function supabase(method, path, body) {
   return { ok: res.ok, data };
 }
 
-export { hashPassword, verifyPassword, supabase };
+// Verify that a sessionToken belongs to userId
+async function verifySession(userId, sessionToken) {
+  if (!userId || !sessionToken) return false;
+  const { data } = await supabase("GET", `/users?id=eq.${encodeURIComponent(userId)}&select=session_token`);
+  const stored = data?.[0]?.session_token;
+  if (!stored || stored.length !== sessionToken.length) return false;
+  // Constant-time comparison
+  const a = Buffer.from(stored);
+  const b = Buffer.from(sessionToken);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+export { hashPassword, verifyPassword, supabase, verifySession };

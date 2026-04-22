@@ -1,4 +1,5 @@
-const Stripe = require('stripe');
+import Stripe from 'stripe';
+import { verifySession } from './_auth-helpers.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const SUPABASE_URL = 'https://hxljtpfdfdjocbcbuytq.supabase.co';
@@ -18,7 +19,7 @@ async function sbPatch(path, body, key) {
   });
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -29,8 +30,11 @@ module.exports = async (req, res) => {
   if (!sbKey) return res.status(500).json({ error: 'Server configuration error' });
 
   try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    const { userId, sessionToken } = req.body;
+    if (!userId || !sessionToken) return res.status(400).json({ error: 'Missing userId or sessionToken' });
+
+    const valid = await verifySession(userId, sessionToken);
+    if (!valid) return res.status(403).json({ error: 'Unauthorized' });
 
     const rows = await sbGet(`/users?id=eq.${encodeURIComponent(userId)}&select=stripe_customer_id,subscription_id,subscription_status,grandfathered`, sbKey);
     const user = rows?.[0] ?? null;
@@ -54,12 +58,12 @@ module.exports = async (req, res) => {
     // Update DB
     await sbPatch(`/users?id=eq.${encodeURIComponent(userId)}`, { subscription_status: 'canceling' }, sbKey);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       cancelAt: new Date(cancelled.current_period_end * 1000).toISOString(),
     });
   } catch (err) {
     console.error('cancel-subscription error:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
-};
+}

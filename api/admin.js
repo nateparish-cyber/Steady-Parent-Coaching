@@ -1,5 +1,30 @@
 // Handles: consent (POST), users (GET/DELETE), kb (GET/POST)
+import { timingSafeEqual } from "crypto";
+
 const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
+
+// In-memory rate limiter: tracks failed admin attempts by IP
+const failedAttempts = new Map();
+const MAX_ATTEMPTS = 10;
+const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const record = failedAttempts.get(ip);
+  if (!record) return false;
+  if (now - record.windowStart > WINDOW_MS) { failedAttempts.delete(ip); return false; }
+  return record.count >= MAX_ATTEMPTS;
+}
+
+function recordFailedAttempt(ip) {
+  const now = Date.now();
+  const record = failedAttempts.get(ip);
+  if (!record || now - record.windowStart > WINDOW_MS) {
+    failedAttempts.set(ip, { count: 1, windowStart: now });
+  } else {
+    record.count++;
+  }
+}
 
 function sb(path, { method = "GET", body, prefer } = {}) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,7 +42,15 @@ function sb(path, { method = "GET", body, prefer } = {}) {
 
 function isAdmin(req) {
   const key = req.body?.adminKey || req.query?.adminKey;
-  return key && process.env.ADMIN_PASSWORD && key === process.env.ADMIN_PASSWORD;
+  const expected = process.env.ADMIN_PASSWORD;
+  if (!key || !expected) return false;
+  try {
+    const a = Buffer.from(key.padEnd(expected.length));
+    const b = Buffer.from(expected.padEnd(key.length));
+    // Both must be same length for timingSafeEqual
+    if (key.length !== expected.length) return false;
+    return timingSafeEqual(Buffer.from(key), Buffer.from(expected));
+  } catch { return false; }
 }
 
 export default async function handler(req, res) {
@@ -47,7 +80,12 @@ export default async function handler(req, res) {
   }
 
   // ── Admin-only operations ─────────────────────────────────────────────────
-  if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
+  if (isRateLimited(ip)) return res.status(429).json({ error: "Too many failed attempts. Try again later." });
+  if (!isAdmin(req)) {
+    recordFailedAttempt(ip);
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
   // KB write
   if (action === "kb" && req.method === "POST") {
@@ -64,13 +102,16 @@ export default async function handler(req, res) {
     return res.status(200).json({ users: await r.json() || [] });
   }
 
-  // User delete
+  // User delete — atomic via stored procedure
   if (action === "users" && req.method === "DELETE") {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: "Missing userId" });
-    await sb(`/messages?user_id=eq.${encodeURIComponent(userId)}`, { method: "DELETE" });
-    await sb(`/profiles?user_id=eq.${encodeURIComponent(userId)}`, { method: "DELETE" });
-    const r = await sb(`/users?id=eq.${encodeURIComponent(userId)}`, { method: "DELETE" });
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/delete_user_cascade`, {
+      method: "POST",
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ uid: userId }),
+    });
     if (!r.ok) return res.status(500).json({ error: "Failed to delete user" });
     return res.status(200).json({ success: true });
   }
