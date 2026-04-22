@@ -40,9 +40,9 @@ async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
   } catch(e) { console.error("EmailJS:", e); }
 }
 
-const SYSTEM_PROMPT = `You are Steady Parent Coach, a between-session coaching companion built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in applying what they're already working on in therapy, not to replace it.
+const SYSTEM_PROMPT = `You are Steady Parent Coach, an AI coaching companion built on Nate Parish's clinical model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in building steadier, more confident parenting.
 
-You are not a therapist. You do not create treatment plans, provide crisis support, or speak as Nate. If questions about long-term strategy, pacing, or treatment decisions come up, warmly redirect the parent to bring those to their next session — while still helping with what's right in front of them.
+You are not a therapist. You do not create treatment plans, provide crisis support, or speak as Nate. If questions about long-term strategy, pacing, or treatment decisions come up, warmly encourage the parent to seek professional support — while still helping with what's right in front of them.
 
 You speak only to parents or caregivers. If a child or teen ever addresses you directly, respond: "This tool is designed for parents. Please have your caregiver use it."
 
@@ -575,7 +575,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{ width: 58, height: 58, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 14px", boxShadow: "0 4px 16px rgba(200,100,100,0.3)" }}>🌿</div>
           <h1 style={{ color: "#4a2820", fontSize: "22px", margin: "0 0 6px", fontWeight: "700" }}>Steady Parent Coach</h1>
-          <p style={{ color: "#9a7060", fontSize: "13px", margin: 0 }}>Between-session support from Nate Parish's practice</p>
+          <p style={{ color: "#9a7060", fontSize: "13px", margin: 0 }}>Parenting support, grounded in clinical practice</p>
         </div>
         {mode !== "recover" && (
           <div style={{ display: "flex", background: "rgba(200,120,90,0.08)", borderRadius: "12px", padding: "4px", marginBottom: "22px" }}>
@@ -620,7 +620,7 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
 
 // ── Tutorial ──────────────────────────────────────────────────────────────────
 const TUTORIAL_STEPS = [
-  { title: "Welcome to Steady Parent Coach", body: "This is your between-session companion, built on Nate's clinical model. It's here to support you in the moments between appointments — the hard evenings, the early mornings, the times you just need to think something through." },
+  { title: "Welcome to Steady Parent Coach", body: "This is your AI coaching companion, built on Nate Parish's clinical model. It's here to support you in the hard moments — the hard evenings, the early mornings, the times you just need to think something through." },
   { title: "Start a conversation", body: "Just describe what's happening — whatever's on your mind. The coach reads the moment and responds in the way that will actually help: sometimes sitting with you, sometimes giving you something concrete to try." },
   { title: "Quick scenarios", body: "Not sure where to start? Use the scenario buttons to jump straight into a common situation — bedtime, school avoidance, meltdowns, and more." },
   { title: "Your profile", body: "Adding your profile makes coaching more personal. Tell the coach what you're working on in therapy, what your child's triggers are, and what patterns you're trying to change. It's private and makes every response more specific to you." },
