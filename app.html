@@ -167,6 +167,20 @@ const SCENARIOS = [
   { label: "Won't start tasks", prompt: "My child knows what they need to do but just won't start. Homework, getting dressed, anything. It's like they're frozen." },
 ];
 
+const WELCOME_MESSAGE = `Welcome — I'm glad you're here. 🌿
+
+You don't need to know exactly what to say. Just bring whatever's on your mind and we'll figure out where to start together.
+
+**Some places parents often begin:**
+• A specific moment that didn't go the way you wanted — "Last night at bedtime…" or "This morning before school…"
+• A pattern you keep running into — something that happens regularly and leaves you stuck
+• A question about what's actually going on — "Why does reassurance seem to make it worse?" or "Why can't they just start the homework?"
+• Something you want to try differently — a limit you've been avoiding, a script that doesn't feel right
+
+**You can also explore the Learn tab** — it walks through the anxiety cycle, why accommodation backfires, what's happening in the brain during a meltdown, and how the ADHD system works. A lot of parents find it useful to read through a section and then come back here with questions.
+
+What's coming up for you right now?`;
+
 const LEARN_ANXIETY = [
   {
     scene: "The Anxiety Cycle",
@@ -1266,6 +1280,7 @@ function ClientChat({ user, onLogout }) {
       const [kbData, profileData] = await Promise.all([getKB(), getProfile(user.id)]);
       setKb(kbData); setProfile(profileData);
       let convs = await getConversations(user.id);
+      let skipPicker = false;
       if (convs.length === 0) {
         // Check for legacy messages
         const { data: legacy } = await db.from('messages').select('id').eq('user_id', user.id).limit(1);
@@ -1273,10 +1288,19 @@ function ClientChat({ user, onLogout }) {
           const convId = await createConversation(user.id, "Previous conversations");
           await db.from('messages').update({ conversation_id: convId }).eq('user_id', user.id).is('conversation_id', null);
           convs = [{ id: convId, preview: "Previous conversations", created_at: new Date().toISOString(), last_message_at: new Date().toISOString() }];
+        } else {
+          // Brand new user — seed their first conversation with a welcome message
+          const convId = await createConversation(user.id, "Welcome");
+          const welcomeMsg = { role: "assistant", content: WELCOME_MESSAGE };
+          await appendMessages(user.id, convId, [welcomeMsg]);
+          convs = [{ id: convId, preview: "Welcome", created_at: new Date().toISOString(), last_message_at: new Date().toISOString() }];
+          setActiveConvId(convId);
+          setMessages([welcomeMsg]);
+          skipPicker = true;
         }
       }
       setConversations(convs);
-      if (convs.length > 0) {
+      if (convs.length > 0 && !skipPicker) {
         // Show picker so user chooses to continue or start fresh
         setShowConvPicker(true);
       }
