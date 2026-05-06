@@ -887,6 +887,242 @@ function ProgressTab({ user, onClose }) {
   );
 }
 
+// ── Learn Visuals ─────────────────────────────────────────────────────────────
+function AnxietyCycleVisual({ C }) {
+  const steps = [
+    { emoji: "⚡", label: "Trigger", sub: "Something feels threatening" },
+    { emoji: "🚨", label: "Alarm fires", sub: "Nervous system activates" },
+    { emoji: "😟", label: "Child seeks relief", sub: "Reassurance or avoidance" },
+    { emoji: "😮‍💨", label: "Temporary relief", sub: "The fear fades… briefly" },
+    { emoji: "🔄", label: "Loop repeats", sub: "Stronger every cycle" },
+  ];
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "12px" }}>THE WORRY LOOP</div>
+      {steps.map((s, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: i === steps.length - 1 ? `linear-gradient(135deg,${C.accent},${C.accent2})` : "rgba(255,255,255,0.9)", border: `2px solid ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>{s.emoji}</div>
+            {i < steps.length - 1 && <div style={{ width: 2, height: 18, background: `linear-gradient(${C.accent},${C.accent2})`, margin: "2px 0" }} />}
+          </div>
+          <div style={{ paddingTop: "8px", paddingBottom: i < steps.length - 1 ? "0" : "0" }}>
+            <div style={{ fontSize: "13px", fontWeight: "700", color: C.text }}>{s.label}</div>
+            <div style={{ fontSize: "12px", color: "#9a7060", lineHeight: 1.4, marginBottom: "4px" }}>{s.sub}</div>
+          </div>
+        </div>
+      ))}
+      <div style={{ marginTop: "12px", padding: "10px 14px", background: "rgba(232,147,122,0.1)", borderRadius: "10px", fontSize: "12px", color: C.text, fontStyle: "italic", lineHeight: 1.5 }}>
+        Each cycle reinforces the pattern — relief feels good, so the brain keeps seeking it.
+      </div>
+    </div>
+  );
+}
+
+function AccommodationVisual({ C }) {
+  const rows = [
+    { intent: "\"I'll just answer this once\"", impact: "The question comes back louder" },
+    { intent: "\"Staying will help them sleep\"", impact: "Sleep independence never develops" },
+    { intent: "\"Skip the party this time\"", impact: "Social avoidance grows stronger" },
+    { intent: "\"I'll carry the backpack\"", impact: "Their capacity to manage stays low" },
+  ];
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "12px" }}>ACCOMMODATION IN ACTION</div>
+      <div style={{ borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.07)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+          <div style={{ padding: "8px 12px", background: "rgba(232,147,122,0.2)", fontSize: "11px", fontWeight: "700", color: C.accent }}>✓ FEELS HELPFUL</div>
+          <div style={{ padding: "8px 12px", background: "rgba(200,80,80,0.12)", fontSize: "11px", fontWeight: "700", color: "#c05050" }}>✗ ACTUAL IMPACT</div>
+          {rows.map((r, i) => (
+            <React.Fragment key={i}>
+              <div style={{ padding: "10px 12px", background: "rgba(255,255,255,0.7)", borderTop: "1px solid rgba(0,0,0,0.05)", fontSize: "12px", color: "#5a4030", lineHeight: 1.4, fontStyle: "italic" }}>{r.intent}</div>
+              <div style={{ padding: "10px 12px", background: "rgba(255,240,240,0.7)", borderTop: "1px solid rgba(0,0,0,0.05)", fontSize: "12px", color: "#905050", lineHeight: 1.4 }}>{r.impact}</div>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BrainVisual({ C }) {
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "12px" }}>THE TWO-PART BRAIN</div>
+      <div style={{ borderRadius: "12px", overflow: "hidden", marginBottom: "16px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)" }}>
+        <div style={{ background: `linear-gradient(135deg,${C.accent},${C.accent2})`, padding: "14px 18px" }}>
+          <div style={{ color: "#fff", fontSize: "14px", fontWeight: "700" }}>🧠 Upstairs Brain</div>
+          <div style={{ color: "rgba(255,255,255,0.85)", fontSize: "12px", marginTop: "3px" }}>Prefrontal Cortex — thinking, reasoning, planning, empathy</div>
+          <div style={{ marginTop: "8px", padding: "6px 10px", background: "rgba(255,255,255,0.2)", borderRadius: "8px", fontSize: "11px", color: "#fff" }}>⚠️ Goes offline when the alarm fires</div>
+        </div>
+        <div style={{ height: "3px", background: `repeating-linear-gradient(90deg,${C.accent} 0,${C.accent} 8px,transparent 8px,transparent 16px)` }} />
+        <div style={{ background: "rgba(180,100,80,0.12)", padding: "14px 18px" }}>
+          <div style={{ color: C.text, fontSize: "14px", fontWeight: "700" }}>🚨 Downstairs Brain</div>
+          <div style={{ color: "#7a5040", fontSize: "12px", marginTop: "3px" }}>Amygdala — survival, emotion, threat detection</div>
+          <div style={{ marginTop: "8px", padding: "6px 10px", background: "rgba(200,120,90,0.12)", borderRadius: "8px", fontSize: "11px", color: "#7a5040" }}>Fast and automatic — takes over under stress</div>
+        </div>
+      </div>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "10px" }}>WINDOW OF TOLERANCE</div>
+      <div style={{ position: "relative", height: "56px", borderRadius: "10px", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, rgba(100,150,220,0.35), rgba(100,200,130,0.4) 30%, rgba(100,200,130,0.4) 70%, rgba(220,100,100,0.35))" }} />
+        <div style={{ position: "absolute", top: 0, left: "30%", right: "30%", bottom: 0, borderLeft: "2px dashed rgba(80,160,100,0.5)", borderRight: "2px dashed rgba(80,160,100,0.5)" }} />
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
+          <div style={{ fontSize: "11px", color: "#5060a0", fontWeight: "700", textAlign: "center" }}>😶<br/>Shutdown</div>
+          <div style={{ fontSize: "11px", color: "#30803a", fontWeight: "700", textAlign: "center" }}>✅<br/>Regulated</div>
+          <div style={{ fontSize: "11px", color: "#c05050", fontWeight: "700", textAlign: "center" }}>😤<br/>Flooded</div>
+        </div>
+      </div>
+      <div style={{ fontSize: "11px", color: "#9a7060", marginTop: "8px", textAlign: "center" }}>Goal: widen the window over time — not eliminate all activation</div>
+    </div>
+  );
+}
+
+function SteadyParentVisual({ C }) {
+  const quads = [
+    { label: "Permissive", desc: "Warm · No limits", icon: "🤗", highlight: false },
+    { label: "✨ Steady", desc: "Warm AND firm", icon: "💪", highlight: true },
+    { label: "Uninvolved", desc: "Neither", icon: "😐", highlight: false },
+    { label: "Harsh", desc: "Firm · No warmth", icon: "😬", highlight: false },
+  ];
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "12px" }}>WARMTH × FIRMNESS</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "12px" }}>
+        {quads.map((q, i) => (
+          <div key={i} style={{ padding: "14px 12px", borderRadius: "12px", background: q.highlight ? `linear-gradient(135deg,${C.accent}18,${C.accent2}18)` : "rgba(255,255,255,0.5)", border: q.highlight ? `2px solid ${C.accent}` : "1px solid rgba(0,0,0,0.06)", textAlign: "center" }}>
+            <div style={{ fontSize: "22px", marginBottom: "4px" }}>{q.icon}</div>
+            <div style={{ fontSize: "12px", fontWeight: "700", color: q.highlight ? C.accent : C.text }}>{q.label}</div>
+            <div style={{ fontSize: "11px", color: "#9a7060" }}>{q.desc}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: "10px 14px", background: "rgba(232,147,122,0.1)", borderRadius: "10px", fontSize: "12px", color: C.text, lineHeight: 1.5 }}>
+        Warmth without firmness = accommodation. Firmness without warmth = harshness. The goal is both simultaneously.
+      </div>
+    </div>
+  );
+}
+
+function ADHDBrainVisual({ C }) {
+  const items = [
+    { label: "Interest / Passion", pct: 95, active: true },
+    { label: "Novelty / Challenge", pct: 88, active: true },
+    { label: "Urgency / Deadline", pct: 78, active: true },
+    { label: "\"This is important\"", pct: 18, active: false },
+    { label: "Rewards / Consequences", pct: 22, active: false },
+  ];
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "4px" }}>WHAT ACTIVATES THE ADHD BRAIN</div>
+      <div style={{ fontSize: "12px", color: "#7a6080", marginBottom: "14px" }}>The ADHD brain runs on interest — not importance.</div>
+      {items.map((item, i) => (
+        <div key={i} style={{ marginBottom: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+            <span style={{ fontSize: "12px", color: C.text, fontWeight: item.active ? "700" : "400" }}>{item.label}</span>
+            <span style={{ fontSize: "11px", color: item.active ? C.accent : "#b0b0b0", fontWeight: "700" }}>{item.active ? "✓ Activates" : "✗ Weak signal"}</span>
+          </div>
+          <div style={{ height: "8px", background: "rgba(0,0,0,0.08)", borderRadius: "4px", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${item.pct}%`, background: item.active ? `linear-gradient(to right,${C.accent},${C.accent2})` : "#d0d0d0", borderRadius: "4px" }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DopamineVisual({ C }) {
+  const states = [
+    { label: "Depleted", icon: "🪫", pct: 10, color: "#e09030", desc: "Flat or irritable · Tasks impossible · Needs movement & low-demand connection" },
+    { label: "Regulated", icon: "✅", pct: 65, color: "#50b060", desc: "Manageable · Can engage · Maintain with structure & novelty" },
+    { label: "Flooded", icon: "🌊", pct: 100, color: "#e05050", desc: "Logic offline · Needs calm presence & reduced demands" },
+  ];
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "12px" }}>THE THREE BRAIN STATES</div>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "14px" }}>
+        {states.map((s, i) => (
+          <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.7)", borderRadius: "12px", padding: "12px 10px", border: `1.5px solid ${s.color}33`, textAlign: "center" }}>
+            <div style={{ fontSize: "22px", marginBottom: "6px" }}>{s.icon}</div>
+            <div style={{ height: "56px", background: "rgba(0,0,0,0.06)", borderRadius: "6px", margin: "0 auto 8px", width: "24px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: `${s.pct}%`, background: s.color, borderRadius: "4px 4px 0 0" }} />
+            </div>
+            <div style={{ fontSize: "12px", fontWeight: "700", color: s.color }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+      {states.map((s, i) => (
+        <div key={i} style={{ padding: "8px 12px", background: `${s.color}12`, borderRadius: "8px", marginBottom: "6px", display: "flex", gap: "8px", alignItems: "flex-start" }}>
+          <span style={{ fontSize: "13px", flexShrink: 0 }}>{s.icon}</span>
+          <div style={{ fontSize: "12px", color: "#5a4060", lineHeight: 1.5 }}><strong style={{ color: s.color }}>{s.label}:</strong> {s.desc}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ParentSeesVisual({ C }) {
+  const rows = [
+    { see: "Won't start homework", happening: "Genuine initiation deficit — can't bridge 'should' to 'doing'" },
+    { see: "Ignores instructions", happening: "Working memory gap — the rule isn't accessible in the moment" },
+    { see: "No sense of time passing", happening: "Time blindness — internal clock is neurologically unreliable" },
+    { see: "Melts down over small things", happening: "Rejection sensitive dysphoria — criticism lands as devastating" },
+    { see: "Refuses when asked directly", happening: "Demand avoidance — control triggers automatic threat response" },
+  ];
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "12px" }}>BEHAVIOR → WHAT'S ACTUALLY HAPPENING</div>
+      {rows.map((r, i) => (
+        <div key={i} style={{ marginBottom: "8px", borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ padding: "8px 12px", background: "rgba(122,90,201,0.12)", fontSize: "12px", fontWeight: "700", color: C.text }}>👀 "{r.see}"</div>
+          <div style={{ padding: "8px 12px", background: "rgba(255,255,255,0.85)", fontSize: "12px", color: "#5a4060", lineHeight: 1.5 }}>🧠 {r.happening}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SteadyParentADHDVisual({ C }) {
+  return (
+    <div style={{ padding: "16px 20px 20px", background: "rgba(255,255,255,0.6)", borderRadius: "14px", marginBottom: "16px" }}>
+      <div style={{ fontSize: "11px", fontWeight: "700", color: C.accent, letterSpacing: "0.08em", marginBottom: "12px" }}>CO-REGULATION IN ACTION</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+        <div style={{ flex: 1, textAlign: "center" }}>
+          <div style={{ width: 60, height: 60, borderRadius: "50%", background: `linear-gradient(135deg,${C.accent},${C.accent2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 8px", boxShadow: `0 4px 14px ${C.accent}44` }}>😌</div>
+          <div style={{ fontSize: "12px", fontWeight: "700", color: C.text }}>Regulated Parent</div>
+          <div style={{ fontSize: "11px", color: "#9a7060", lineHeight: 1.4 }}>Slower voice<br/>Lower body<br/>Present</div>
+        </div>
+        <div style={{ textAlign: "center", flexShrink: 0 }}>
+          <div style={{ fontSize: "22px" }}>🔁</div>
+          <div style={{ fontSize: "10px", color: C.accent, fontWeight: "700", marginTop: "2px" }}>Co-regulation</div>
+        </div>
+        <div style={{ flex: 1, textAlign: "center" }}>
+          <div style={{ width: 60, height: 60, borderRadius: "50%", background: "rgba(122,90,201,0.12)", border: `2px dashed ${C.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", margin: "0 auto 8px" }}>😤</div>
+          <div style={{ fontSize: "12px", fontWeight: "700", color: C.text }}>Dysregulated Child</div>
+          <div style={{ fontSize: "11px", color: "#9a7060", lineHeight: 1.4 }}>Nervous system<br/>begins to settle</div>
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", background: "rgba(122,90,201,0.08)", borderRadius: "10px", fontSize: "12px", color: C.text, lineHeight: 1.6 }}>
+        <strong>Key insight:</strong> Your state matters more than your words. An activated parent cannot co-regulate an activated child.
+      </div>
+    </div>
+  );
+}
+
+function LearnVisual({ topic, sceneIndex, C }) {
+  if (topic === "anxiety") {
+    if (sceneIndex === 0) return <AnxietyCycleVisual C={C} />;
+    if (sceneIndex === 1) return <AccommodationVisual C={C} />;
+    if (sceneIndex === 2) return <BrainVisual C={C} />;
+    if (sceneIndex === 3) return <SteadyParentVisual C={C} />;
+  }
+  if (topic === "adhd") {
+    if (sceneIndex === 0) return <ADHDBrainVisual C={C} />;
+    if (sceneIndex === 1) return <DopamineVisual C={C} />;
+    if (sceneIndex === 2) return <ParentSeesVisual C={C} />;
+    if (sceneIndex === 3) return <SteadyParentADHDVisual C={C} />;
+  }
+  return null;
+}
+
 // ── Learn Tab ─────────────────────────────────────────────────────────────────
 function LearnTab({ onClose }) {
   const [topic, setTopic] = useState("anxiety");
@@ -929,6 +1165,9 @@ function LearnTab({ onClose }) {
           <div style={{ color: "rgba(255,255,255,0.7)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em", marginBottom: "4px" }}>SCENE {scene + 1} OF {scenes.length}</div>
           <div style={{ color: "#fff", fontSize: "18px", fontWeight: "700" }}>{currentScene.scene}</div>
         </div>
+
+        {/* Visual Aid */}
+        <LearnVisual topic={topic} sceneIndex={scene} C={C} />
 
         {/* Nodes */}
         <div style={{ background: "rgba(255,255,255,0.85)", borderRadius: "0 0 18px 18px", overflow: "hidden", marginBottom: "20px" }}>
