@@ -635,13 +635,17 @@ const TUTORIAL_STEPS = [
   { title: "You're all set", body: "This tool works best when you use it the way you'd talk to a trusted advisor — honestly, specifically, and often. The more you bring to it, the more it gives back." },
 ];
 
-function Tutorial({ userId, onComplete }) {
+function Tutorial({ userId, sessionToken, onComplete }) {
   const [step, setStep] = useState(0);
   const current = TUTORIAL_STEPS[step];
   const isLast = step === TUTORIAL_STEPS.length - 1;
 
-  function finish() {
-    localStorage.setItem(`spc-tutorial-done-${userId}`, "1");
+  async function finish() {
+    await fetch("/api/complete-tutorial", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, sessionToken }),
+    }).catch(() => {});
     onComplete();
   }
 
@@ -1019,8 +1023,7 @@ function ClientChat({ user, onLogout }) {
 
   useEffect(() => {
     async function init() {
-      const tutorialDone = localStorage.getItem(`spc-tutorial-done-${user.id}`);
-      if (!tutorialDone) setShowTutorial(true);
+      if (!user.tutorialDone) setShowTutorial(true);
       const [kbData, profileData] = await Promise.all([getKB(), getProfile(user.id)]);
       setKb(kbData); setProfile(profileData);
       let convs = await getConversations(user.id);
@@ -1225,7 +1228,7 @@ function ClientChat({ user, onLogout }) {
         ["📚 Learn", () => { setShowLearn(true); setShowMenu(false); }],
         hasMessages ? ["💾 Export Chat", () => { exportChat(); setShowMenu(false); }] : null,
         ["Cancel Subscription", () => { setShowCancelModal(true); setCancelState("confirming"); setCancelError(""); setShowMenu(false); }],
-        ["Sign Out", () => { setShowMenu(false); localStorage.removeItem(`spc-tutorial-done-${user.id}`); onLogout(); }],
+        ["Sign Out", () => { setShowMenu(false); onLogout(); }],
       ].filter(Boolean).map(([label, action]) => (
         <button key={label} onClick={action} style={{ padding: "12px 16px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#4a2820", background: "transparent", textAlign: "left", fontWeight: "500", transition: "background 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.background = "rgba(232,147,122,0.1)"}
@@ -1236,7 +1239,7 @@ function ClientChat({ user, onLogout }) {
 
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
-      {showTutorial && <Tutorial userId={user.id} onComplete={() => setShowTutorial(false)} />}
+      {showTutorial && <Tutorial userId={user.id} sessionToken={user.sessionToken} onComplete={() => setShowTutorial(false)} />}
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
       {feedbackModal && <FeedbackModal excerpt={feedbackModal.excerpt} onSubmit={submitFeedback} onClose={() => setFeedbackModal(null)} />}
 

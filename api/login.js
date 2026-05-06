@@ -29,6 +29,7 @@ export default async function handler(req, res) {
       username: user.username,
       email: user.email,
       consentSigned: user.consent_signed,
+      tutorialDone: user.tutorial_done,
       sessionToken,
       role: "client",
     },
