@@ -1166,11 +1166,8 @@ function LearnTab({ onClose }) {
           <div style={{ color: "#fff", fontSize: "18px", fontWeight: "700" }}>{currentScene.scene}</div>
         </div>
 
-        {/* Visual Aid */}
-        <LearnVisual topic={topic} sceneIndex={scene} C={C} />
-
         {/* Nodes */}
-        <div style={{ background: "rgba(255,255,255,0.85)", borderRadius: "0 0 18px 18px", overflow: "hidden", marginBottom: "20px" }}>
+        <div style={{ background: "rgba(255,255,255,0.85)", borderRadius: "0 0 18px 18px", overflow: "hidden", marginBottom: "16px" }}>
           {currentScene.nodes.map((node, i) => (
             <div key={i} style={{ borderBottom: i < currentScene.nodes.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none" }}>
               <button onClick={() => setOpenNode(openNode === i ? null : i)} style={{ width: "100%", padding: "16px 20px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", fontFamily: "inherit" }}>
@@ -1192,6 +1189,9 @@ function LearnTab({ onClose }) {
             </div>
           ))}
         </div>
+
+        {/* Visual Aid */}
+        <LearnVisual topic={topic} sceneIndex={scene} C={C} />
 
         {/* Navigation */}
         <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
