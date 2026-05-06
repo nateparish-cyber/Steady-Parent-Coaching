@@ -1320,10 +1320,22 @@ function ClientChat({ user, onLogout }) {
   async function startNewConversation() {
     setShowMenu(false); setShowSidebar(false); setShowConvPicker(false);
     const convId = await createConversation(user.id);
+
+    const genericPreviews = new Set(["new conversation", "welcome", "previous conversations"]);
+    const lastPreview = conversations[0]?.preview?.trim();
+    const hasContext = lastPreview && !genericPreviews.has(lastPreview.toLowerCase());
+
+    const openingContent = hasContext
+      ? `Last time you were working through: **"${lastPreview}${lastPreview.length >= 58 ? "…" : ""}"**\n\nWould you like to pick up from there, or is there something new on your mind?`
+      : `Do you know where you'd like to start today, or would you like some help getting started?\n\nYou can describe what's coming up, jump into one of the scenarios below, or explore the Learn tab first and come back with questions.`;
+
+    const openingMsg = { role: "assistant", content: openingContent };
+    await appendMessages(user.id, convId, [openingMsg]);
+
     const newConv = { id: convId, preview: "New conversation", created_at: new Date().toISOString(), last_message_at: new Date().toISOString() };
     setConversations(cs => [newConv, ...cs]);
     setActiveConvId(convId);
-    setMessages([]);
+    setMessages([openingMsg]);
     setLogPromptExchanges(0); setShowLogPrompt(false);
   }
 
