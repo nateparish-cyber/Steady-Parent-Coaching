@@ -1,5 +1,6 @@
 // Handles: consent (POST), users (GET/DELETE), kb (GET/POST)
 import { timingSafeEqual } from "crypto";
+import { sendEmail, NATE_EMAIL } from "./_email.js";
 
 const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
 
@@ -64,12 +65,39 @@ export default async function handler(req, res) {
 
   // ── Consent (no admin key needed — user marks their own consent) ──────────
   if (action === "consent") {
-    const { userId, typedName } = req.body;
+    const { userId, typedName, consentText } = req.body;
     if (!userId) return res.status(400).json({ error: "Missing userId" });
     const patch = { consent_signed: true, consent_signed_at: new Date().toISOString() };
     if (typedName) patch.consent_typed_name = String(typedName).trim().slice(0, 200);
     const r = await sb(`/users?id=eq.${encodeURIComponent(userId)}`, { method: "PATCH", body: patch, prefer: "return=minimal" });
     if (!r.ok) return res.status(500).json({ error: "Failed to update consent" });
+
+    if (consentText) {
+      try {
+        const u = await sb(`/users?id=eq.${encodeURIComponent(userId)}&select=name,email,username`);
+        const rows = await u.json();
+        const user = rows?.[0];
+        if (user) {
+          const tasks = [];
+          tasks.push(sendEmail({
+            to: NATE_EMAIL,
+            subject: `Signed Agreement — ${user.name}`,
+            text: `Account: ${user.username} (${user.email})\nSigned: ${new Date().toLocaleString()}\n\n${consentText}`,
+          }));
+          if (user.email) {
+            const firstName = (user.name || "").split(" ")[0] || "there";
+            tasks.push(sendEmail({
+              to: user.email,
+              subject: "Welcome to Steady Parent Coach — Your Signed Documents",
+              text: `Hi ${firstName},\n\nWelcome! Your account is now active.\n\nBelow is a copy of your signed documents for your records.\n\n— Steady Parent Coach\n\n${consentText}`,
+            }));
+          }
+          await Promise.allSettled(tasks);
+        }
+      } catch (err) {
+        console.error("consent email failed:", err.message);
+      }
+    }
     return res.status(200).json({ success: true });
   }
 

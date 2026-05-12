@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { hashPassword, supabase } from "./_auth-helpers.js";
+import { sendEmail, NATE_EMAIL } from "./_email.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -32,6 +33,17 @@ export default async function handler(req, res) {
   if (!ok) return res.status(500).json({ error: "Failed to create account." });
 
   const user = data[0];
+
+  try {
+    await sendEmail({
+      to: NATE_EMAIL,
+      subject: `New Steady Parent Coach signup — ${user.name}`,
+      text: `New account created (consent not yet signed):\n\nName: ${user.name}\nUsername: ${user.username}\nEmail: ${user.email}\nUser ID: ${user.id}\nRegistered: ${new Date().toLocaleString()}`,
+    });
+  } catch (err) {
+    console.error("register email failed:", err.message);
+  }
+
   return res.status(200).json({
     user: { id: user.id, name: user.name, username: user.username, email: user.email, sessionToken, role: "client" },
   });

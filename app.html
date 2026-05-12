@@ -8,7 +8,6 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     *{box-sizing:border-box}body{margin:0;font-family:Georgia,serif}
     textarea::placeholder,input::placeholder{color:#c4a090}
@@ -26,19 +25,6 @@ const { useState, useRef, useEffect } = React;
 const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4bGp0cGZkZmRqb2NiY2J1eXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDczMzIsImV4cCI6MjA4ODMyMzMzMn0.JDK05pK6Rs_lRPi_1BnqezeensGdCqXu7ugXlaKJCIo";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-const EMAILJS_SERVICE = "service_kl851h9";
-const EMAILJS_TEMPLATE = "template_lvl0kok";
-const EMAILJS_KEY = "_RTlHjO9FDJ54DQWb";
-const NATE_EMAIL = "nate.parish@gmail.com";
-
-async function sendEmail(subject, bodyText, clientName = "", toEmail = null) {
-  try {
-    await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
-      to_email: toEmail || NATE_EMAIL, subject, client_name: clientName, message: bodyText,
-    }, EMAILJS_KEY);
-  } catch(e) { console.error("EmailJS:", e); }
-}
 
 const SYSTEM_PROMPT = `You are Steady Parent Coach, an AI coaching companion built on a clinician's model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in building steadier, more confident parenting.
 
@@ -449,22 +435,21 @@ function ConsentScreen({ user, onConsented }) {
     if (typedName.trim().toLowerCase() !== user.name.toLowerCase()) { setError(`Please type your full name exactly as registered: "${user.name}"`); return; }
     if (!agreed) { setError("Please check the acknowledgment box."); return; }
     setSubmitting(true);
+    setEmailStatus("sending");
     try {
-      await apiPost("/api/admin", { action: "consent", userId: user.id, typedName: typedName.trim() });
+      await apiPost("/api/admin", {
+        action: "consent",
+        userId: user.id,
+        typedName: typedName.trim(),
+        consentText: buildConsentText(),
+      });
+      setEmailStatus("sent");
     } catch {
       setError("Failed to record your consent. Please check your connection and try again.");
+      setEmailStatus("failed");
       setSubmitting(false);
       return;
     }
-    setEmailStatus("sending");
-    try {
-      const consentText = buildConsentText();
-      await Promise.all([
-        sendEmail(`Signed Agreement \u2014 ${user.name}`, consentText, user.name),
-        user.email && sendEmail("Welcome to Steady Parent Coach \u2014 Your Signed Documents", `Hi ${user.name.split(" ")[0]},\n\nWelcome! Your account is now active.\n\nBelow is a copy of your signed documents.\n\n\u2014 Steady Parent Coach\n\n${consentText}`, user.name, user.email),
-      ]);
-      setEmailStatus("sent");
-    } catch { setEmailStatus("failed"); }
     setTimeout(() => onConsented(), 1200);
   }
 
@@ -580,7 +565,6 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
       if (password !== confirmPw) { setError("Passwords don't match."); setBusy(false); return; }
       try {
         const data = await apiPost("/api/register", { name: name.trim(), email: email.trim().toLowerCase(), username: username.trim().toLowerCase(), password });
-        sendEmail(`New Client Registration \u2014 ${name.trim()}`, `New account:\n\nName: ${name.trim()}\nUsername: ${username.trim().toLowerCase()}\nEmail: ${email.trim()}\nRegistered: ${new Date().toLocaleString()}`, name.trim());
         onNeedsConsent({ ...data.user, role: "client" });
       } catch(e) { setError(e.message || "Failed to create account. Please try again."); }
       setBusy(false);
