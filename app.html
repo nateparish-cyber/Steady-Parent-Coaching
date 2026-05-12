@@ -450,7 +450,7 @@ function ConsentScreen({ user, onConsented }) {
     if (!agreed) { setError("Please check the acknowledgment box."); return; }
     setSubmitting(true);
     try {
-      await apiPost("/api/admin", { action: "consent", userId: user.id });
+      await apiPost("/api/admin", { action: "consent", userId: user.id, typedName: typedName.trim() });
     } catch {
       setError("Failed to record your consent. Please check your connection and try again.");
       setSubmitting(false);
@@ -2074,21 +2074,42 @@ function SubscriptionGate({ user, onActivated, onLogout }) {
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
+const SESSION_KEY = "spc_session_v1";
+function loadSession() {
+  try { const raw = localStorage.getItem(SESSION_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+function saveSession(u) {
+  try { if (u) localStorage.setItem(SESSION_KEY, JSON.stringify(u)); else localStorage.removeItem(SESSION_KEY); } catch {}
+}
+
 function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
   const [pendingConsent, setPendingConsent] = useState(null);
   const [needsSubscription, setNeedsSubscription] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  function setUser(u) { setUserState(u); saveSession(u); }
+  function logout() { setUserState(null); setNeedsSubscription(false); saveSession(null); }
 
   useEffect(() => {
+    const stored = loadSession();
+    if (stored) {
+      setUserState(stored);
+      if (stored.role !== "admin") setNeedsSubscription(true);
+    }
     const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") window.history.replaceState({}, "", window.location.pathname);
+    if (params.get("checkout") === "success" || params.get("checkout") === "cancelled") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    setHydrated(true);
   }, []);
 
-  if (pendingConsent) return <ConsentScreen user={pendingConsent} onConsented={() => { setPendingConsent(null); setNeedsSubscription(true); setUser(pendingConsent); }} />;
+  if (!hydrated) return null;
+  if (pendingConsent) return <ConsentScreen user={pendingConsent} onConsented={() => { setPendingConsent(null); setNeedsSubscription(true); setUser({ ...pendingConsent, consentSigned: true }); }} />;
   if (!user) return <AuthScreen onLogin={u => { setUser(u); if (u.role !== "admin") setNeedsSubscription(true); }} onNeedsConsent={setPendingConsent} />;
-  if (needsSubscription && user.role !== "admin") return <SubscriptionGate user={user} onActivated={() => setNeedsSubscription(false)} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
-  if (user.role === "admin") return <AdminDashboard user={user} onLogout={() => setUser(null)} />;
-  return <ClientChat user={user} onLogout={() => { setUser(null); setNeedsSubscription(false); }} />;
+  if (needsSubscription && user.role !== "admin") return <SubscriptionGate user={user} onActivated={() => setNeedsSubscription(false)} onLogout={logout} />;
+  if (user.role === "admin") return <AdminDashboard user={user} onLogout={logout} />;
+  return <ClientChat user={user} onLogout={logout} />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));

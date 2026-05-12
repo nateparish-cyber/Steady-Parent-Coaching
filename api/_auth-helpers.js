@@ -1,4 +1,5 @@
 // Shared auth helpers for API routes (PBKDF2 via Web Crypto — no npm deps)
+import { timingSafeEqual } from "node:crypto";
 
 const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4bGp0cGZkZmRqb2NiY2J1eXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDczMzIsImV4cCI6MjA4ODMyMzMzMn0.JDK05pK6Rs_lRPi_1BnqezeensGdCqXu7ugXlaKJCIo";
@@ -52,7 +53,7 @@ async function verifySession(userId, sessionToken) {
   // Constant-time comparison
   const a = Buffer.from(stored);
   const b = Buffer.from(sessionToken);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export { hashPassword, verifyPassword, supabase, verifySession };

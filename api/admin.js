@@ -64,9 +64,11 @@ export default async function handler(req, res) {
 
   // ── Consent (no admin key needed — user marks their own consent) ──────────
   if (action === "consent") {
-    const { userId } = req.body;
+    const { userId, typedName } = req.body;
     if (!userId) return res.status(400).json({ error: "Missing userId" });
-    const r = await sb(`/users?id=eq.${encodeURIComponent(userId)}`, { method: "PATCH", body: { consent_signed: true }, prefer: "return=minimal" });
+    const patch = { consent_signed: true, consent_signed_at: new Date().toISOString() };
+    if (typedName) patch.consent_typed_name = String(typedName).trim().slice(0, 200);
+    const r = await sb(`/users?id=eq.${encodeURIComponent(userId)}`, { method: "PATCH", body: patch, prefer: "return=minimal" });
     if (!r.ok) return res.status(500).json({ error: "Failed to update consent" });
     return res.status(200).json({ success: true });
   }
