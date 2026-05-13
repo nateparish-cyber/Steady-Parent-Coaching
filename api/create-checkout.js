@@ -66,6 +66,7 @@ export default async function handler(req, res) {
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: 'subscription',
       subscription_data: { trial_period_days: TRIAL_DAYS },
+      allow_promotion_codes: true,
       success_url: `${safeOrigin(req.headers.origin)}/app?checkout=success`,
       cancel_url: `${safeOrigin(req.headers.origin)}/app?checkout=cancelled`,
       metadata: { userId },
