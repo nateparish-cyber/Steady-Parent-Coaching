@@ -25,6 +25,8 @@ const { useState, useRef, useEffect } = React;
 const SUPABASE_URL = "https://hxljtpfdfdjocbcbuytq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4bGp0cGZkZmRqb2NiY2J1eXRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NDczMzIsImV4cCI6MjA4ODMyMzMzMn0.JDK05pK6Rs_lRPi_1BnqezeensGdCqXu7ugXlaKJCIo";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const DEMO_USER_ID = "u_demo";
+const DEMO_MESSAGE_CAP = 15;
 
 const SYSTEM_PROMPT = `You are Steady Parent Coach, an AI coaching companion built on a clinician's model — grounded in ACT, attachment theory, relational therapy, and a SPACE-informed approach to anxiety treatment with a fast accommodation fade approach. Your role is to support parents in building steadier, more confident parenting.
 
@@ -166,6 +168,20 @@ You don't need to know exactly what to say. Just bring whatever's on your mind a
 **You can also explore the Learn tab** — it walks through the anxiety cycle, why accommodation backfires, what's happening in the brain during a meltdown, and how the ADHD system works. A lot of parents find it useful to read through a section and then come back here with questions.
 
 What's coming up for you right now?`;
+
+const DEMO_WELCOME_MESSAGE = `Welcome to the **Steady Parent Coach demo**. 🌿
+
+You're seeing exactly what a parent would see when they use the app — same coaching, same tone, same approach. The difference: nothing in this session is saved. Refresh the page or sign out and it's gone.
+
+You can try **up to 15 messages** here. A few ways to test the feel of it:
+• Ask a clinical question about anxiety, accommodation, or the SPACE model
+• Describe a parenting moment as if you were a client — see how the coaching lands
+• Try a tough one (a meltdown, a school refusal, a tired evening)
+• Take a look at the **Learn** tab to see the educational content
+
+If you have a client you think might benefit, you can refer them to **steadyparentingcoach.com**.
+
+What would you like to explore first?`;
 
 const LEARN_ANXIETY = [
   {
@@ -331,12 +347,14 @@ async function getConversations(uid) {
   return data || [];
 }
 async function createConversation(uid, preview) {
+  if (uid === DEMO_USER_ID) return "demo_conv";
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   await db.from('conversations').insert({ id, user_id: uid, preview: preview || 'New conversation', created_at: now, last_message_at: now });
   return id;
 }
 async function updateConvPreview(convId, preview) {
+  if (convId === "demo_conv") return;
   await db.from('conversations').update({ preview: preview.slice(0, 60), last_message_at: new Date().toISOString() }).eq('id', convId);
 }
 async function getMessages(uid, convId) {
@@ -346,14 +364,17 @@ async function getMessages(uid, convId) {
   return data || [];
 }
 async function appendMessages(uid, convId, msgs) {
+  if (uid === DEMO_USER_ID) return;
   const rows = msgs.map(m => ({ user_id: uid, conversation_id: convId, role: m.role, content: m.content, created_at: new Date().toISOString() }));
   await db.from('messages').insert(rows);
 }
 async function getProfile(uid) {
+  if (uid === DEMO_USER_ID) return {};
   const { data } = await db.from('profiles').select('*').eq('user_id', uid).maybeSingle();
   return data || {};
 }
 async function saveProfile(uid, p) {
+  if (uid === DEMO_USER_ID) return;
   await db.from('profiles').upsert({ user_id: uid, ...p, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
 }
 async function getKB() {
@@ -379,16 +400,20 @@ async function getUsers(adminKey) {
   } catch { return {}; }
 }
 async function getProgressLogs(uid) {
+  if (uid === DEMO_USER_ID) return [];
   const { data } = await db.from('progress_logs').select('*').eq('user_id', uid).order('created_at', { ascending: false });
   return data || [];
 }
 async function addProgressLog(uid, username, momentType, note) {
+  if (uid === DEMO_USER_ID) return;
   await db.from('progress_logs').insert({ user_id: uid, username, moment_type: momentType, note, created_at: new Date().toISOString() });
 }
 async function logUsage(uid, username, tokensEst) {
+  if (uid === DEMO_USER_ID) return;
   await db.from('usage').insert({ user_id: uid, username, tokens_estimated: tokensEst, created_at: new Date().toISOString() }).catch(() => {});
 }
 async function saveFeedback(uid, rating, category, freeText, excerpt) {
+  if (uid === DEMO_USER_ID) return;
   await db.from('feedback').insert({ id: crypto.randomUUID(), user_id: uid, rating, report_category: category || null, free_text: freeText || null, conversation_excerpt: excerpt || null, created_at: new Date().toISOString() }).catch(() => {});
 }
 async function getAdminFeedback() {
@@ -644,11 +669,13 @@ function Tutorial({ userId, sessionToken, onComplete }) {
   const isLast = step === TUTORIAL_STEPS.length - 1;
 
   async function finish() {
-    await fetch("/api/complete-tutorial", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, sessionToken }),
-    }).catch(() => {});
+    if (userId !== DEMO_USER_ID) {
+      await fetch("/api/complete-tutorial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, sessionToken }),
+      }).catch(() => {});
+    }
     onComplete();
   }
 
@@ -1331,6 +1358,7 @@ function SurveyModal({ user, onClose }) {
 
 // ── Client Chat ───────────────────────────────────────────────────────────────
 function ClientChat({ user, onLogout }) {
+  const isDemo = !!user.isDemo;
   const [conversations, setConversations] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -1350,6 +1378,7 @@ function ClientChat({ user, onLogout }) {
   const [msgFeedback, setMsgFeedback] = useState({}); // msgIndex → "up"|"down"
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
+  const [demoMsgCount, setDemoMsgCount] = useState(0);
   const [logPromptExchanges, setLogPromptExchanges] = useState(0);
   const [showLogPrompt, setShowLogPrompt] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -1375,7 +1404,7 @@ function ClientChat({ user, onLogout }) {
         } else {
           // Brand new user — seed their first conversation with a welcome message
           const convId = await createConversation(user.id, "Welcome");
-          const welcomeMsg = { role: "assistant", content: WELCOME_MESSAGE };
+          const welcomeMsg = { role: "assistant", content: isDemo ? DEMO_WELCOME_MESSAGE : WELCOME_MESSAGE };
           await appendMessages(user.id, convId, [welcomeMsg]);
           convs = [{ id: convId, preview: "Welcome", created_at: new Date().toISOString(), last_message_at: new Date().toISOString() }];
           setActiveConvId(convId);
@@ -1397,7 +1426,7 @@ function ClientChat({ user, onLogout }) {
 
   // Check whether to show the engagement survey (5 distinct days of user messages, never asked before)
   useEffect(() => {
-    if (initializing || showTutorial) return;
+    if (initializing || showTutorial || isDemo) return;
     let cancelled = false;
     fetch("/api/feedback", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -1465,6 +1494,12 @@ function ClientChat({ user, onLogout }) {
 
   async function sendMessage(text) {
     if (!text.trim() || loading) return;
+    if (isDemo && demoMsgCount >= DEMO_MESSAGE_CAP) {
+      setMessages(m => [...m, { role: "user", content: text }, { role: "assistant", content: `You've reached the **${DEMO_MESSAGE_CAP}-message demo limit**. To keep the conversation going — and have it remembered next time — create a free account at [steadyparentingcoach.com](https://www.steadyparentingcoach.com).` }]);
+      setInput("");
+      return;
+    }
+    if (isDemo) setDemoMsgCount(c => c + 1);
     const userMsg = { role: "user", content: text };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs); setInput(""); setLoading(true);
@@ -1600,7 +1635,7 @@ function ClientChat({ user, onLogout }) {
         ["📈 Progress", () => { setShowProgress(true); setShowMenu(false); }],
         ["📚 Learn", () => { setShowLearn(true); setShowMenu(false); }],
         hasMessages ? ["💾 Export Chat", () => { exportChat(); setShowMenu(false); }] : null,
-        ["Cancel Subscription", () => { setShowCancelModal(true); setCancelState("confirming"); setCancelError(""); setShowMenu(false); }],
+        isDemo ? null : ["Cancel Subscription", () => { setShowCancelModal(true); setCancelState("confirming"); setCancelError(""); setShowMenu(false); }],
         ["Sign Out", () => { setShowMenu(false); onLogout(); }],
       ].filter(Boolean).map(([label, action]) => (
         <button key={label} onClick={action} style={{ padding: "12px 16px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", color: "#4a2820", background: "transparent", textAlign: "left", fontWeight: "500", transition: "background 0.15s" }}
@@ -1612,6 +1647,11 @@ function ClientChat({ user, onLogout }) {
 
   return (
     <div style={{ minHeight: "100vh", background: BG, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column" }}>
+      {isDemo && (
+        <div style={{ background: "linear-gradient(90deg,#7a8ee8,#c8a0c8)", color: "#fff", padding: "8px 16px", textAlign: "center", fontSize: "13px", fontWeight: "600", letterSpacing: "0.3px" }}>
+          Demo mode — this conversation won't be saved. {DEMO_MESSAGE_CAP - demoMsgCount} of {DEMO_MESSAGE_CAP} messages remaining.
+        </div>
+      )}
       {showTutorial && <Tutorial userId={user.id} sessionToken={user.sessionToken} onComplete={() => setShowTutorial(false)} />}
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
       {feedbackModal && <FeedbackModal excerpt={feedbackModal.excerpt} onSubmit={submitFeedback} onClose={() => setFeedbackModal(null)} />}
@@ -2257,7 +2297,7 @@ function App() {
   const [needsSubscription, setNeedsSubscription] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  function setUser(u) { setUserState(u); saveSession(u); }
+  function setUser(u) { setUserState(u); if (u && !u.isDemo) saveSession(u); else saveSession(null); }
   function logout() { setUserState(null); setNeedsSubscription(false); saveSession(null); }
 
   useEffect(() => {
