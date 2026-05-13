@@ -343,6 +343,7 @@ async function apiPost(path, body) {
 
 // ── Supabase data helpers ─────────────────────────────────────────────────────
 async function getConversations(uid) {
+  if (uid === DEMO_USER_ID) return [];
   const { data } = await db.from('conversations').select('*').eq('user_id', uid).order('last_message_at', { ascending: false });
   return data || [];
 }
@@ -358,6 +359,7 @@ async function updateConvPreview(convId, preview) {
   await db.from('conversations').update({ preview: preview.slice(0, 60), last_message_at: new Date().toISOString() }).eq('id', convId);
 }
 async function getMessages(uid, convId) {
+  if (uid === DEMO_USER_ID) return [];
   const query = db.from('messages').select('role,content').eq('user_id', uid).order('id', { ascending: true });
   if (convId) query.eq('conversation_id', convId);
   const { data } = await query;
@@ -1390,6 +1392,20 @@ function ClientChat({ user, onLogout }) {
   useEffect(() => {
     async function init() {
       if (!user.tutorialDone) setShowTutorial(true);
+
+      // Demo: ephemeral session — never touch DB, never show conv picker
+      if (isDemo) {
+        const kbData = await getKB();
+        setKb(kbData);
+        setProfile({});
+        const welcomeMsg = { role: "assistant", content: DEMO_WELCOME_MESSAGE };
+        setActiveConvId("demo_conv");
+        setMessages([welcomeMsg]);
+        setConversations([{ id: "demo_conv", preview: "Demo", created_at: new Date().toISOString(), last_message_at: new Date().toISOString() }]);
+        setInitializing(false);
+        return;
+      }
+
       const [kbData, profileData] = await Promise.all([getKB(), getProfile(user.id)]);
       setKb(kbData); setProfile(profileData);
       let convs = await getConversations(user.id);
@@ -1404,7 +1420,7 @@ function ClientChat({ user, onLogout }) {
         } else {
           // Brand new user — seed their first conversation with a welcome message
           const convId = await createConversation(user.id, "Welcome");
-          const welcomeMsg = { role: "assistant", content: isDemo ? DEMO_WELCOME_MESSAGE : WELCOME_MESSAGE };
+          const welcomeMsg = { role: "assistant", content: WELCOME_MESSAGE };
           await appendMessages(user.id, convId, [welcomeMsg]);
           convs = [{ id: convId, preview: "Welcome", created_at: new Date().toISOString(), last_message_at: new Date().toISOString() }];
           setActiveConvId(convId);
