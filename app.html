@@ -1230,6 +1230,100 @@ function FeedbackModal({ excerpt, onSubmit, onClose }) {
   );
 }
 
+// ── Survey Modal (post-engagement feedback) ───────────────────────────────────
+const SURVEY_QUESTIONS = [
+  { key: "useful",              label: "This app is useful." },
+  { key: "meets_expectations",  label: "This app meets my expectations." },
+  { key: "helps_manage_anxiety",label: "This app helps me manage anxiety." },
+  { key: "helps_meet_goals",    label: "This app helps me meet my goals." },
+  { key: "confident_parenting", label: "I feel more confident in my parenting." },
+];
+
+function ScaleRow({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: "6px", alignItems: "center", marginBottom: "6px" }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button key={n} onClick={() => onChange(n)} type="button"
+          style={{
+            flex: 1, padding: "10px 0", borderRadius: "10px",
+            border: `1.5px solid ${value === n ? "#c9697a" : "rgba(200,120,90,0.22)"}`,
+            background: value === n ? "linear-gradient(135deg,#e8937a,#c9697a)" : "rgba(255,255,255,0.85)",
+            color: value === n ? "#fff" : "#7c4a3a",
+            fontSize: "15px", fontWeight: "700", fontFamily: "Georgia,serif", cursor: "pointer",
+          }}>{n}</button>
+      ))}
+    </div>
+  );
+}
+
+function SurveyModal({ user, onClose }) {
+  const [scores, setScores] = useState({});
+  const [freeText, setFreeText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const anyAnswered = Object.values(scores).some(v => v) || freeText.trim();
+
+  async function submit() {
+    setError(""); setBusy(true);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "survey-submit", user_id: user.id, free_text: freeText, ...scores }),
+      });
+      if (!res.ok) throw new Error("submit failed");
+      onClose(true);
+    } catch {
+      setError("Couldn't save your feedback. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  async function skip() {
+    setBusy(true);
+    try {
+      await fetch("/api/feedback", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "survey-dismiss", user_id: user.id }),
+      });
+    } catch {}
+    onClose(false);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)", padding: "20px", overflowY: "auto" }}>
+      <div style={{ background: "#fdf8f4", borderRadius: "22px", padding: "28px", maxWidth: 480, width: "100%", boxShadow: "0 20px 60px rgba(150,80,60,0.2)", fontFamily: "Georgia,serif", maxHeight: "90vh", overflowY: "auto" }}>
+        <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,#e8937a,#c9697a)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", margin: "0 auto 12px", boxShadow: "0 4px 14px rgba(200,100,100,0.25)" }}>🌿</div>
+        <h3 style={{ color: "#4a2820", textAlign: "center", margin: "0 0 6px", fontSize: "18px", fontWeight: "700" }}>Quick check-in</h3>
+        <p style={{ color: "#9a7060", fontSize: "13px", textAlign: "center", margin: "0 0 18px", lineHeight: 1.5 }}>Five quick questions about your experience so far. Your feedback shapes the coaching.</p>
+
+        {SURVEY_QUESTIONS.map(q => (
+          <div key={q.key} style={{ marginBottom: "16px" }}>
+            <div style={{ fontSize: "13px", color: "#4a2820", fontWeight: "600", marginBottom: "8px" }}>{q.label}</div>
+            <ScaleRow value={scores[q.key]} onChange={n => setScores(s => ({ ...s, [q.key]: n }))} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#b89080", padding: "0 2px" }}>
+              <span>Strongly disagree</span><span>Strongly agree</span>
+            </div>
+          </div>
+        ))}
+
+        <div style={{ marginBottom: "16px" }}>
+          <div style={{ fontSize: "13px", color: "#4a2820", fontWeight: "600", marginBottom: "8px" }}>Would you like to add anything else?</div>
+          <textarea value={freeText} onChange={e => setFreeText(e.target.value)} placeholder="Optional — anything that would help us understand your experience." rows={3}
+            style={{ width: "100%", padding: "10px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.22)", background: "#fff", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "vertical", lineHeight: 1.5, boxSizing: "border-box" }} />
+        </div>
+
+        {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "14px" }}>{error}</div>}
+
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={skip} disabled={busy} style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.22)", background: "transparent", cursor: busy ? "default" : "pointer", fontFamily: "inherit", fontSize: "13px", color: "#9a7060", fontWeight: "600" }}>Skip</button>
+          <Btn onClick={submit} disabled={busy || !anyAnswered} style={{ flex: 2, background: (busy || !anyAnswered) ? "rgba(200,120,90,0.25)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: (busy || !anyAnswered) ? "#9a7060" : "#fff", fontWeight: "700" }}>{busy ? "Saving…" : "Submit feedback"}</Btn>
+        </div>
+        <p style={{ color: "#b89080", fontSize: "11px", textAlign: "center", margin: "12px 0 0" }}>We won't ask again.</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Client Chat ───────────────────────────────────────────────────────────────
 function ClientChat({ user, onLogout }) {
   const [conversations, setConversations] = useState([]);
@@ -1250,6 +1344,7 @@ function ClientChat({ user, onLogout }) {
   const [feedbackModal, setFeedbackModal] = useState(null); // { msgIndex, excerpt }
   const [msgFeedback, setMsgFeedback] = useState({}); // msgIndex → "up"|"down"
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showSurvey, setShowSurvey] = useState(false);
   const [logPromptExchanges, setLogPromptExchanges] = useState(0);
   const [showLogPrompt, setShowLogPrompt] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -1294,6 +1389,20 @@ function ClientChat({ user, onLogout }) {
   }, [user.id]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  // Check whether to show the engagement survey (5 distinct days of user messages, never asked before)
+  useEffect(() => {
+    if (initializing || showTutorial) return;
+    let cancelled = false;
+    fetch("/api/feedback", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "survey-check", user_id: user.id }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && d?.shouldShow) setShowSurvey(true); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [initializing, showTutorial, user.id]);
 
   async function handleProfileClose() {
     setShowProfile(false);
@@ -1501,6 +1610,7 @@ function ClientChat({ user, onLogout }) {
       {showTutorial && <Tutorial userId={user.id} sessionToken={user.sessionToken} onComplete={() => setShowTutorial(false)} />}
       {showProfile && <ProfileDrawer user={user} onClose={handleProfileClose} />}
       {feedbackModal && <FeedbackModal excerpt={feedbackModal.excerpt} onSubmit={submitFeedback} onClose={() => setFeedbackModal(null)} />}
+      {showSurvey && !showTutorial && <SurveyModal user={user} onClose={() => setShowSurvey(false)} />}
 
       {showCancelModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(74,40,32,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(4px)", padding: "20px" }}>
