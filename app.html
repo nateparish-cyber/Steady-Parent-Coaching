@@ -399,6 +399,11 @@ async function getAdminUsage() {
   const { data } = await db.from('usage').select('*').order('created_at', { ascending: false }).limit(500);
   return data || [];
 }
+async function getAdminSurveys(adminKey) {
+  const res = await fetch(`/api/admin?action=survey-responses&adminKey=${encodeURIComponent(adminKey)}`);
+  if (!res.ok) return { responses: [], averages: {}, completedCount: 0, dismissedCount: 0 };
+  return res.json();
+}
 
 // ── Consent Screen ─────────────────────────────────────────────────────────────
 function ConsentScreen({ user, onConsented }) {
@@ -1837,6 +1842,7 @@ function AdminDashboard({ user, onLogout }) {
   const [resetError, setResetError] = useState("");
   const [usageData, setUsageData] = useState([]);
   const [feedbackData, setFeedbackData] = useState([]);
+  const [surveyData, setSurveyData] = useState(null); // { responses, averages, completedCount, dismissedCount }
   const [testMessages, setTestMessages] = useState([]);
   const [testInput, setTestInput] = useState("");
   const [testLoading, setTestLoading] = useState(false);
@@ -1855,6 +1861,7 @@ function AdminDashboard({ user, onLogout }) {
   useEffect(() => {
     if (tab === "usage" && usageData.length === 0) getAdminUsage().then(setUsageData);
     if (tab === "feedback" && feedbackData.length === 0) getAdminFeedback().then(setFeedbackData);
+    if (tab === "surveys" && surveyData === null) getAdminSurveys(user.adminKey).then(setSurveyData);
   }, [tab]);
 
   async function deleteClient(username) {
@@ -1911,7 +1918,7 @@ function AdminDashboard({ user, onLogout }) {
   }
 
   const clientList = Object.values(users);
-  const tabs = [["clients", `Clients (${clientList.length})`], ["kb", "Knowledge Base"], ["test", "Test Chat"], ["usage", "Usage"], ["feedback", "Feedback"]];
+  const tabs = [["clients", `Clients (${clientList.length})`], ["kb", "Knowledge Base"], ["test", "Test Chat"], ["usage", "Usage"], ["feedback", "Feedback"], ["surveys", "Surveys"]];
 
   // Usage summary
   const totalTokens = usageData.reduce((s, r) => s + (r.tokens_estimated || 0), 0);
@@ -2077,6 +2084,74 @@ function AdminDashboard({ user, onLogout }) {
                 {f.conversation_excerpt && <div style={{ fontSize: "11px", color: "#9a8ac0", background: "rgba(150,120,200,0.05)", borderRadius: "8px", padding: "8px 10px", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{f.conversation_excerpt.slice(0, 300)}{f.conversation_excerpt.length > 300 ? "…" : ""}</div>}
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === "surveys" && (
+          <div>
+            {!surveyData ? (
+              <div style={{ background: "rgba(255,255,255,0.7)", borderRadius: "16px", padding: "28px", textAlign: "center", color: "#9a8ac0", fontSize: "13px" }}>Loading surveys…</div>
+            ) : (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: "10px", marginBottom: "20px" }}>
+                  {[
+                    ["Responses", surveyData.responses.length, "#7a8ee8"],
+                    ["Skipped", surveyData.dismissedCount, "#c8a0c8"],
+                    ["Total prompted", surveyData.completedCount + surveyData.dismissedCount, "#9a8ac0"],
+                  ].map(([label, val, color]) => (
+                    <div key={label} style={{ background: "rgba(255,255,255,0.85)", borderRadius: "14px", padding: "14px 16px", border: "1px solid rgba(150,120,200,0.12)" }}>
+                      <div style={{ fontSize: "11px", color: "#9a8ac0", marginBottom: "4px", fontWeight: "600", letterSpacing: "0.5px", textTransform: "uppercase" }}>{label}</div>
+                      <div style={{ fontSize: "22px", color, fontWeight: "700" }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: "rgba(255,255,255,0.85)", borderRadius: "16px", padding: "16px 18px", marginBottom: "20px", border: "1px solid rgba(150,120,200,0.12)" }}>
+                  <div style={{ fontSize: "12px", color: "#7a70a0", marginBottom: "12px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>Average score (1–5)</div>
+                  {[
+                    ["useful", "Useful"],
+                    ["meets_expectations", "Meets expectations"],
+                    ["helps_manage_anxiety", "Helps manage anxiety"],
+                    ["helps_meet_goals", "Helps meet goals"],
+                    ["confident_parenting", "More confident parenting"],
+                  ].map(([k, label]) => {
+                    const a = surveyData.averages[k] || { avg: null, count: 0 };
+                    const pct = a.avg ? ((a.avg - 1) / 4) * 100 : 0;
+                    return (
+                      <div key={k} style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+                        <div style={{ flex: "0 0 180px", fontSize: "13px", color: "#4a4870" }}>{label}</div>
+                        <div style={{ flex: 1, height: "8px", background: "rgba(150,120,200,0.12)", borderRadius: "4px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#7a8ee8,#c8a0c8)", transition: "width 0.3s" }} />
+                        </div>
+                        <div style={{ flex: "0 0 80px", fontSize: "13px", color: "#4a4870", fontWeight: "600", textAlign: "right" }}>
+                          {a.avg ? a.avg.toFixed(1) : "—"} <span style={{ color: "#9a8ac0", fontWeight: "400", fontSize: "11px" }}>(n={a.count})</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {surveyData.responses.length === 0 ? (
+                  <div style={{ background: "rgba(255,255,255,0.7)", borderRadius: "16px", padding: "28px", textAlign: "center", color: "#9a8ac0", fontSize: "13px" }}>No survey responses yet.</div>
+                ) : surveyData.responses.map(r => (
+                  <div key={r.id} style={{ background: "rgba(255,255,255,0.82)", borderRadius: "14px", padding: "14px 16px", marginBottom: "8px", border: "1px solid rgba(150,120,200,0.12)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", fontSize: "12px" }}>
+                      <span style={{ color: "#4a4870", fontWeight: "700" }}>{r.users?.name || r.user_id} <span style={{ color: "#9a8ac0", fontWeight: "400" }}>@{r.users?.username || "—"}</span></span>
+                      <span style={{ color: "#9a8ac0" }}>{new Date(r.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "6px", marginBottom: r.free_text ? "10px" : "0" }}>
+                      {[["useful", "Useful"], ["meets_expectations", "Meets exp."], ["helps_manage_anxiety", "Anxiety"], ["helps_meet_goals", "Goals"], ["confident_parenting", "Confidence"]].map(([k, short]) => (
+                        <div key={k} style={{ background: "rgba(122,142,232,0.08)", borderRadius: "8px", padding: "6px 4px", textAlign: "center" }}>
+                          <div style={{ fontSize: "10px", color: "#7a70a0", marginBottom: "2px" }}>{short}</div>
+                          <div style={{ fontSize: "16px", fontWeight: "700", color: r[k] ? "#4a4870" : "#c8c0d8" }}>{r[k] ?? "—"}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {r.free_text && <div style={{ fontSize: "13px", color: "#5a5890", lineHeight: 1.5, background: "rgba(150,120,200,0.05)", borderRadius: "8px", padding: "10px 12px", whiteSpace: "pre-wrap" }}>{r.free_text}</div>}
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>

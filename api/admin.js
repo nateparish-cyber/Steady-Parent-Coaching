@@ -125,6 +125,32 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
   }
 
+  // Survey responses list + summary stats
+  if (action === "survey-responses" && req.method === "GET") {
+    const r = await sb("/survey_responses?select=*,users(name,username,email)&order=created_at.desc&limit=500");
+    if (!r.ok) return res.status(500).json({ error: "Failed to fetch survey responses" });
+    const responses = await r.json();
+
+    // Quick aggregates
+    const keys = ["useful", "meets_expectations", "helps_manage_anxiety", "helps_meet_goals", "confident_parenting"];
+    const averages = {};
+    for (const k of keys) {
+      const vals = responses.map(r => r[k]).filter(v => typeof v === "number");
+      averages[k] = vals.length ? { avg: vals.reduce((a, b) => a + b, 0) / vals.length, count: vals.length } : { avg: null, count: 0 };
+    }
+
+    // User state counts (PostgREST returns count in Content-Range header when count=exact)
+    const [cR, dR] = await Promise.all([
+      sb("/users?survey_completed_at=not.is.null&select=id&limit=0", { prefer: "count=exact" }),
+      sb("/users?survey_dismissed_at=not.is.null&select=id&limit=0", { prefer: "count=exact" }),
+    ]);
+    const parseCount = h => Number((h.headers.get("content-range") || "*/0").split("/")[1]) || 0;
+    const completedCount = parseCount(cR);
+    const dismissedCount = parseCount(dR);
+
+    return res.status(200).json({ responses, averages, completedCount, dismissedCount });
+  }
+
   // Users list
   if (action === "users" && req.method === "GET") {
     const r = await sb("/users?select=id,name,username,email,consent_signed,created_at&order=created_at.desc");
