@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     const valid = await verifySession(userId, sessionToken);
     if (!valid) return res.status(403).json({ error: 'Unauthorized' });
 
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(userId)}&select=grandfathered,subscription_status,subscription_id,trial_end,stripe_customer_id`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${encodeURIComponent(userId)}&select=grandfathered,subscription_status,subscription_id,trial_end,stripe_customer_id,created_at`, {
       headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json' },
     });
     const rows = await r.json();
@@ -38,7 +38,14 @@ export default async function handler(req, res) {
 
     let status = user.subscription_status || 'none';
     let trialEnd = user.trial_end || null;
-    let isActive = user.grandfathered || status === 'active' || status === 'trialing';
+
+    // 7-day free preview from account creation — no CC needed
+    const PREVIEW_DAYS = 7;
+    const createdAt = user.created_at ? new Date(user.created_at) : null;
+    const previewEnd = createdAt ? new Date(createdAt.getTime() + PREVIEW_DAYS * 24 * 60 * 60 * 1000) : null;
+    const inPreview = previewEnd && new Date() < previewEnd;
+
+    let isActive = user.grandfathered || status === 'active' || status === 'trialing' || inPreview;
 
     // Self-heal: if DB says we're not active but the user has a Stripe customer
     // (means they at least started checkout), ask Stripe directly. The webhook
@@ -73,6 +80,8 @@ export default async function handler(req, res) {
       grandfathered: user.grandfathered || false,
       status,
       trialEnd,
+      inPreview: !!inPreview,
+      previewEnd: previewEnd ? previewEnd.toISOString() : null,
     });
   } catch (err) {
     console.error('subscription-status error:', err);

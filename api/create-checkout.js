@@ -19,7 +19,8 @@ async function sbPatch(path, body, key) {
 }
 
 const PRICE_ID = 'price_1TMKc2HZwOOLEsb2l9bqAWM5';
-const TRIAL_DAYS = 7;
+// Free preview now happens upfront (in subscription-status, based on user.created_at).
+// When a user gets here, their 7 free days are over and Stripe should bill immediately.
 const ALLOWED_ORIGINS = ['https://www.steadyparentingcoach.com', 'https://steadyparentingcoach.com', 'http://localhost:3000'];
 function safeOrigin(origin) { return ALLOWED_ORIGINS.includes(origin) ? origin : 'https://www.steadyparentingcoach.com'; }
 
@@ -59,13 +60,12 @@ export default async function handler(req, res) {
       await sbPatch(`/users?id=eq.${encodeURIComponent(userId)}`, { stripe_customer_id: customerId }, sbKey);
     }
 
-    // Create Checkout session with 7-day trial
+    // Create Checkout session (no Stripe trial — 7 free days already given upfront)
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [{ price: PRICE_ID, quantity: 1 }],
       mode: 'subscription',
-      subscription_data: { trial_period_days: TRIAL_DAYS },
       allow_promotion_codes: true,
       success_url: `${safeOrigin(req.headers.origin)}/app?checkout=success`,
       cancel_url: `${safeOrigin(req.headers.origin)}/app?checkout=cancelled`,
