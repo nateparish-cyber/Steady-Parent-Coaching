@@ -88,8 +88,8 @@ export default async function handler(req, res) {
             const firstName = (user.name || "").split(" ")[0] || "there";
             tasks.push(sendEmail({
               to: user.email,
-              subject: "Welcome to Steady Parent Coach — Your Signed Documents",
-              text: `Hi ${firstName},\n\nWelcome! Your account is now active.\n\nBelow is a copy of your signed documents for your records.\n\n— Steady Parent Coach\n\n${consentText}`,
+              subject: "Welcome to Steady Parenting Coach — Your Signed Documents",
+              text: `Hi ${firstName},\n\nWelcome! Your account is now active.\n\nBelow is a copy of your signed documents for your records.\n\n— Steady Parenting Coach\n\n${consentText}`,
             }));
           }
           await Promise.allSettled(tasks);

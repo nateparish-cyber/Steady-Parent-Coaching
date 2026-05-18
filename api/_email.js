@@ -1,6 +1,6 @@
 // Server-side email via Resend REST API (no npm dep)
 
-const FROM = process.env.EMAIL_FROM || "Steady Parent Coach <noreply@steadyparentingcoach.com>";
+const FROM = process.env.EMAIL_FROM || "Steady Parenting Coach <noreply@steadyparentingcoach.com>";
 const REPLY_TO = process.env.EMAIL_REPLY_TO || "nate.parish@gmail.com";
 const NATE_EMAIL = "nate.parish@gmail.com";
 

@@ -37,7 +37,7 @@ export default async function handler(req, res) {
   try {
     await sendEmail({
       to: NATE_EMAIL,
-      subject: `New Steady Parent Coach signup — ${user.name}`,
+      subject: `New Steady Parenting Coach signup — ${user.name}`,
       text: `New account created (consent not yet signed):\n\nName: ${user.name}\nUsername: ${user.username}\nEmail: ${user.email}\nUser ID: ${user.id}\nRegistered: ${new Date().toLocaleString()}`,
     });
   } catch (err) {

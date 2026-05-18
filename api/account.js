@@ -28,10 +28,10 @@ export default async function handler(req, res) {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.RESEND_API_KEY}` },
         body: JSON.stringify({
-          from: "Steady Parent Coach <onboarding@resend.dev>",
+          from: "Steady Parenting Coach <onboarding@resend.dev>",
           to: [email.toLowerCase()],
-          subject: "Steady Parent Coach — Account Recovery",
-          text: `Hi ${user.name},\n\nHere are your account credentials:\n\nUsername: ${user.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and update your password.\n\n— Steady Parent Coach`,
+          subject: "Steady Parenting Coach — Account Recovery",
+          text: `Hi ${user.name},\n\nHere are your account credentials:\n\nUsername: ${user.username}\nTemporary Password: ${tempPw}\n\nPlease sign in and update your password.\n\n— Steady Parenting Coach`,
         }),
       });
     } catch {}
