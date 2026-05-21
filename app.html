@@ -403,14 +403,24 @@ async function getUsers(adminKey) {
     return dict;
   } catch { return {}; }
 }
-async function getProgressLogs(uid) {
+async function getSavedMessages(uid, convId) {
   if (uid === DEMO_USER_ID) return [];
-  const { data } = await db.from('progress_logs').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+  let q = db.from('saved_messages').select('*').eq('user_id', uid).order('created_at', { ascending: false });
+  if (convId) q = q.eq('conversation_id', convId);
+  const { data } = await q;
   return data || [];
 }
-async function addProgressLog(uid, username, momentType, note) {
+async function saveMessage(uid, convId, promptText, responseText) {
+  if (uid === DEMO_USER_ID) return null;
+  const { data } = await db.from('saved_messages').insert({ user_id: uid, conversation_id: convId, prompt_text: promptText, response_text: responseText, created_at: new Date().toISOString() }).select('id').single();
+  return data?.id ?? null;
+}
+async function unsaveMessage(uid, convId, responseText) {
   if (uid === DEMO_USER_ID) return;
-  await db.from('progress_logs').insert({ user_id: uid, username, moment_type: momentType, note, created_at: new Date().toISOString() });
+  await db.from('saved_messages').delete().eq('user_id', uid).eq('conversation_id', convId).eq('response_text', responseText);
+}
+async function unsaveMessageById(id) {
+  await db.from('saved_messages').delete().eq('id', id);
 }
 async function logUsage(uid, username, tokensEst) {
   if (uid === DEMO_USER_ID) return;
@@ -831,105 +841,60 @@ function ProfileDrawer({ user, onClose }) {
   );
 }
 
-// ── Progress Tab ──────────────────────────────────────────────────────────────
-function ProgressTab({ user, onClose }) {
-  const [logs, setLogs] = useState([]);
+// ── Saved Chats ──────────────────────────────────────────────────────────────
+function SavedChats({ user, onClose }) {
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showLog, setShowLog] = useState(false);
-  const [logType, setLogType] = useState("");
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [weeklyGoal, setWeeklyGoal] = useState("");
+  const [removingId, setRemovingId] = useState(null);
 
-  useEffect(() => {
-    async function load() {
-      const [l, p] = await Promise.all([getProgressLogs(user.id), getProfile(user.id)]);
-      setLogs(l);
-      setWeeklyGoal(p.weekly_goal || "");
-      setLoading(false);
-    }
-    load();
-  }, [user.id]);
-
-  async function saveLog() {
-    if (!logType) return;
-    setSaving(true);
-    await addProgressLog(user.id, user.username, logType, note);
-    const fresh = await getProgressLogs(user.id);
-    setLogs(fresh); setShowLog(false); setNote(""); setLogType(""); setSaving(false);
+  async function load() {
+    const data = await getSavedMessages(user.id);
+    setItems(data); setLoading(false);
   }
+  useEffect(() => { load(); }, [user.id]);
 
-  const momentIcons = { "held-firm": "💪", "gave-in-caught": "↩️", "kid-win": "⭐", "free-write": "📝" };
-  const momentLabels = { "held-firm": "Held firm", "gave-in-caught": "Gave in — caught myself", "kid-win": "Kid had a win", "free-write": "Free write" };
-  const heldCount = logs.filter(l => l.moment_type === "held-firm").length;
-  const winCount = logs.filter(l => l.moment_type === "kid-win").length;
+  async function remove(id) {
+    setRemovingId(id);
+    await unsaveMessageById(id);
+    setItems(prev => prev.filter(i => i.id !== id));
+    setRemovingId(null);
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "linear-gradient(145deg,#fdf6f0,#fce8d8 40%,#f5e6f0)", zIndex: 60, overflowY: "auto", fontFamily: "Georgia,serif" }}>
-      <div style={{ maxWidth: 680, margin: "0 auto", padding: "20px 16px" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "22px" }}>
           <button onClick={onClose} style={{ background: "rgba(200,120,90,0.1)", border: "none", cursor: "pointer", width: 36, height: 36, borderRadius: "50%", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>←</button>
-          <h1 style={{ color: "#4a2820", fontSize: "20px", fontWeight: "700", margin: 0 }}>My Progress</h1>
+          <h1 style={{ color: "#4a2820", fontSize: "20px", fontWeight: "700", margin: 0 }}>Saved Chats</h1>
+          <span style={{ marginLeft: "auto", fontSize: "12px", color: "#9a7060" }}>{items.length} saved</span>
         </div>
 
-        {weeklyGoal && (
-          <div style={{ background: "rgba(255,255,255,0.85)", border: "1.5px solid rgba(200,120,90,0.2)", borderRadius: "16px", padding: "16px 18px", marginBottom: "16px" }}>
-            <div style={{ fontSize: "12px", color: "#9a7060", fontWeight: "600", marginBottom: "6px" }}>THIS WEEK'S GOAL</div>
-            <div style={{ fontSize: "14px", color: "#4a2820", lineHeight: 1.6 }}>{weeklyGoal}</div>
+        {loading ? <div style={{ color: "#c9697a", textAlign: "center", padding: "32px" }}>Loading…</div>
+        : items.length === 0 ? (
+          <div style={{ background: "rgba(255,255,255,0.7)", borderRadius: "14px", padding: "32px 24px", textAlign: "center", color: "#9a7060", fontSize: "14px", lineHeight: 1.7 }}>
+            Nothing saved yet.<br />
+            <span style={{ fontSize: "13px", color: "#b89080" }}>Tap the bookmark icon on a coach reply to keep it here for later.</span>
           </div>
-        )}
-
-        {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "10px", marginBottom: "20px" }}>
-          {[["Total logged", logs.length, "#c9697a"], ["Held firm", heldCount, "#3a8a50"], ["Kid wins", winCount, "#e8937a"]].map(([label, val, color]) => (
-            <div key={label} style={{ background: "rgba(255,255,255,0.82)", borderRadius: "14px", padding: "14px", textAlign: "center", border: "1px solid rgba(200,120,90,0.12)" }}>
-              <div style={{ fontSize: "24px", fontWeight: "700", color }}>{val}</div>
-              <div style={{ fontSize: "12px", color: "#9a7060", marginTop: "3px" }}>{label}</div>
+        ) : items.map(item => (
+          <div key={item.id} style={{ background: "rgba(255,255,255,0.88)", borderRadius: "16px", padding: "18px 20px", marginBottom: "12px", border: "1px solid rgba(200,120,90,0.12)", boxShadow: "0 2px 10px rgba(150,80,60,0.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+              <span style={{ fontSize: "11px", color: "#b89080", fontWeight: "600", letterSpacing: "0.5px", textTransform: "uppercase" }}>Saved {new Date(item.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+              <button onClick={() => remove(item.id)} disabled={removingId === item.id} title="Remove from saved" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#b89080", fontSize: "13px", padding: "2px 6px", borderRadius: "6px" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(220,80,80,0.08)"}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                {removingId === item.id ? "…" : "Remove"}
+              </button>
             </div>
-          ))}
-        </div>
-
-        {/* Log moment buttons */}
-        <div style={{ background: "rgba(255,255,255,0.82)", borderRadius: "16px", padding: "18px", marginBottom: "20px", border: "1px solid rgba(200,120,90,0.12)" }}>
-          <div style={{ fontSize: "14px", fontWeight: "700", color: "#4a2820", marginBottom: "12px" }}>Log a moment</div>
-          {!showLog ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "8px" }}>
-              {Object.entries(momentLabels).map(([type, label]) => (
-                <button key={type} onClick={() => { setLogType(type); setShowLog(true); }} style={{ padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.2)", background: "rgba(255,255,255,0.7)", cursor: "pointer", fontFamily: "inherit", fontSize: "13px", color: "#7c4a3a", fontWeight: "600", textAlign: "left" }}>
-                  {momentIcons[type]} {label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: "13px", color: "#9a7060", marginBottom: "10px" }}>{momentIcons[logType]} {momentLabels[logType]}</div>
-              <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="What happened? What did you notice? (optional)"
-                rows={3} autoFocus style={{ width: "100%", padding: "11px 14px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.22)", background: "#fdfaf8", fontSize: "13px", fontFamily: "inherit", color: "#4a2820", outline: "none", resize: "none", lineHeight: 1.6, boxSizing: "border-box", marginBottom: "10px" }} />
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={() => { setShowLog(false); setLogType(""); setNote(""); }} style={{ flex: 1, padding: "10px", borderRadius: "12px", border: "1.5px solid rgba(200,120,90,0.2)", background: "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: "13px", color: "#9a7060" }}>Cancel</button>
-                <Btn onClick={saveLog} disabled={saving} style={{ flex: 2, background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", fontWeight: "700" }}>{saving ? "Saving…" : "Save Moment"}</Btn>
+            {item.prompt_text && (
+              <div style={{ background: "rgba(232,147,122,0.07)", borderLeft: "3px solid rgba(200,120,90,0.35)", borderRadius: "6px", padding: "8px 12px", marginBottom: "10px", fontSize: "12px", color: "#7c5040", fontStyle: "italic", lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+                You: {item.prompt_text}
               </div>
+            )}
+            <div style={{ fontSize: "14px", color: "#3a2818", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+              {item.response_text}
             </div>
-          )}
-        </div>
-
-        {/* Timeline */}
-        <div>
-          <div style={{ fontSize: "14px", fontWeight: "700", color: "#4a2820", marginBottom: "12px" }}>Timeline</div>
-          {loading ? <div style={{ color: "#c9697a", textAlign: "center", padding: "20px" }}>Loading…</div>
-          : logs.length === 0 ? (
-            <div style={{ background: "rgba(255,255,255,0.7)", borderRadius: "14px", padding: "28px", textAlign: "center", color: "#9a7060", fontSize: "14px" }}>No moments logged yet. Your first win is waiting.</div>
-          ) : logs.map((log, i) => (
-            <div key={log.id || i} style={{ background: "rgba(255,255,255,0.82)", borderRadius: "14px", padding: "14px 16px", marginBottom: "8px", border: "1px solid rgba(200,120,90,0.1)", display: "flex", gap: "12px", alignItems: "flex-start" }}>
-              <div style={{ fontSize: "18px", flexShrink: 0, marginTop: "1px" }}>{momentIcons[log.moment_type] || "📌"}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "12px", fontWeight: "700", color: "#c9697a", marginBottom: "3px" }}>{momentLabels[log.moment_type] || log.moment_type}</div>
-                {log.note && <div style={{ fontSize: "13px", color: "#5a3828", lineHeight: 1.6 }}>{log.note}</div>}
-                <div style={{ fontSize: "11px", color: "#b89080", marginTop: "5px" }}>{new Date(log.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1386,7 +1351,7 @@ function ClientChat({ user, onLogout }) {
   const [kb, setKb] = useState("");
   const [profile, setProfile] = useState({});
   const [showProfile, setShowProfile] = useState(false);
-  const [showProgress, setShowProgress] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
   const [showLearn, setShowLearn] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -1397,8 +1362,7 @@ function ClientChat({ user, onLogout }) {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [demoMsgCount, setDemoMsgCount] = useState(0);
-  const [logPromptExchanges, setLogPromptExchanges] = useState(0);
-  const [showLogPrompt, setShowLogPrompt] = useState(false);
+  const [savedSet, setSavedSet] = useState(new Set()); // response_text strings saved in current conversation
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelState, setCancelState] = useState("idle"); // "idle"|"confirming"|"loading"|"done"|"error"
   const [cancelAt, setCancelAt] = useState(null);
@@ -1456,6 +1420,16 @@ function ClientChat({ user, onLogout }) {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
+  // Load saved-message state for the active conversation so bookmark icons reflect DB
+  useEffect(() => {
+    if (isDemo || !activeConvId) { setSavedSet(new Set()); return; }
+    let cancelled = false;
+    getSavedMessages(user.id, activeConvId).then(saved => {
+      if (!cancelled) setSavedSet(new Set(saved.map(s => s.response_text)));
+    });
+    return () => { cancelled = true; };
+  }, [activeConvId, user.id, isDemo]);
+
   // Check whether to show the engagement survey (5 distinct days of user messages, never asked before)
   useEffect(() => {
     if (initializing || showTutorial || isDemo) return;
@@ -1495,7 +1469,7 @@ function ClientChat({ user, onLogout }) {
     setConversations(cs => [newConv, ...cs]);
     setActiveConvId(convId);
     setMessages([openingMsg]);
-    setLogPromptExchanges(0); setShowLogPrompt(false);
+    // (log-prompt removed)
   }
 
   async function switchConversation(convId) {
@@ -1503,7 +1477,7 @@ function ClientChat({ user, onLogout }) {
     setActiveConvId(convId);
     const msgs = await getMessages(user.id, convId);
     setMessages(msgs);
-    setLogPromptExchanges(0); setShowLogPrompt(false);
+    // (log-prompt removed)
   }
 
   function buildSystemPrompt() {
@@ -1563,11 +1537,6 @@ function ClientChat({ user, onLogout }) {
       // Usage tracking
       const tokensEst = Math.round((buildSystemPrompt().length + newMsgs.reduce((s, m) => s + m.content.length, 0) + reply.length) / 4);
       logUsage(user.id, user.username, tokensEst);
-
-      // Log prompt
-      const exchanges = Math.floor(finalMsgs.length / 2);
-      setLogPromptExchanges(exchanges);
-      if (exchanges === 3 && !showLogPrompt) setShowLogPrompt(true);
     } catch { setMessages([...newMsgs, { role: "assistant", content: "Connection error. Please try again." }]); }
     setLoading(false);
   }
@@ -1606,6 +1575,21 @@ function ClientChat({ user, onLogout }) {
     setFeedbackModal({ msgIndex, excerpt });
   }
 
+  async function handleToggleSave(msgIndex) {
+    if (isDemo) return;
+    const m = messages[msgIndex];
+    if (!m || m.role !== "assistant") return;
+    const responseText = m.content;
+    const promptText = msgIndex > 0 && messages[msgIndex - 1].role === "user" ? messages[msgIndex - 1].content : null;
+    if (savedSet.has(responseText)) {
+      setSavedSet(prev => { const next = new Set(prev); next.delete(responseText); return next; });
+      await unsaveMessage(user.id, activeConvId, responseText);
+    } else {
+      setSavedSet(prev => new Set(prev).add(responseText));
+      await saveMessage(user.id, activeConvId, promptText, responseText);
+    }
+  }
+
   async function submitFeedback(category, freeText) {
     if (!feedbackModal) return;
     setMsgFeedback(f => ({ ...f, [feedbackModal.msgIndex]: "down" }));
@@ -1617,7 +1601,7 @@ function ClientChat({ user, onLogout }) {
   const profileFilled = Object.values(profile).some(v => v?.trim());
   const BG = "linear-gradient(145deg,#fdf6f0 0%,#fce8d8 40%,#f5e6f0 100%)";
 
-  if (showProgress) return <ProgressTab user={user} onClose={() => setShowProgress(false)} />;
+  if (showSaved) return <SavedChats user={user} onClose={() => setShowSaved(false)} />;
   if (showLearn) return <LearnTab onClose={() => setShowLearn(false)} />;
 
   // Conversation picker — shown on login when past conversations exist
@@ -1673,7 +1657,7 @@ function ClientChat({ user, onLogout }) {
       </div>
       {[
         ["👤 My Profile", () => { setShowProfile(true); setShowMenu(false); }],
-        ["📈 Progress", () => { setShowProgress(true); setShowMenu(false); }],
+        ["🔖 Saved Chats", () => { setShowSaved(true); setShowMenu(false); }],
         ["📚 Learn", () => { setShowLearn(true); setShowMenu(false); }],
         hasMessages ? ["💾 Export Chat", () => { exportChat(); setShowMenu(false); }] : null,
         isDemo ? null : ["Cancel Subscription", () => { setShowCancelModal(true); setCancelState("confirming"); setCancelError(""); setShowMenu(false); }],
@@ -1850,6 +1834,14 @@ function ClientChat({ user, onLogout }) {
                     {[["👍", "up", handleFeedbackUp], ["👎", "down", handleFeedbackDown]].map(([icon, dir, handler]) => (
                       <button key={dir} onClick={() => handler(i)} style={{ padding: "3px 7px", borderRadius: "8px", border: `1px solid ${msgFeedback[i] === dir ? (dir === "up" ? "rgba(80,180,100,0.4)" : "rgba(220,80,80,0.3)") : "rgba(200,120,90,0.15)"}`, background: msgFeedback[i] === dir ? (dir === "up" ? "rgba(80,180,100,0.1)" : "rgba(220,80,80,0.08)") : "transparent", cursor: msgFeedback[i] ? "default" : "pointer", fontSize: "11px", opacity: msgFeedback[i] && msgFeedback[i] !== dir ? 0.3 : 1 }}>{icon}</button>
                     ))}
+                    {!isDemo && (() => {
+                      const isSaved = savedSet.has(m.content);
+                      return (
+                        <button onClick={() => handleToggleSave(i)} title={isSaved ? "Remove from Saved Chats" : "Save this reply"} style={{ padding: "3px 7px", borderRadius: "8px", border: `1px solid ${isSaved ? "rgba(200,120,90,0.4)" : "rgba(200,120,90,0.15)"}`, background: isSaved ? "rgba(232,147,122,0.15)" : "transparent", cursor: "pointer", fontSize: "11px", color: isSaved ? "#c9697a" : "#9a7060", fontWeight: isSaved ? "700" : "400" }}>
+                          {isSaved ? "🔖 Saved" : "🔖"}
+                        </button>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -1860,19 +1852,6 @@ function ClientChat({ user, onLogout }) {
               <img src="/spc-icon.png" alt="SPC" style={{ width: 28, height: 28, borderRadius: "50%", display: "block" }} />
               <div style={{ background: "rgba(255,255,255,0.88)", padding: "11px 15px", borderRadius: "4px 16px 16px 16px", boxShadow: "0 2px 10px rgba(150,80,60,0.08)", border: "1px solid rgba(200,120,90,0.1)" }}>
                 <div style={{ display: "flex", gap: "4px" }}>{[0,1,2].map(j => <div key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#e8937a", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${j*0.2}s` }} />)}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Log prompt after 3 exchanges */}
-          {showLogPrompt && !loading && hasMessages && (
-            <div style={{ background: "rgba(255,255,255,0.82)", border: "1.5px solid rgba(200,120,90,0.18)", borderRadius: "16px", padding: "14px 16px", animation: "fadeUp 0.3s ease" }}>
-              <div style={{ fontSize: "13px", color: "#7c4a3a", fontWeight: "600", marginBottom: "10px" }}>Want to log this moment?</div>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {[["held-firm", "Held firm"], ["gave-in-caught", "Gave in — caught myself"], ["kid-win", "Kid had a win"], ["free-write", "Free write"]].map(([type, label]) => (
-                  <button key={type} onClick={async () => { await addProgressLog(user.id, user.username, type, ""); setShowLogPrompt(false); }} style={{ padding: "7px 12px", borderRadius: "18px", border: "1.5px solid rgba(200,120,90,0.25)", background: "rgba(255,255,255,0.8)", cursor: "pointer", fontFamily: "inherit", fontSize: "12px", color: "#7c4a3a", fontWeight: "600" }}>{label}</button>
-                ))}
-                <button onClick={() => setShowLogPrompt(false)} style={{ padding: "7px 12px", borderRadius: "18px", border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: "12px", color: "#b89080" }}>Skip</button>
               </div>
             </div>
           )}
