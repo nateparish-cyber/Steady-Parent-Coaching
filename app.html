@@ -732,17 +732,29 @@ function Tutorial({ userId, sessionToken, onComplete }) {
 
 // ── Profile Drawer ────────────────────────────────────────────────────────────
 function ProfileDrawer({ user, onClose }) {
-  const EMPTY = { working_on: "", triggers: "", accommodations: "", notes: "", child_gender: "", child_age: "", focus_areas: "", weekly_goal: "" };
+  const EMPTY = { working_on: "", triggers: "", accommodations: "", notes: "", focus_areas: "", weekly_goal: "", children: [] };
   const [draft, setDraft] = useState(EMPTY);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getProfile(user.id).then(p => { setDraft({ ...EMPTY, ...p }); setLoading(false); });
+    getProfile(user.id).then(p => {
+      let children = Array.isArray(p.children) ? p.children : [];
+      // Client-side fallback in case an older profile only has legacy fields
+      if (children.length === 0 && (p.child_age || p.child_gender)) {
+        children = [{ name: "", age: p.child_age || "", gender: p.child_gender || "" }];
+      }
+      setDraft({ ...EMPTY, ...p, children });
+      setLoading(false);
+    });
   }, [user.id]);
 
   async function save() {
     const toSave = { ...draft };
+    // Normalize children: drop empty rows, trim strings
+    toSave.children = (draft.children || [])
+      .map(c => ({ name: (c.name || "").trim(), age: (c.age || "").trim(), gender: c.gender || "" }))
+      .filter(c => c.name || c.age || c.gender);
     if (toSave.weekly_goal !== (draft._origGoal || "")) toSave.weekly_goal_set_at = new Date().toISOString();
     await saveProfile(user.id, toSave);
     setSaved(true); setTimeout(() => setSaved(false), 2000);
@@ -754,9 +766,13 @@ function ProfileDrawer({ user, onClose }) {
     setDraft(d => ({ ...d, focus_areas: next.join(",") }));
   }
 
+  function addChild() { setDraft(d => ({ ...d, children: [...(d.children || []), { name: "", age: "", gender: "" }] })); }
+  function removeChild(idx) { setDraft(d => ({ ...d, children: (d.children || []).filter((_, i) => i !== idx) })); }
+  function updateChild(idx, patch) { setDraft(d => ({ ...d, children: (d.children || []).map((c, i) => i === idx ? { ...c, ...patch } : c) })); }
+
   const focusAreas = draft.focus_areas ? draft.focus_areas.split(",").map(s => s.trim()).filter(Boolean) : [];
-  const AGE_OPTIONS = ["Under 5", "5–8", "9–12", "13–17"];
   const FOCUS_OPTIONS = ["Anxiety", "ADHD", "Depression", "Parental regulation"];
+  const GENDER_OPTIONS = ["Boy", "Girl", "Non-binary", "Prefer not to say"];
   const textFields = [
     { key: "working_on", label: "What we're working on in therapy", placeholder: "e.g. reducing bedtime check-ins, getting to school independently…" },
     { key: "triggers", label: "Specific triggers or patterns", placeholder: "e.g. transitions, separation at drop-off, 'what if' questions…" },
@@ -781,25 +797,54 @@ function ProfileDrawer({ user, onClose }) {
                 The more you share here, the more personal and relevant the coaching will feel. This information is private to your account.
               </div>
 
-              {/* About Your Child */}
+              {/* About Your Kids (one or many) */}
               <div>
-                <div style={{ fontSize: "14px", fontWeight: "700", color: "#4a2820", marginBottom: "12px" }}>About Your Child</div>
-                <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "12px", color: "#7c4a3a", fontWeight: "600", marginBottom: "8px" }}>Gender</div>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {["Boy", "Girl", "Non-binary", "Prefer not to say"].map(g => (
-                      <button key={g} onClick={() => setDraft(d => ({ ...d, child_gender: d.child_gender === g ? "" : g }))} style={chipStyle(draft.child_gender === g, "#e8937a")}>{g}</button>
-                    ))}
+                <div style={{ fontSize: "14px", fontWeight: "700", color: "#4a2820", marginBottom: "10px" }}>About your kids</div>
+
+                {(draft.children || []).length === 0 && (
+                  <div style={{ background: "rgba(255,255,255,0.6)", border: "1.5px dashed rgba(200,120,90,0.3)", borderRadius: "12px", padding: "16px", textAlign: "center", fontSize: "13px", color: "#9a7060", marginBottom: "10px" }}>
+                    No kids added yet. Add at least one so the coaching can be more specific.
                   </div>
-                </div>
-                <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "12px", color: "#7c4a3a", fontWeight: "600", marginBottom: "8px" }}>Age</div>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {AGE_OPTIONS.map(a => (
-                      <button key={a} onClick={() => setDraft(d => ({ ...d, child_age: d.child_age === a ? "" : a }))} style={chipStyle(draft.child_age === a, "#c9697a")}>{a}</button>
-                    ))}
+                )}
+
+                {(draft.children || []).map((child, idx) => (
+                  <div key={idx} style={{ background: "rgba(255,255,255,0.88)", border: "1px solid rgba(200,120,90,0.18)", borderRadius: "14px", padding: "14px", marginBottom: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                      <div style={{ fontSize: "12px", color: "#9a7060", fontWeight: "700", letterSpacing: "0.5px", textTransform: "uppercase" }}>Child {idx + 1}</div>
+                      <button onClick={() => removeChild(idx)} title="Remove this child" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#b89080", fontSize: "16px", padding: "2px 6px", borderRadius: "6px" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "rgba(220,80,80,0.08)"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>×</button>
+                    </div>
+
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={{ fontSize: "12px", color: "#7c4a3a", fontWeight: "600", display: "block", marginBottom: "5px" }}>
+                        Name <span style={{ color: "#b89080", fontWeight: "400", fontStyle: "italic" }}>— optional, just to personalize the coaching</span>
+                      </label>
+                      <input value={child.name || ""} onChange={e => updateChild(idx, { name: e.target.value })} placeholder="(leave blank if you'd prefer)"
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.22)", background: "#fdfaf8", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", outline: "none", boxSizing: "border-box" }} />
+                    </div>
+
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={{ fontSize: "12px", color: "#7c4a3a", fontWeight: "600", display: "block", marginBottom: "5px" }}>Age</label>
+                      <input value={child.age || ""} onChange={e => updateChild(idx, { age: e.target.value })} placeholder="e.g. 7, almost 4, 11½"
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.22)", background: "#fdfaf8", fontSize: "14px", fontFamily: "inherit", color: "#4a2820", outline: "none", boxSizing: "border-box" }} />
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#7c4a3a", fontWeight: "600", marginBottom: "6px" }}>Gender</div>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {GENDER_OPTIONS.map(g => (
+                          <button key={g} onClick={() => updateChild(idx, { gender: child.gender === g ? "" : g })} style={chipStyle(child.gender === g, "#e8937a")}>{g}</button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
+
+                <button onClick={addChild} style={{ width: "100%", padding: "11px", borderRadius: "12px", border: "1.5px dashed rgba(200,120,90,0.4)", background: "rgba(255,255,255,0.5)", cursor: "pointer", fontFamily: "Georgia,serif", fontSize: "13px", color: "#7c4a3a", fontWeight: "600", marginBottom: "14px" }}>
+                  + Add {(draft.children || []).length === 0 ? "a child" : "another child"}
+                </button>
+
                 <div>
                   <div style={{ fontSize: "12px", color: "#7c4a3a", fontWeight: "600", marginBottom: "8px" }}>Focus areas (select all that apply)</div>
                   <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -1356,7 +1401,7 @@ function ClientChat({ user, onLogout }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showConvPicker, setShowConvPicker] = useState(false);
-  const [responseLength, setResponseLength] = useState("long"); // "long" | "short"
+  const [responseLength, setResponseLength] = useState("short"); // "long" | "short" — default short, with per-message Expand button for more detail
   const [feedbackModal, setFeedbackModal] = useState(null); // { msgIndex, excerpt }
   const [msgFeedback, setMsgFeedback] = useState({}); // msgIndex → "up"|"down"
   const [showTutorial, setShowTutorial] = useState(false);
@@ -1484,8 +1529,26 @@ function ClientChat({ user, onLogout }) {
     let base = `${SYSTEM_PROMPT}\n\nThe parent's name is ${user.name}. Address them by first name occasionally where it feels natural.`;
     const p = profile;
     const lines = [];
-    if (p.child_gender) lines.push(`Child's gender: ${p.child_gender}`);
-    if (p.child_age) lines.push(`Child's age range: ${p.child_age}`);
+
+    // Children — multiple kids supported, each with optional name + free-text age + optional gender
+    const kids = Array.isArray(p.children) ? p.children : [];
+    if (kids.length > 0) {
+      const desc = kids.map(c => {
+        const parts = [];
+        if (c.age && String(c.age).trim()) parts.push(`age ${String(c.age).trim()}`);
+        if (c.gender) parts.push(String(c.gender).toLowerCase());
+        const summary = parts.join(", ");
+        return c.name && c.name.trim()
+          ? `- ${c.name.trim()}${summary ? ` (${summary})` : ""}`
+          : `- ${summary || "child"}`;
+      }).join("\n");
+      lines.push(kids.length === 1 ? `Their child:\n${desc}` : `Their ${kids.length} children:\n${desc}`);
+    } else if (p.child_age || p.child_gender) {
+      // Legacy fallback for profiles that haven't migrated client-side yet
+      if (p.child_gender) lines.push(`Child's gender: ${p.child_gender}`);
+      if (p.child_age) lines.push(`Child's age range: ${p.child_age}`);
+    }
+
     if (p.focus_areas) lines.push(`Focus areas: ${p.focus_areas}`);
     if (p.working_on?.trim()) lines.push(`What they are currently working on in therapy: ${p.working_on.trim()}`);
     if (p.triggers?.trim()) lines.push(`Specific triggers or patterns: ${p.triggers.trim()}`);
@@ -1494,7 +1557,7 @@ function ClientChat({ user, onLogout }) {
     if (p.weekly_goal?.trim()) lines.push(`Their goal this week: ${p.weekly_goal.trim()}`);
     if (lines.length > 0) base += `\n\n---\n\n## Client Profile\n\n${lines.join("\n\n")}`;
     if (kb.trim()) base += `\n\n---\n\n## Therapist's Clinical Notes\n\n${kb}`;
-    if (responseLength === "short") base += `\n\n---\n\nRESPONSE LENGTH: The parent has requested short responses. Keep your reply concise — no more than 3–4 short paragraphs. Get to the heart of it quickly. You can still include a Script section if it's an action-mode response, but keep everything tight.`;
+    if (responseLength === "short") base += `\n\n---\n\nRESPONSE LENGTH: Keep your reply tight — usually one or two short paragraphs. Lead with what matters most. Skip preamble and meta-commentary. If a script is genuinely needed, include only the essential lines. The parent can ask you to expand for more detail.`;
     return base;
   }
 
@@ -1842,6 +1905,13 @@ function ClientChat({ user, onLogout }) {
                         </button>
                       );
                     })()}
+                    {i === messages.length - 1 && !loading && (
+                      <button onClick={() => sendMessage("Can you expand on that with more detail?")} title="Have the coach go deeper on this reply" style={{ padding: "3px 9px", borderRadius: "8px", border: "1px solid rgba(200,120,90,0.2)", background: "transparent", cursor: "pointer", fontSize: "11px", color: "#7c4a3a", fontWeight: "600" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "rgba(232,147,122,0.12)"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        Expand ↓
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
