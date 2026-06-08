@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Blog — Steady Parenting Coach</title>
+<meta name="description" content="Clinical thinking made practical, for parents navigating child anxiety, ADHD, and the accommodation cycle. Evidence-based posts from a licensed therapist." />
+<link rel="canonical" href="https://www.steadyparentingcoach.com/blog/" />
+
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Steady Parenting Coach Blog" />
+<meta property="og:description" content="Clinical thinking made practical, for parents navigating child anxiety, ADHD, and the accommodation cycle." />
+<meta property="og:url" content="https://www.steadyparentingcoach.com/blog/" />
+<meta property="og:image" content="https://www.steadyparentingcoach.com/spc-icon.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- Blog schema -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  "name": "Steady Parenting Coach Blog",
+  "url": "https://www.steadyparentingcoach.com/blog/",
+  "description": "Clinical thinking made practical, for parents navigating child anxiety, ADHD, and the accommodation cycle.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Steady Parenting Coach",
+    "url": "https://www.steadyparentingcoach.com/",
+    "logo": "https://www.steadyparentingcoach.com/spc-icon.png"
+  }
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script defer src="/_vercel/insights/script.js"></script>
+<style>
+  :root {
+    --clay:#e8937a; --rose:#c9697a; --bark:#4a2820; --warm:#7c4a3a;
+    --soft:#9a7060; --mute:#b89080; --cream:#fdf6f0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'DM Sans',system-ui,sans-serif;color:var(--bark);background:linear-gradient(160deg,#fdf6f0 0%,#fce8d8 50%,#f5e6f0 100%);min-height:100vh;line-height:1.6}
+  a{color:var(--rose);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  nav{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;max-width:1200px;margin:0 auto}
+  .nav-logo{display:flex;align-items:center;gap:10px;font-family:'Lora',serif;font-weight:700;font-size:18px;color:var(--bark)}
+  .nav-logo img{width:32px;height:32px;border-radius:50%}
+  .nav-actions{display:flex;gap:10px;align-items:center}
+  .nav-actions a{font-size:14px;font-weight:500;color:var(--warm);padding:8px 14px;border-radius:8px}
+  .nav-actions a.nav-cta{background:linear-gradient(135deg,var(--clay),var(--rose));color:#fff;font-weight:600}
+  .nav-actions a.nav-back{color:var(--soft)}
+
+  header.blog-header{max-width:760px;margin:0 auto;padding:40px 24px 24px;text-align:center}
+  header.blog-header h1{font-family:'Lora',serif;font-size:42px;font-weight:600;color:var(--bark);margin:0 0 12px;line-height:1.15;letter-spacing:-0.5px}
+  header.blog-header p.tagline{font-size:17px;color:var(--warm);margin:0 auto;max-width:560px;line-height:1.6}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:760px;margin:28px auto 0;padding:0 24px}
+  .filter{padding:7px 14px;border-radius:20px;border:1.5px solid rgba(200,120,90,0.22);background:rgba(255,255,255,0.7);color:var(--warm);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s}
+  .filter:hover{background:rgba(255,255,255,0.95)}
+  .filter.active{background:linear-gradient(135deg,var(--clay),var(--rose));color:#fff;border-color:transparent}
+
+  main{max-width:980px;margin:0 auto;padding:36px 24px 80px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+  article.post-card{background:rgba(255,255,255,0.88);border:1px solid rgba(200,120,90,0.15);border-radius:18px;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;display:flex;flex-direction:column}
+  article.post-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(150,80,60,0.12)}
+  article.post-card a.cover{display:block;aspect-ratio:16/9;background:linear-gradient(135deg,#fce8d8,#f5e6f0);position:relative;overflow:hidden}
+  article.post-card a.cover img{width:100%;height:100%;object-fit:cover;display:block}
+  article.post-card .body{padding:18px 20px 22px;flex:1;display:flex;flex-direction:column}
+  article.post-card .tags{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  article.post-card .tag{font-size:10.5px;font-weight:700;color:var(--rose);background:rgba(232,147,122,0.12);padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px}
+  article.post-card h2{font-family:'Lora',serif;font-size:20px;font-weight:600;color:var(--bark);margin:0 0 8px;line-height:1.3}
+  article.post-card h2 a{color:inherit;text-decoration:none}
+  article.post-card h2 a:hover{color:var(--rose)}
+  article.post-card p.excerpt{font-size:14px;color:var(--warm);margin:0 0 14px;line-height:1.55;flex:1}
+  article.post-card .meta{font-size:12px;color:var(--mute);font-weight:500}
+
+  footer{text-align:center;padding:40px 24px;color:var(--mute);font-size:13px;border-top:1px solid rgba(200,120,90,0.12);max-width:1200px;margin:0 auto}
+  footer a{color:var(--soft);margin:0 10px}
+
+  @media(max-width:600px){
+    nav{padding:14px 18px}
+    header.blog-header h1{font-size:32px}
+    header.blog-header p.tagline{font-size:15px}
+    main{padding:24px 18px 60px}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/">
+    <img src="/spc-icon.png" alt="SPC" />
+    Steady Parenting Coach
+  </a>
+  <div class="nav-actions">
+    <a href="/" class="nav-back">← Home</a>
+    <a href="/app" class="nav-cta">Try the app</a>
+  </div>
+</nav>
+
+<header class="blog-header">
+  <h1>Insights for parents navigating anxiety, ADHD, and the in-between</h1>
+  <p class="tagline">Clinical thinking made practical. Short reads from a licensed therapist, written for the parents I work with — and the ones I haven't met yet.</p>
+</header>
+
+<div class="filters" role="tablist" aria-label="Filter posts by topic">
+  <button class="filter active" data-filter="all">All posts</button>
+  <button class="filter" data-filter="anxiety">Child anxiety</button>
+  <button class="filter" data-filter="adhd">ADHD parenting</button>
+  <button class="filter" data-filter="accommodation">Accommodation &amp; SPACE</button>
+</div>
+
+<!--
+  POST LIST
+  To publish a new post:
+    1. Create /blog/<slug>.html (copy welcome.html as a template)
+    2. Add a new <article class="post-card"> block at the TOP of this list
+    3. Add a <url> entry to /sitemap.xml
+  Tags on the card determine which filter chip shows it. Use any combination of:
+    data-tags="anxiety adhd accommodation"
+-->
+<main id="posts">
+
+  <article class="post-card" data-tags="anxiety adhd accommodation">
+    <a class="cover" href="/blog/welcome" aria-label="Welcome to the Steady Parenting Coach blog">
+      <!-- Replace with: <img src="/blog/images/welcome.png" alt="..." /> -->
+    </a>
+    <div class="body">
+      <div class="tags">
+        <span class="tag">Welcome</span>
+      </div>
+      <h2><a href="/blog/welcome">Welcome to the Steady Parenting Coach blog</a></h2>
+      <p class="excerpt">What this blog is for, who it's for, and the three threads we'll keep coming back to: child anxiety, parenting a child with ADHD, and the accommodation cycle that keeps families stuck.</p>
+      <div class="meta">By Nate Parish, LMFT</div>
+    </div>
+  </article>
+
+</main>
+
+<footer>
+  <div style="margin-bottom:10px">
+    <a href="/">Home</a> · <a href="/app">App</a> · <a href="/blog/">Blog</a> · <a href="mailto:nate.parish@gmail.com">Contact</a>
+  </div>
+  <div>© Steady Parenting Coach. Educational content only — not therapy, not crisis support.</div>
+</footer>
+
+<script>
+  // Tiny client-side filter — purely progressive. SEO is unaffected because
+  // all post cards are rendered statically in HTML; this just hides the ones
+  // that don't match the active topic.
+  const filters = document.querySelectorAll('.filter');
+  const posts = document.querySelectorAll('#posts .post-card');
+  filters.forEach(btn => btn.addEventListener('click', () => {
+    filters.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    posts.forEach(p => {
+      const tags = (p.dataset.tags || '').split(/\s+/);
+      p.style.display = (f === 'all' || tags.includes(f)) ? '' : 'none';
+    });
+  }));
+</script>
+
+</body>
+</html>

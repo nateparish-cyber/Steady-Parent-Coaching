@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║  POST TEMPLATE                                                           ║
+  ║                                                                          ║
+  ║  When writing a new post:                                                ║
+  ║   1.  Save as /blog/<slug>.html (e.g. /blog/school-refusal-mornings.html)║
+  ║   2.  Update everything inside [SQUARE BRACKETS] below                   ║
+  ║   3.  Drop the cover image into /blog/images/ and update the <img src>   ║
+  ║   4.  Add a card to /blog/index.html and a <url> to /sitemap.xml         ║
+  ║                                                                          ║
+  ║  Tagging — use one or more of: anxiety, adhd, accommodation              ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- [SEO essentials — tune these per post] -->
+<title>Welcome to the Steady Parenting Coach blog — Steady Parenting Coach</title>
+<meta name="description" content="What this blog is for, who it's for, and the three threads we'll keep coming back to: child anxiety, parenting a child with ADHD, and the accommodation cycle." />
+<link rel="canonical" href="https://www.steadyparentingcoach.com/blog/welcome" />
+
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Welcome to the Steady Parenting Coach blog" />
+<meta property="og:description" content="What this blog is for, who it's for, and the three threads we'll keep coming back to." />
+<meta property="og:url" content="https://www.steadyparentingcoach.com/blog/welcome" />
+<meta property="og:image" content="https://www.steadyparentingcoach.com/spc-icon.png" />
+<meta property="article:published_time" content="2026-05-27" />
+<meta property="article:author" content="Nate Parish, LMFT" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- Article schema -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Welcome to the Steady Parenting Coach blog",
+  "description": "What this blog is for, who it's for, and the three threads we'll keep coming back to.",
+  "image": "https://www.steadyparentingcoach.com/spc-icon.png",
+  "datePublished": "2026-05-27",
+  "author": { "@type": "Person", "name": "Nate Parish", "jobTitle": "Licensed Marriage and Family Therapist" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Steady Parenting Coach",
+    "logo": { "@type": "ImageObject", "url": "https://www.steadyparentingcoach.com/spc-icon.png" }
+  },
+  "mainEntityOfPage": "https://www.steadyparentingcoach.com/blog/welcome"
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script defer src="/_vercel/insights/script.js"></script>
+<style>
+  :root { --clay:#e8937a; --rose:#c9697a; --bark:#4a2820; --warm:#7c4a3a; --soft:#9a7060; --mute:#b89080; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'DM Sans',system-ui,sans-serif;color:var(--bark);background:linear-gradient(160deg,#fdf6f0 0%,#fce8d8 50%,#f5e6f0 100%);min-height:100vh;line-height:1.7}
+  a{color:var(--rose)}
+
+  nav{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;max-width:1200px;margin:0 auto}
+  .nav-logo{display:flex;align-items:center;gap:10px;font-family:'Lora',serif;font-weight:700;font-size:18px;color:var(--bark);text-decoration:none}
+  .nav-logo img{width:32px;height:32px;border-radius:50%}
+  .nav-actions{display:flex;gap:10px;align-items:center}
+  .nav-actions a{font-size:14px;font-weight:500;color:var(--warm);padding:8px 14px;border-radius:8px;text-decoration:none}
+  .nav-actions a.nav-cta{background:linear-gradient(135deg,var(--clay),var(--rose));color:#fff;font-weight:600}
+
+  .breadcrumb{max-width:720px;margin:18px auto 0;padding:0 24px;font-size:13px;color:var(--soft)}
+  .breadcrumb a{color:var(--soft);text-decoration:none}
+  .breadcrumb a:hover{text-decoration:underline}
+
+  article{max-width:720px;margin:0 auto;padding:24px 24px 60px}
+  .post-tags{display:flex;gap:6px;margin:6px 0 14px}
+  .post-tags .tag{font-size:11px;font-weight:700;color:var(--rose);background:rgba(232,147,122,0.12);padding:3px 9px;border-radius:6px;text-transform:uppercase;letter-spacing:0.5px}
+  article h1{font-family:'Lora',serif;font-size:40px;font-weight:600;line-height:1.18;color:var(--bark);margin:6px 0 14px;letter-spacing:-0.5px}
+  article .lede{font-size:18px;color:var(--warm);line-height:1.6;margin:0 0 22px}
+  article .byline{display:flex;align-items:center;gap:10px;margin-bottom:28px;padding-bottom:22px;border-bottom:1px solid rgba(200,120,90,0.18);font-size:13px;color:var(--soft)}
+  article .byline img{width:36px;height:36px;border-radius:50%}
+  article .byline strong{color:var(--bark);font-weight:600}
+
+  article .cover{width:100%;aspect-ratio:16/9;border-radius:14px;background:linear-gradient(135deg,#fce8d8,#f5e6f0);margin-bottom:28px;overflow:hidden}
+  article .cover img{width:100%;height:100%;object-fit:cover;display:block}
+
+  article p,article ul,article ol{font-size:17px;line-height:1.75;color:#3a2818;margin:0 0 18px}
+  article h2{font-family:'Lora',serif;font-size:26px;font-weight:600;color:var(--bark);margin:34px 0 12px;letter-spacing:-0.3px}
+  article h3{font-family:'Lora',serif;font-size:20px;font-weight:600;color:var(--bark);margin:24px 0 10px}
+  article ul,article ol{padding-left:22px}
+  article li{margin:6px 0}
+  article blockquote{border-left:3px solid var(--clay);background:rgba(232,147,122,0.07);padding:14px 18px;margin:22px 0;font-style:italic;color:var(--warm);border-radius:0 8px 8px 0}
+  article strong{color:var(--bark)}
+
+  .cta-card{margin:40px 0 0;padding:24px 26px;background:rgba(255,255,255,0.85);border:1px solid rgba(200,120,90,0.2);border-radius:16px;text-align:center}
+  .cta-card h3{font-family:'Lora',serif;font-size:20px;color:var(--bark);margin:0 0 8px}
+  .cta-card p{font-size:14px;color:var(--warm);margin:0 0 16px}
+  .cta-card a{display:inline-block;background:linear-gradient(135deg,var(--clay),var(--rose));color:#fff;padding:11px 22px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px}
+
+  footer{text-align:center;padding:40px 24px;color:var(--mute);font-size:13px;border-top:1px solid rgba(200,120,90,0.12);max-width:1200px;margin:0 auto}
+  footer a{color:var(--soft);margin:0 10px;text-decoration:none}
+
+  @media(max-width:600px){
+    nav{padding:14px 18px}
+    article{padding:18px 20px 50px}
+    article h1{font-size:30px}
+    article .lede{font-size:16px}
+    article p,article ul,article ol{font-size:16px}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/">
+    <img src="/spc-icon.png" alt="SPC" />
+    Steady Parenting Coach
+  </a>
+  <div class="nav-actions">
+    <a href="/blog/">← All posts</a>
+    <a href="/app" class="nav-cta">Try the app</a>
+  </div>
+</nav>
+
+<div class="breadcrumb">
+  <a href="/">Home</a> · <a href="/blog/">Blog</a> · Welcome
+</div>
+
+<article>
+  <div class="post-tags">
+    <span class="tag">Welcome</span>
+  </div>
+  <h1>Welcome to the Steady Parenting Coach blog</h1>
+  <p class="lede">This is for parents who've read the books, listened to the podcasts, and still find themselves stuck at 8 p.m. wondering why nothing's working. The clinical version of what's actually going on — and what to do about it.</p>
+
+  <div class="byline">
+    <img src="/spc-icon.png" alt="" />
+    <div>By <strong>Nate Parish, LMFT</strong> · May 2026</div>
+  </div>
+
+  <div class="cover">
+    <!-- When you have the cover image, replace this div with:
+         <img src="/blog/images/welcome.png" alt="..." />
+    -->
+  </div>
+
+  <p>If you've ended up here, you probably already know more about parenting than the average person on the playground. You've read the books. You've taken the courses. You can recite the principles. And yet — most evenings, something in the actual moment doesn't quite line up with what you're supposed to do.</p>
+
+  <p>That gap between knowing and doing is what this blog is about.</p>
+
+  <h2>Who this is for</h2>
+  <p>Parents of children who run hot — anxious, ADHD, intense, sensitive, all of the above. Parents whose kids don't fit the standard advice, or who do fit it and still need something more. Parents who'd see a clinician every other week if it were realistic, and are settling for the next best thing.</p>
+
+  <p>It's not for crisis. It's not therapy. It's the kind of thinking I do with parents in session, written down so you can read it at 10 p.m. when the actual hard part is happening.</p>
+
+  <h2>Three threads we'll keep coming back to</h2>
+
+  <h3>1. Child anxiety</h3>
+  <p>The mechanics of how anxiety works in a developing brain. Why reassurance doesn't help the way you'd expect. Why your kid's worry stays loud even when the threat is gone. How to tell the difference between healthy nerves and a clinical pattern. What "exposure" actually means when your child is the one being exposed.</p>
+
+  <h3>2. Parenting a child with ADHD</h3>
+  <p>The executive function side, the emotional regulation side, the rejection sensitivity side. Why traditional consequences land sideways. The difference between "won't" and "can't" and how to tell them apart in real time. What scaffolding looks like at different ages. Why your child's ADHD changes your parenting load — and what to do about it.</p>
+
+  <h3>3. The accommodation cycle</h3>
+  <p>The most-overlooked driver of stuck patterns. Parents accommodate because it's loving — answering the same worried question, sleeping in the room, driving the long way around the thing that's scary. Each accommodation is small, and each one teaches the nervous system that the threat is real. The cycle is hard to see while you're in it. We'll spend a lot of time here, including the <strong>SPACE</strong> framework that's the backbone of how I work with families.</p>
+
+  <h2>What this is not</h2>
+  <ul>
+    <li><strong>Not personal advice.</strong> Every kid and family is different. The point is to give you better mental models, not prescriptions.</li>
+    <li><strong>Not a replacement for treatment.</strong> If your child is in real distress, a clinician who knows them is the right answer.</li>
+    <li><strong>Not a place for crisis support.</strong> If you or your child is in immediate danger, call 911. For mental-health crisis, 988.</li>
+  </ul>
+
+  <h2>How often, and what to expect</h2>
+  <p>Short posts, mostly under 1,200 words. Plain language with the clinical reasoning underneath. New posts when I have something useful to say, not on a schedule. If you want them in your inbox, that'll come soon — for now, bookmark <a href="/blog/">the blog index</a>.</p>
+
+  <p>Thanks for being here.</p>
+
+  <div class="cta-card">
+    <h3>Want the coaching version, not just the reading version?</h3>
+    <p>Steady Parenting Coach is an AI tool built on the same clinical model. Free for 7 days, no card required.</p>
+    <a href="/app">Try the app →</a>
+  </div>
+</article>
+
+<footer>
+  <div style="margin-bottom:10px">
+    <a href="/">Home</a> · <a href="/app">App</a> · <a href="/blog/">Blog</a> · <a href="mailto:nate.parish@gmail.com">Contact</a>
+  </div>
+  <div>© Steady Parenting Coach. Educational content only — not therapy, not crisis support.</div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Don't index API routes
+Disallow: /api/
+
+Sitemap: https://www.steadyparentingcoach.com/sitemap.xml

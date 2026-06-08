@@ -5,6 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Steady Parenting Coach — Parenting Support for Anxious Kids</title>
 <meta name="description" content="AI-powered coaching for parents of anxious children. Evidence-based guidance grounded in the SPACE model — available at 10pm when you need it most. Start your 7-day free trial." />
+<link rel="canonical" href="https://www.steadyparentingcoach.com/" />
+
+<!-- Open Graph / Twitter -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Steady Parenting Coach — Parenting Support for Anxious Kids" />
+<meta property="og:description" content="Clinical-quality parenting coaching for parents of anxious children — available at 10pm when it's actually happening." />
+<meta property="og:url" content="https://www.steadyparentingcoach.com/" />
+<meta property="og:image" content="https://www.steadyparentingcoach.com/spc-icon.png" />
+<meta name="twitter:card" content="summary_large_image" />
+
+<!-- Organization schema -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Steady Parenting Coach",
+  "url": "https://www.steadyparentingcoach.com/",
+  "logo": "https://www.steadyparentingcoach.com/spc-icon.png",
+  "description": "AI-powered parenting coaching for parents of anxious and ADHD children, grounded in the SPACE framework and built by a licensed therapist.",
+  "founder": { "@type": "Person", "name": "Nate Parish", "jobTitle": "Licensed Marriage and Family Therapist" },
+  "email": "nate.parish@gmail.com",
+  "sameAs": []
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script defer src="/_vercel/insights/script.js"></script>
@@ -409,6 +434,27 @@
     background: radial-gradient(circle, rgba(201,105,122,0.2) 0%, transparent 70%);
   }
   .cta-banner .section-title { color: #fff; margin: 0 auto 16px; position: relative; z-index: 1; }
+
+  /* BLOG FEATURE SECTION */
+  .blog-feature { max-width: 1100px; margin: 0 auto; padding: 80px 32px; }
+  .blog-feature .section-title { margin: 0 auto 16px; max-width: 760px; text-align: center; }
+  .blog-feature-sub { text-align: center; color: var(--warm, #7c4a3a); font-size: 17px; max-width: 580px; margin: 0 auto 44px; line-height: 1.6; }
+  .blog-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; max-width: 1000px; margin: 0 auto; }
+  .blog-feature-card { background: rgba(255,255,255,0.9); border: 1px solid rgba(200,120,90,0.15); border-radius: 18px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
+  .blog-feature-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(150,80,60,0.12); }
+  .blog-feature-cover { display: block; aspect-ratio: 16/9; background: linear-gradient(135deg, #fce8d8, #f5e6f0); }
+  .blog-feature-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .blog-feature-body { padding: 20px 22px 24px; flex: 1; display: flex; flex-direction: column; }
+  .blog-feature-tag { font-size: 11px; font-weight: 700; color: var(--rose, #c9697a); background: rgba(232,147,122,0.12); padding: 3px 9px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; align-self: flex-start; margin-bottom: 10px; }
+  .blog-feature-body h3 { font-family: 'Lora', serif; font-size: 22px; font-weight: 600; color: var(--bark, #4a2820); margin: 0 0 10px; line-height: 1.3; }
+  .blog-feature-body h3 a { color: inherit; text-decoration: none; }
+  .blog-feature-body h3 a:hover { color: var(--rose, #c9697a); }
+  .blog-feature-body p { font-size: 14.5px; color: var(--warm, #7c4a3a); margin: 0 0 14px; line-height: 1.55; flex: 1; }
+  .blog-feature-meta { font-size: 12px; color: var(--soft, #9a7060); font-weight: 500; }
+  @media (max-width: 600px) {
+    .blog-feature { padding: 50px 22px; }
+    .blog-feature-sub { font-size: 15px; margin-bottom: 28px; }
+  }
   .cta-banner-sub {
     font-size: 17px; color: rgba(255,255,255,0.75);
     line-height: 1.7; max-width: 500px; margin: 0 auto 40px;
@@ -460,6 +506,7 @@
     Steady Parenting Coach
   </div>
   <div class="nav-actions">
+    <a href="/blog/" class="nav-login">Blog</a>
     <a href="/app" class="nav-login">Log In</a>
     <a href="/app" class="nav-cta">Start Free Trial</a>
   </div>
@@ -689,6 +736,28 @@
       <span class="chip">Attachment Theory</span>
       <span class="chip">Whole-Brain Development</span>
     </div>
+  </div>
+</section>
+
+<!-- LATEST FROM THE BLOG -->
+<section class="section blog-feature">
+  <h2 class="section-title">Latest from the blog</h2>
+  <p class="blog-feature-sub">Clinical thinking made practical — short reads on child anxiety, ADHD, and the patterns that keep families stuck.</p>
+  <div class="blog-feature-grid">
+    <article class="blog-feature-card">
+      <a class="blog-feature-cover" href="/blog/welcome" aria-label="Welcome to the Steady Parenting Coach blog">
+        <!-- Replace with cover image when ready -->
+      </a>
+      <div class="blog-feature-body">
+        <div class="blog-feature-tag">Welcome</div>
+        <h3><a href="/blog/welcome">Welcome to the Steady Parenting Coach blog</a></h3>
+        <p>What this blog is for, who it's for, and the three threads we'll keep coming back to.</p>
+        <div class="blog-feature-meta">By Nate Parish, LMFT</div>
+      </div>
+    </article>
+  </div>
+  <div style="text-align:center;margin-top:36px">
+    <a href="/blog/" class="btn-ghost">See all posts →</a>
   </div>
 </section>
 
