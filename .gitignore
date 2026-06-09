@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+
+# Blog drafts — local only, never committed.
+# Write your drafts here as markdown. When ready, tell Claude to "publish blog drafts"
+# and the rendered HTML, sitemap entry, and index card all get generated.
+blog/drafts/
