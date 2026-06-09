@@ -1,10 +1,27 @@
 # Publishing a blog post
 
-## The fast path: markdown drafts
+## The fast path: drop a draft in `/blog/drafts/`
 
-1. **Create `/blog/drafts/<anything>.md`** — copy `/blog/TEMPLATE.md` as a starting point and fill in the frontmatter.
-2. **Write the post in markdown.** The body uses normal markdown syntax — headings, lists, **bold**, _italics_, [links](https://example.com), block quotes.
-3. **Ping Claude with "publish blog drafts"** (or paste the post in chat). Claude reads the file(s), renders the HTML, slots in all the SEO scaffolding (canonical URL, OG/Twitter cards, JSON-LD Article schema, byline, breadcrumb, end-of-post CTA), adds the card to `/blog/index.html`, adds the URL to `/sitemap.xml`, and commits + pushes.
+Two accepted draft formats — pick whichever feels easier:
+
+- **Markdown** (`.md`) — copy `/blog/TEMPLATE.md` as a starting point and fill in the YAML frontmatter at the top.
+- **Word doc** (`.docx`) — write the post in Word with a small SEO metadata block at the very top (target keyword, title tag, meta description, slug), then the post body. Claude parses both the metadata and the body when publishing.
+
+Either way:
+
+1. **Save the draft to `/blog/drafts/<anything>.md`** or `<anything>.docx`.
+2. **Ping Claude with "publish blog drafts"** (or paste the post in chat). Claude reads the file(s), renders the HTML, slots in all the SEO scaffolding (canonical URL, OG/Twitter cards, JSON-LD Article schema, byline, breadcrumb, end-of-post CTA), adds the card to `/blog/index.html`, adds the URL to `/sitemap.xml`, and commits + pushes.
+
+### Optional: distinct `<title>` and `<h1>`
+
+If you want the Google-results title to be shorter than the on-page H1 (good practice — Google cuts titles around 58 chars but H1s can be longer), provide both in the frontmatter:
+
+```yaml
+title: "Your long, descriptive on-page headline"   # becomes <h1>
+metaTitle: "Your short Google-results title"        # becomes <title>
+```
+
+If only `title` is provided, it's used for both.
 
 That's it. Drafts in `/blog/drafts/` are **gitignored** — they never end up in the repo or on the public site. Only the rendered HTML for the published version is committed.
 
