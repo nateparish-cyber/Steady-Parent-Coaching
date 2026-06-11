@@ -1,5 +1,5 @@
-const CACHE = 'spc-v17';
-const PRECACHE = ['/', '/index.html', '/icon.svg', '/manifest.json'];
+const CACHE = 'spc-v18';
+const PRECACHE = ['/', '/index.html', '/icon.svg', '/manifest.json', '/spc-icon.png', '/apple-touch-icon.png', '/icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));
