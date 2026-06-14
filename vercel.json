@@ -1,6 +1,14 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "steadyparentingcoach.com" }],
+      "destination": "https://www.steadyparentingcoach.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/app", "destination": "/app.html" },
     { "source": "/api/(.*)", "destination": "/api/$1" }
