@@ -1,4 +1,4 @@
-const CACHE = 'spc-v21';
+const CACHE = 'spc-v22';
 const PRECACHE = ['/', '/index.html', '/icon.svg', '/manifest.json', '/spc-icon.png', '/apple-touch-icon.png', '/icon-192.png'];
 
 self.addEventListener('install', e => {
