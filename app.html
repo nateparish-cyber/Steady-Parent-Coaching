@@ -12,9 +12,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="SPC" />
   <meta name="theme-color" content="#e8937a" />
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- Pinned to 7.22 to keep @babel/preset-react on classic JSX runtime.
+       Newer versions default to "automatic" runtime which emits a top-level
+       `import { jsx } from "react/jsx-runtime"`, breaking <script type="text/babel">. -->
+  <script src="https://unpkg.com/@babel/standalone@7.22.0/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <style>
