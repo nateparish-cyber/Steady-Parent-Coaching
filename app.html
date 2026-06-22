@@ -155,7 +155,42 @@ No scripts. No follow-up question. Nothing else.
 
 Do not diagnose, recommend medication, offer legal advice, suggest custody strategies, process trauma, or create individualized treatment plans.
 
-Every response — whatever mode it's in — moves toward less accommodation, more parental steadiness, more exposure, clearer limits, and greater consistency.`;
+Every response — whatever mode it's in — moves toward less accommodation, more parental steadiness, more exposure, clearer limits, and greater consistency.
+
+---
+
+## PROFILE BUILDING MODE
+
+When the parent says something like "help me build my child's profile," "help me set up [name]'s profile," "let's do an assessment," "fill out info about my kid," or any clear variation, you enter Profile Building Mode.
+
+- Ask **one question at a time**. Conversational, warm, curious — not a clinical interrogation. Acknowledge each answer briefly before moving to the next.
+- Cover these areas, adapting order and depth to what the parent is bringing:
+  1. The child: name (ask gently and let them decline if they prefer), age, gender if relevant, and a sentence about who they are as a kid — temperament, interests, anything that matters.
+  2. Focus areas: what brings them here for this child specifically right now (anxiety, ADHD, depression, parental regulation, or a combination).
+  3. Triggers and patterns: when does it tend to show up, what does it look like specifically, any daily or weekly rhythm.
+  4. Accommodation habits: what they're doing in response, what they suspect might be feeding the cycle, what's hardest not to do.
+  5. What they've tried and what has or hasn't helped.
+  6. One thing they want to work on this week.
+
+- After 6–10 exchanges (use judgment — aim for enough specificity to be useful without grinding), wrap with a short, warm closing message that acknowledges the parent and invites the next step.
+
+- **IMPORTANT**: Only when the assessment is complete, append a structured block at the very end of your final reply, on its own lines, with this exact format:
+
+{{PROFILE_UPDATE
+child_name: <name or blank>
+child_age: <age or blank>
+child_gender: <Boy | Girl | Non-binary | Prefer not to say | blank>
+focus_areas: <comma-separated subset of: Anxiety, ADHD, Depression, Parental regulation>
+working_on: <one or two sentences>
+triggers: <one or two sentences of specific triggers and patterns>
+accommodations: <one or two sentences naming the habits they're trying to reduce>
+notes: <anything else clinically useful, brief>
+weekly_goal: <if they named one, otherwise blank>
+}}
+
+- **Never** emit this block mid-assessment. Only once, in the final wrap-up reply. The block is parsed by the app and presented to the parent as a Save card — do not narrate it or comment on it in prose. If the parent didn't share a particular field, leave its value blank rather than guessing.
+
+- If the parent already mentioned a child by name earlier in the conversation, or has children already in their profile, use those existing names instead of re-asking.`;
 
 const SCENARIOS = [
   { label: "Bedtime battles", prompt: "My child is refusing to go to bed and keeps coming out of their room. What should I do?" },
@@ -392,6 +427,63 @@ async function getProfile(uid) {
 async function saveProfile(uid, p) {
   if (uid === DEMO_USER_ID) return;
   await db.from('profiles').upsert({ user_id: uid, ...p, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+}
+
+// Parses a {{PROFILE_UPDATE …}} block emitted by the AI at the end of an assessment.
+// Returns { data, stripped } — `data` is the parsed key/value map (or null if no block),
+// `stripped` is the original text with the block removed and trailing whitespace cleaned up.
+function parseProfileBlock(text) {
+  if (!text || typeof text !== "string") return { data: null, stripped: text };
+  const match = text.match(/\{\{PROFILE_UPDATE\s*([\s\S]*?)\}\}/);
+  if (!match) return { data: null, stripped: text };
+  const block = match[1];
+  const data = {};
+  for (const line of block.split("\n")) {
+    const m = line.match(/^\s*([a-z_]+)\s*:\s*(.*?)\s*$/i);
+    if (!m) continue;
+    const key = m[1].toLowerCase();
+    const val = (m[2] || "").trim();
+    if (val) data[key] = val;
+  }
+  const stripped = text.replace(match[0], "").replace(/\n{3,}/g, "\n\n").trim();
+  return { data: Object.keys(data).length ? data : null, stripped };
+}
+
+// Merge a parsed PROFILE_UPDATE block into an existing profile object.
+// Children are matched by case-insensitive name; matched entries are merged,
+// unmatched are appended. Profile-level fields overwrite when the AI provided
+// a non-empty value.
+function applyProfileUpdate(currentProfile, update) {
+  const next = { ...(currentProfile || {}) };
+  const childPatch = {};
+  if (update.child_name) childPatch.name = update.child_name;
+  if (update.child_age) childPatch.age = update.child_age;
+  if (update.child_gender) childPatch.gender = update.child_gender;
+
+  if (Object.keys(childPatch).length) {
+    const existing = Array.isArray(next.children) ? [...next.children] : [];
+    const targetName = (childPatch.name || "").toLowerCase().trim();
+    const idx = targetName
+      ? existing.findIndex(c => (c.name || "").toLowerCase().trim() === targetName)
+      : -1;
+    if (idx >= 0) existing[idx] = { ...existing[idx], ...childPatch };
+    else existing.push({ name: "", age: "", gender: "", ...childPatch });
+    next.children = existing;
+  }
+
+  if (update.focus_areas) next.focus_areas = update.focus_areas;
+  if (update.working_on) next.working_on = update.working_on;
+  if (update.triggers) next.triggers = update.triggers;
+  if (update.accommodations) next.accommodations = update.accommodations;
+  if (update.notes) {
+    const prior = (next.notes || "").trim();
+    next.notes = prior ? `${prior}\n\n${update.notes}` : update.notes;
+  }
+  if (update.weekly_goal) {
+    next.weekly_goal = update.weekly_goal;
+    next.weekly_goal_set_at = new Date().toISOString();
+  }
+  return next;
 }
 async function getKB() {
   try { const d = await apiGet("/api/admin?action=kb"); return d.content || ""; } catch { return ""; }
@@ -1396,6 +1488,54 @@ function SurveyModal({ user, onClose }) {
   );
 }
 
+// ── Profile Review Card (inline, shows after a Profile Building Mode reply) ──
+function ProfileReviewCard({ data, status, onSave, onSkip }) {
+  const rows = [
+    ["Child name", data.child_name],
+    ["Age", data.child_age],
+    ["Gender", data.child_gender],
+    ["Focus areas", data.focus_areas],
+    ["What we're working on", data.working_on],
+    ["Triggers & patterns", data.triggers],
+    ["Accommodation habits", data.accommodations],
+    ["Notes", data.notes],
+    ["This week's goal", data.weekly_goal],
+  ].filter(([_, v]) => v && String(v).trim());
+
+  const childLabel = data.child_name ? data.child_name + "'s" : "the";
+
+  if (status === "saved") {
+    return (
+      <div style={{ marginTop: "10px", padding: "12px 16px", borderRadius: "12px", background: "rgba(80,180,100,0.12)", border: "1px solid rgba(80,160,100,0.28)", fontSize: "13px", color: "#2a7a40" }}>
+        ✓ Saved to {childLabel} profile. You can edit anything in <strong>Profile</strong> in the hamburger menu.
+      </div>
+    );
+  }
+
+  if (status === "skipped") return null;
+
+  return (
+    <div style={{ marginTop: "10px", padding: "14px 16px 12px", borderRadius: "12px", background: "rgba(255,255,255,0.92)", border: "1px solid rgba(200,120,90,0.25)", boxShadow: "0 2px 10px rgba(150,80,60,0.06)" }}>
+      <div style={{ fontSize: "12px", fontWeight: "700", color: "#9a7060", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+        Save to {childLabel} profile?
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}>
+        {rows.map(([label, val]) => (
+          <div key={label} style={{ fontSize: "13px", lineHeight: 1.5, color: "#4a2820" }}>
+            <span style={{ color: "#9a7060", fontWeight: "600" }}>{label}: </span>{val}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button onClick={onSkip} disabled={status === "saving"} style={{ flex: 1, padding: "9px", borderRadius: "10px", border: "1.5px solid rgba(200,120,90,0.25)", background: "transparent", cursor: status === "saving" ? "default" : "pointer", fontFamily: "inherit", fontSize: "13px", color: "#9a7060", fontWeight: "600" }}>Skip</button>
+        <Btn onClick={onSave} disabled={status === "saving"} style={{ flex: 2, background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", fontSize: "13px", fontWeight: "700", borderRadius: "10px", padding: "9px" }}>
+          {status === "saving" ? "Saving…" : "Save to profile"}
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
 // ── Client Chat ───────────────────────────────────────────────────────────────
 function ClientChat({ user, onLogout }) {
   const isDemo = !!user.isDemo;
@@ -1420,6 +1560,9 @@ function ClientChat({ user, onLogout }) {
   const [showSurvey, setShowSurvey] = useState(false);
   const [demoMsgCount, setDemoMsgCount] = useState(0);
   const [savedSet, setSavedSet] = useState(new Set()); // response_text strings saved in current conversation
+  // For Profile Building Mode: { [messageIndex]: { data, status } } — status is "pending" | "saving" | "saved" | "skipped".
+  // Lives only in current session; not persisted (cards re-derive on the message they belong to).
+  const [profileBlocks, setProfileBlocks] = useState({});
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelState, setCancelState] = useState("idle"); // "idle"|"confirming"|"loading"|"done"|"error"
   const [cancelAt, setCancelAt] = useState(null);
@@ -1601,9 +1744,16 @@ function ClientChat({ user, onLogout }) {
       });
       const data = await res.json();
       const reply = data.content?.map(b => b.text || "").join("") || "Something went wrong. Please try again.";
-      const assistantMsg = { role: "assistant", content: reply };
+      // Profile Building Mode: if the AI emitted a {{PROFILE_UPDATE …}} block,
+      // strip it from what we display and store, and queue the inline review card.
+      const { data: profileData, stripped } = parseProfileBlock(reply);
+      const assistantMsg = { role: "assistant", content: stripped };
       const finalMsgs = [...newMsgs, assistantMsg];
       setMessages(finalMsgs);
+      if (profileData && !isDemo) {
+        const newAssistantIndex = finalMsgs.length - 1;
+        setProfileBlocks(prev => ({ ...prev, [newAssistantIndex]: { data: profileData, status: "pending" } }));
+      }
       await appendMessages(user.id, convId, [userMsg, assistantMsg]);
 
       // Update conversation preview
@@ -1663,6 +1813,23 @@ function ClientChat({ user, onLogout }) {
       setSavedSet(prev => new Set(prev).add(responseText));
       await saveMessage(user.id, activeConvId, promptText, responseText);
     }
+  }
+
+  async function handleSaveProfileUpdate(msgIndex, data) {
+    if (isDemo) return;
+    setProfileBlocks(prev => ({ ...prev, [msgIndex]: { ...prev[msgIndex], status: "saving" } }));
+    const nextProfile = applyProfileUpdate(profile, data);
+    try {
+      await saveProfile(user.id, nextProfile);
+      setProfile(nextProfile);
+      setProfileBlocks(prev => ({ ...prev, [msgIndex]: { ...prev[msgIndex], status: "saved" } }));
+    } catch {
+      setProfileBlocks(prev => ({ ...prev, [msgIndex]: { ...prev[msgIndex], status: "pending" } }));
+    }
+  }
+
+  function handleSkipProfileUpdate(msgIndex) {
+    setProfileBlocks(prev => ({ ...prev, [msgIndex]: { ...prev[msgIndex], status: "skipped" } }));
   }
 
   async function submitFeedback(category, freeText) {
@@ -1925,6 +2092,14 @@ function ClientChat({ user, onLogout }) {
                       </button>
                     )}
                   </div>
+                )}
+                {m.role === "assistant" && profileBlocks[i] && (
+                  <ProfileReviewCard
+                    data={profileBlocks[i].data}
+                    status={profileBlocks[i].status}
+                    onSave={() => handleSaveProfileUpdate(i, profileBlocks[i].data)}
+                    onSkip={() => handleSkipProfileUpdate(i)}
+                  />
                 )}
               </div>
             </div>
