@@ -698,11 +698,18 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
 
   async function submit() {
     setError(""); setBusy(true);
-    if (mode === "recover") {
+    if (mode === "forgot-password") {
+      const handle = email.trim().toLowerCase();
+      if (!handle) { setError("Please enter your email or username."); setBusy(false); return; }
+      try { await apiPost("/api/account", { action: "reset-password", handle }); setRecoverSent(true); }
+      catch { setRecoverSent(true); } // endpoint never leaks existence; treat any completion as success
+      setBusy(false); return;
+    }
+    if (mode === "forgot-username") {
       const em = email.trim().toLowerCase();
-      if (!em) { setError("Please enter your email address."); setBusy(false); return; }
-      try { await apiPost("/api/account", { action: "recover", email: em }); setRecoverSent(true); }
-      catch(e) { setError(e.message || "No account found with that email address."); }
+      if (!em || !em.includes("@")) { setError("Please enter the email you registered with."); setBusy(false); return; }
+      try { await apiPost("/api/account", { action: "recover-username", email: em }); setRecoverSent(true); }
+      catch { setRecoverSent(true); }
       setBusy(false); return;
     }
     if (mode === "login") {
@@ -743,40 +750,66 @@ function AuthScreen({ onLogin, onNeedsConsent }) {
           <h1 style={{ color: "#4a2820", fontSize: "22px", margin: "0 0 6px", fontWeight: "700" }}>Steady Parenting Coach</h1>
           <p style={{ color: "#9a7060", fontSize: "13px", margin: 0 }}>Parenting support, grounded in clinical practice</p>
         </div>
-        {mode !== "recover" && (
+        {(mode === "login" || mode === "register") && (
           <div style={{ display: "flex", background: "rgba(200,120,90,0.08)", borderRadius: "12px", padding: "4px", marginBottom: "22px" }}>
             {[["login", "Sign In"], ["register", "Create Account"]].map(([m, label]) => (
               <button key={m} onClick={() => { setMode(m); reset(); }} style={{ flex: 1, padding: "9px", borderRadius: "9px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "14px", fontWeight: "600", background: mode === m ? "#fff" : "transparent", color: mode === m ? "#c9697a" : "#9a7060", boxShadow: mode === m ? "0 2px 8px rgba(150,80,60,0.12)" : "none" }}>{label}</button>
             ))}
           </div>
         )}
-        {mode === "recover" && (
+        {(mode === "forgot-password" || mode === "forgot-username") && (
           <div style={{ marginBottom: "20px" }}>
-            <button onClick={() => { setMode("login"); reset(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontSize: "13px", fontFamily: "inherit", fontWeight: "600" }}>← Back to Sign In</button>
-            <h2 style={{ color: "#4a2820", fontSize: "18px", margin: "12px 0 6px", fontWeight: "700" }}>Account Recovery</h2>
-            <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.6 }}>Enter your registered email and we'll send your username and a temporary password.</p>
+            <button onClick={() => { setMode("login"); reset(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontSize: "13px", fontFamily: "inherit", fontWeight: "600", padding: 0 }}>← Back to Sign In</button>
+            <h2 style={{ color: "#4a2820", fontSize: "18px", margin: "12px 0 6px", fontWeight: "700" }}>
+              {mode === "forgot-password" ? "Reset your password" : "Find your username"}
+            </h2>
+            <p style={{ color: "#9a7060", fontSize: "13px", margin: 0, lineHeight: 1.6 }}>
+              {mode === "forgot-password"
+                ? "Enter your email or username and we'll send a new temporary password to your registered email."
+                : "Enter the email you registered with and we'll send your username."}
+            </p>
           </div>
         )}
         {recoverSent ? (
           <div style={{ textAlign: "center", padding: "16px 0" }}>
             <div style={{ fontSize: "36px", marginBottom: "10px" }}>📬</div>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "#4a2820", marginBottom: "8px" }}>Recovery email sent</div>
-            <p style={{ fontSize: "13px", color: "#9a7060", lineHeight: 1.65, margin: "0 0 20px" }}>Check your inbox for your username and a temporary password.</p>
+            <div style={{ fontSize: "15px", fontWeight: "700", color: "#4a2820", marginBottom: "8px" }}>
+              {mode === "forgot-password" ? "Check your email" : "Check your email"}
+            </div>
+            <p style={{ fontSize: "13px", color: "#9a7060", lineHeight: 1.65, margin: "0 0 8px" }}>
+              {mode === "forgot-password"
+                ? "If that account exists, we've sent a temporary password to the registered email. Use it to sign in and pick a new one from your profile."
+                : "If that email is registered, we've sent your username."}
+            </p>
+            <p style={{ fontSize: "12px", color: "#b89080", lineHeight: 1.6, margin: "0 0 20px", fontStyle: "italic" }}>
+              It can take a minute or two to arrive. Check your spam folder if you don't see it, and add <span style={{ color: "#7c4a3a" }}>noreply@steadyparentingcoach.com</span> to your contacts so future emails land in the inbox.
+            </p>
             <Btn onClick={() => { setMode("login"); reset(); }} style={{ background: "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff" }}>Back to Sign In</Btn>
           </div>
         ) : (
           <>
             {mode === "register" && <Input placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} onKeyDown={onKey} />}
             {mode === "register" && <Input type="email" placeholder="Your email address" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} />}
-            {mode === "recover" ? <Input type="email" placeholder="Email address you registered with" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} autoFocus /> : <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={onKey} />}
-            {mode !== "recover" && <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={onKey} />}
+            {mode === "forgot-password" && <Input placeholder="Email or username" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} autoFocus />}
+            {mode === "forgot-username" && <Input type="email" placeholder="Email address you registered with" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={onKey} autoFocus />}
+            {(mode === "login" || mode === "register") && <Input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={onKey} />}
+            {(mode === "login" || mode === "register") && <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={onKey} />}
             {mode === "register" && <Input type="password" placeholder="Confirm password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} onKeyDown={onKey} />}
             {error && <div style={{ background: "rgba(220,80,80,0.08)", border: "1px solid rgba(220,80,80,0.2)", borderRadius: "10px", padding: "10px 14px", color: "#c05060", fontSize: "13px", marginBottom: "14px" }}>{error}</div>}
             <Btn onClick={submit} disabled={busy} style={{ width: "100%", padding: "14px", background: busy ? "rgba(200,120,90,0.3)" : "linear-gradient(135deg,#e8937a,#c9697a)", color: "#fff", fontSize: "15px", fontWeight: "700", borderRadius: "14px" }}>
-              {busy ? "Please wait…" : mode === "login" ? "Sign In" : mode === "register" ? "Create Account →" : "Send Recovery Email"}
+              {busy ? "Please wait…"
+                : mode === "login" ? "Sign In"
+                : mode === "register" ? "Create Account →"
+                : mode === "forgot-password" ? "Send new password"
+                : "Send my username"}
             </Btn>
-            {mode === "login" && <p style={{ color: "#c9a090", fontSize: "12px", textAlign: "center", marginTop: "14px" }}><button onClick={() => { setMode("recover"); reset(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontWeight: "600", fontSize: "12px", fontFamily: "inherit", textDecoration: "underline" }}>Forgot your username or password?</button></p>}
-            <p style={{ color: "#b89080", fontSize: "11px", textAlign: "center", marginTop: "10px", lineHeight: 1.6 }}>This tool is not a replacement for therapy.</p>
+            {mode === "login" && (
+              <div style={{ display: "flex", justifyContent: "center", gap: "18px", marginTop: "14px" }}>
+                <button onClick={() => { setMode("forgot-password"); reset(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontWeight: "600", fontSize: "12px", fontFamily: "inherit", textDecoration: "underline", padding: 0 }}>I forgot my password</button>
+                <button onClick={() => { setMode("forgot-username"); reset(); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#c9697a", fontWeight: "600", fontSize: "12px", fontFamily: "inherit", textDecoration: "underline", padding: 0 }}>I forgot my username</button>
+              </div>
+            )}
+            <p style={{ color: "#b89080", fontSize: "11px", textAlign: "center", marginTop: "14px", lineHeight: 1.6 }}>This tool is not a replacement for therapy.</p>
           </>
         )}
       </div>
